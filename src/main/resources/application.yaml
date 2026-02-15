@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: tightening
+
+  profiles:
+    active: standalone  # 默认单机模式
+
+  # Web配置
+  web:
+    resources:
+      add-mappings: false
+
+  # 任务调度
+  task:
+    execution:
+      pool:
+        core-size: 5
+        max-size: 10
+        queue-capacity: 100
+
+# 服务器配置
+server:
+  port: 8080
+  tomcat:
+    threads:
+      max: 50
+      min-spare: 10
+    connection-timeout: 5000
+
+# Netty配置
+netty:
+  port: 8888
+  boss-thread-count: 1
+  worker-thread-count: 2
+  keep-alive: true
+  connect-timeout: 5000
+  max-connections: 100
+
+# 业务配置
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.torque: DEBUG
+    io.netty: WARN
+    org.apache.plc4x: WARN

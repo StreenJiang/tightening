@@ -1,0 +1,23 @@
+spring:
+  # SQLite数据库配置
+  datasource:
+    url: jdbc:sqlite:${user.home}/tightening_system/tightening.db
+    driver-class-name: org.sqlite.JDBC
+
+# SQLite专属优化
+sqlite:
+  pragma:
+    journal_mode: WAL          # 写入性能提升3-5倍
+    synchronous: NORMAL        # 平衡性能与安全
+    cache_size: 1000           # 4MB缓存
+    temp_store: MEMORY         # 临时表存内存
+    busy_timeout: 5000         # 5秒忙等待（解决锁库问题）
+
+# PLC配置
+
+# 资源监控
+monitoring:
+  enabled: true
+  interval: 60000  # 每分钟检查一次
+  memory-warning-threshold: 85  # 内存使用率85%告警
+  memory-critical-threshold: 95 # 内存使用率95%触发GC

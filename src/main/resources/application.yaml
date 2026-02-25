@@ -8,6 +8,20 @@ spring:
   datasource:
     url: jdbc:sqlite:${user.home}/tightening_system/tightening.db
     driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 10
+      # SQLite专属优化
+      #    journal_mode: WAL          # 写入性能提升3-5倍
+      #    synchronous: NORMAL        # 平衡性能与安全
+      #    cache_size: 1000           # 4MB缓存
+      #    temp_store: MEMORY         # 临时表存内存
+      #    busy_timeout: 5000         # 5秒忙等待（解决锁库问题）
+      connection-init-sql: |
+        PRAGMA journal_mode=WAL;
+        PRAGMA synchronous=NORMAL;
+        PRAGMA cache_size=1000;
+        PRAGMA temp_store=MEMORY;
+        PRAGMA busy_timeout=5000;
   # JPA
   jpa:
     hibernate:
@@ -51,14 +65,6 @@ mybatis-plus:
       logic-delete-field: deleted       # 逻辑删除字段名（可选）
       logic-not-delete-value: 0         # 未删除值
       logic-delete-value: 1             # 已删除值
-# SQLite专属优化
-sqlite:
-  pragma:
-    journal_mode: WAL          # 写入性能提升3-5倍
-    synchronous: NORMAL        # 平衡性能与安全
-    cache_size: 1000           # 4MB缓存
-    temp_store: MEMORY         # 临时表存内存
-    busy_timeout: 5000         # 5秒忙等待（解决锁库问题）
 
 # Netty配置
 netty:

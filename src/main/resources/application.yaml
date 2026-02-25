@@ -1,15 +1,26 @@
 spring:
   application:
     name: tightening
-
   profiles:
-    active: standalone  # 默认单机模式
+    active: dev  # 默认开发模式
 
+  # SQLite数据库配置
+  datasource:
+    url: jdbc:sqlite:${user.home}/tightening_system/tightening.db
+    driver-class-name: org.sqlite.JDBC
+  # JPA
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  # flyway
+  flyway:
+    enabled: true                       # 默认 true
+    baseline-on-migrate: true           # 对于已有数据库的项目，首次运行会创建 flyway_schema_history 表
+    locations: classpath:db/migration   # 默认路径，可以修改或增加
   # Web配置
   web:
     resources:
       add-mappings: false
-
   # 任务调度
   task:
     execution:
@@ -27,6 +38,28 @@ server:
       min-spare: 10
     connection-timeout: 5000
 
+# MyBatis-Plus 配置
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true  # 驼峰转换：device_id → deviceId
+    cache-enabled: false                # 禁用缓存（SQLite 不需要）
+    jdbc-type-for-null: 'NULL'          # 避免 SQLite NULL 问题
+  global-config:
+    db-config:
+      id-type: auto                     # 主键自增（对应 SQLite AUTOINCREMENT）
+      table-underline: true             # 表名下划线命名
+      logic-delete-field: deleted       # 逻辑删除字段名（可选）
+      logic-not-delete-value: 0         # 未删除值
+      logic-delete-value: 1             # 已删除值
+# SQLite专属优化
+sqlite:
+  pragma:
+    journal_mode: WAL          # 写入性能提升3-5倍
+    synchronous: NORMAL        # 平衡性能与安全
+    cache_size: 1000           # 4MB缓存
+    temp_store: MEMORY         # 临时表存内存
+    busy_timeout: 5000         # 5秒忙等待（解决锁库问题）
+
 # Netty配置
 netty:
   port: 8888
@@ -38,10 +71,20 @@ netty:
 
 # 业务配置
 
+# PLC配置
+
 # 日志配置
 logging:
   level:
     root: INFO
-    com.torque: DEBUG
+    com.tightening: DEBUG
     io.netty: WARN
     org.apache.plc4x: WARN
+    com.tightening.repository: DEBUG  # 显示 SQL 语句
+
+# 资源监控
+monitoring:
+  enabled: true
+  interval: 60000  # 每分钟检查一次
+  memory-warning-threshold: 85  # 内存使用率85%告警
+  memory-critical-threshold: 95 # 内存使用率95%触发GC

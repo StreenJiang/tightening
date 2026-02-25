@@ -33,7 +33,7 @@
 	<properties>
 		<java.version>17</java.version>
         <netty.version>4.1.129.Final</netty.version>
-        <mybatis-plus.version>3.5.6</mybatis-plus.version>
+        <mybatis-plus.version>3.5.9</mybatis-plus.version>
         <sqlite.version>3.49.1.0</sqlite.version>
         <plc4x.version>0.13.1</plc4x.version>
         <jserialcomm.version>2.10.2</jserialcomm.version>
@@ -57,7 +57,7 @@
         <!-- MyBatis-Plus -->
         <dependency>
             <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-boot-starter</artifactId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
             <version>${mybatis-plus.version}</version>
         </dependency>
 
@@ -66,6 +66,12 @@
             <groupId>org.xerial</groupId>
             <artifactId>sqlite-jdbc</artifactId>
             <version>${sqlite.version}</version>
+        </dependency>
+
+        <!-- flyway -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
         </dependency>
 
         <!-- PLC4X 核心 -->

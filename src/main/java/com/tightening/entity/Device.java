@@ -1,4 +1,5 @@
 package com.tightening.entity;
+
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -12,11 +13,9 @@ import lombok.experimental.Accessors;
 @EqualsAndHashCode(callSuper = true)
 @Accessors(chain = true)
 @TableName("user_account_info")
-public class UserAccountInfo extends BaseEntity {
-    private String staffId;
+public class Device extends BaseEntity {
     private String name;
-    private String position;
-    private String account;
-    private String password;
-    private String operationPassword;
+    private String description;
+    private Integer type;
+    private String detail;
 }

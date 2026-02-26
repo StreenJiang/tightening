@@ -10,10 +10,9 @@ CREATE TABLE "user_account_info" (
   "account" text(64) NOT NULL,
   "password" text(64),
   "operation_password" text(64),
-  "user_id" integer NOT NULL,
   "deleted" integer(1) NOT NULL DEFAULT 0,
-  "creator" text(128) NOT NULL,
-  "modifier" text(128) NOT NULL,
+  "creator_id" integer NOT NULL,
+  "modifier_id" integer NOT NULL,
   "create_time" text(64) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "modify_time" text(64) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

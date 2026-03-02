@@ -5,11 +5,11 @@ import com.tightening.constant.DeviceType;
 import com.tightening.device.event.DeviceChangeEvent;
 import com.tightening.device.handler.ADeviceHandler;
 import com.tightening.entity.Device;
-import org.springframework.beans.factory.DisposableBean;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Component
-public class DeviceManager implements DisposableBean {
+public class DeviceManager implements AutoCloseable {
     private final Map<Long, ADeviceHandler> deviceHandlers;
     private final ScheduledExecutorService scanScheduler;
     private final ExecutorService connectExecutor;
@@ -42,10 +42,10 @@ public class DeviceManager implements DisposableBean {
     }
 
     // 用户登录时调用
-    public void userLoggedIn() {
+    public void userLoggedIn(List<Device> devices) {
         if (activeUserCount.incrementAndGet() > 0) {
             // 重复调用无害，方法内部有判断 running
-            start();
+            start(devices);
         }
     }
 
@@ -56,16 +56,23 @@ public class DeviceManager implements DisposableBean {
         }
     }
 
-    private synchronized void start() {
+    private synchronized void start(List<Device> devices) {
+        if (!running)
+            return;
+
+        if (devices != null && !devices.isEmpty()) {
+            devices.forEach(d -> {
+                ADeviceHandler handler = DeviceType.getType(d.getType()).createHandler();
+                deviceHandlers.put(d.getId(), handler);
+            });
+        }
+
         running = true;
         // 使用 scheduleWithFixedDelay 确保扫描间隔从任务结束开始计算
         scanScheduler.scheduleWithFixedDelay(this::scanAndConnect, 0, 5, TimeUnit.SECONDS);
     }
 
     private void scanAndConnect() {
-        if (!running)
-            return;
-
         deviceHandlers.forEach((id, handler) -> {
             if (handler.getDeviceHolder().getStatus() == DeviceStatus.DISCONNECTED) {
                 connectExecutor.submit(() -> {
@@ -109,6 +116,7 @@ public class DeviceManager implements DisposableBean {
 
         // 断开所有设备连接（设备内部线程清理由设备自己负责）
         deviceHandlers.forEach((id, handler) -> handler.disconnect());
+        deviceHandlers.clear();
     }
 
     // 监听设备变更事件（使用 @TransactionalEventListener 确保事务提交后处理）
@@ -153,7 +161,7 @@ public class DeviceManager implements DisposableBean {
     }
 
     @Override
-    public void destroy() {
+    public void close() throws Exception {
         stop();
     }
 }

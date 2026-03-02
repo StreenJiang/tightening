@@ -20,5 +20,5 @@ CREATE TABLE "user_account_info" (
 -- ----------------------------
 -- Records of user_account_info
 -- ----------------------------
-INSERT INTO "user_account_info" ("staff_id", "name", "position", "account", "password", "operation_password", "user_id", "creator", "modifier") VALUES (-1, 'Developr', NULL, 'sys', '8BA05BCA959209F6CC8C4409C66E2CB5', '8BA05BCA959209F6CC8C4409C66E2CB5', -1, 'Developr', 'Developr');
-INSERT INTO "user_account_info" ("staff_id", "name", "position", "account", "password", "operation_password", "user_id", "creator", "modifier") VALUES (-2, 'Admin', NULL, 'admin', '21232F297A57A5A743894A0E4A801FC3', '21232F297A57A5A743894A0E4A801FC3', -1, 'Developr', 'Developr');
+INSERT INTO "user_account_info" ("staff_id", "name", "position", "account", "password", "operation_password", "creator_id", "modifier_id") VALUES (-1, 'Developr', NULL, 'sys', '8BA05BCA959209F6CC8C4409C66E2CB5', '8BA05BCA959209F6CC8C4409C66E2CB5', 1, 1);
+INSERT INTO "user_account_info" ("staff_id", "name", "position", "account", "password", "operation_password", "creator_id", "modifier_id") VALUES (-2, 'Admin', NULL, 'admin', '21232F297A57A5A743894A0E4A801FC3', '21232F297A57A5A743894A0E4A801FC3', 1, 1);

@@ -1,6 +1,6 @@
 package com.tightening.controller;
 
-import com.tightening.dto.response.UserAccountInfoDTO;
+import com.tightening.dto.UserAccountInfoDTO;
 import com.tightening.service.UserAccountInfoService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;

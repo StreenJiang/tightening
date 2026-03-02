@@ -1,9 +1,10 @@
 package com.tightening.service;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.tightening.dto.response.UserAccountInfoDTO;
+import com.tightening.dto.UserAccountInfoDTO;
 import com.tightening.entity.UserAccountInfo;
 import com.tightening.mapper.UserAccountInfoMapper;
+import com.tightening.util.Converter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -17,15 +18,7 @@ public class UserAccountInfoService extends ServiceImpl<UserAccountInfoMapper, U
 
     public List<UserAccountInfoDTO> getUserList() {
         List<UserAccountInfo> list = list();
-
-        List<UserAccountInfoDTO> result = new ArrayList<>();
-        list.forEach(user -> {
-            UserAccountInfoDTO userAccountInfoDTO = new UserAccountInfoDTO();
-            BeanUtils.copyProperties(user, userAccountInfoDTO);
-            result.add(userAccountInfoDTO);
-        });
-
-        return result;
+        return Converter.entity2Dto(list, UserAccountInfoDTO::new);
     }
 
     public UserAccountInfoDTO getUserById(Long id) {

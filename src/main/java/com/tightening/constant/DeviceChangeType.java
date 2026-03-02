@@ -1,5 +1,5 @@
 package com.tightening.constant;
 
-public enum DeviceEventType {
+public enum DeviceChangeType {
     ADD, UPDATE, DELETE
 }

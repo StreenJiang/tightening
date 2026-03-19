@@ -4,6 +4,7 @@ import com.tightening.constant.DeviceStatus;
 import com.tightening.constant.DeviceType;
 import com.tightening.device.event.DeviceChangeEvent;
 import com.tightening.device.handler.DeviceHandler;
+import com.tightening.device.handler.impl.TCPDeviceHandler;
 import com.tightening.entity.Device;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -138,6 +139,9 @@ public class DeviceManager implements AutoCloseable {
             return;
 
         DeviceHandler handler = DeviceType.getHandlerByTypeId(device.getType());
+        if (handler instanceof TCPDeviceHandler tcpDeviceHandler) {
+            tcpDeviceHandler.tryAddDeviceInfo(device);
+        }
         deviceHandlers.put(device.getId(), handler);
     }
 

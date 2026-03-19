@@ -12,7 +12,7 @@ import lombok.experimental.Accessors;
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
 @Accessors(chain = true)
-@TableName("user_account_info")
+@TableName("device")
 public class Device extends BaseEntity {
     private String name;
     private String description;

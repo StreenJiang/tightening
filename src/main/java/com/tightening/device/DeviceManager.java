@@ -3,7 +3,7 @@ package com.tightening.device;
 import com.tightening.constant.DeviceStatus;
 import com.tightening.constant.DeviceType;
 import com.tightening.device.event.DeviceChangeEvent;
-import com.tightening.device.handler.ADeviceHandler;
+import com.tightening.device.handler.DeviceHandler;
 import com.tightening.entity.Device;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @Component
 public class DeviceManager implements AutoCloseable {
-    private final Map<Long, ADeviceHandler> deviceHandlers;
+    private final Map<Long, DeviceHandler> deviceHandlers;
     private final ScheduledExecutorService scanScheduler;
     private final ExecutorService connectExecutor;
     private final AtomicInteger activeUserCount = new AtomicInteger(0);
@@ -57,14 +57,11 @@ public class DeviceManager implements AutoCloseable {
     }
 
     private synchronized void start(List<Device> devices) {
-        if (!running)
+        if (running)
             return;
 
         if (devices != null && !devices.isEmpty()) {
-            devices.forEach(d -> {
-                ADeviceHandler handler = DeviceType.getType(d.getType()).createHandler();
-                deviceHandlers.put(d.getId(), handler);
-            });
+            devices.forEach(this::addDevice);
         }
 
         running = true;
@@ -73,11 +70,12 @@ public class DeviceManager implements AutoCloseable {
     }
 
     private void scanAndConnect() {
-        deviceHandlers.forEach((id, handler) -> {
-            if (handler.getDeviceHolder().getStatus() == DeviceStatus.DISCONNECTED) {
+        deviceHandlers.forEach((deviceId, handler) -> {
+            DeviceStatus status = handler.getStatus(deviceId);
+            if (status == DeviceStatus.NONE || status == DeviceStatus.DISCONNECTED) {
                 connectExecutor.submit(() -> {
                     try {
-                        handler.connect();  // connect 内部会处理状态更新
+                        handler.connect(deviceId);  // connect 内部会处理状态更新
                     } catch (Exception e) {
                         // 日志记录，但不影响线程池
                         // 可考虑设备级别的异常处理
@@ -115,7 +113,7 @@ public class DeviceManager implements AutoCloseable {
         }
 
         // 断开所有设备连接（设备内部线程清理由设备自己负责）
-        deviceHandlers.forEach((id, handler) -> handler.disconnect());
+        deviceHandlers.forEach((deviceId, handler) -> handler.disconnect(deviceId));
         deviceHandlers.clear();
     }
 
@@ -139,7 +137,7 @@ public class DeviceManager implements AutoCloseable {
         if (device == null)
             return;
 
-        ADeviceHandler handler = DeviceType.getType(device.getType()).createHandler();
+        DeviceHandler handler = DeviceType.getHandlerByTypeId(device.getType());
         deviceHandlers.put(device.getId(), handler);
     }
 
@@ -154,9 +152,9 @@ public class DeviceManager implements AutoCloseable {
     }
 
     private void removeDevice(Long deviceId) {
-        ADeviceHandler old = deviceHandlers.remove(deviceId);
+        DeviceHandler old = deviceHandlers.remove(deviceId);
         if (old != null) {
-            old.disconnect(); // 确保设备断开，内部线程清理
+            old.disconnect(deviceId); // 确保设备断开，内部线程清理
         }
     }
 

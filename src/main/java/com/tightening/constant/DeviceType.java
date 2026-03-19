@@ -1,11 +1,11 @@
 package com.tightening.constant;
 
-import com.tightening.device.handler.ADeviceHandler;
-import com.tightening.device.handler.AtlasPF4000Handler;
-import com.tightening.device.handler.AtlasPF6000OPHandler;
+import com.tightening.device.handler.DeviceHandler;
+import com.tightening.device.handler.impl.AtlasPF4000Handler;
+import com.tightening.device.handler.impl.AtlasPF6000OPHandler;
+import com.tightening.device.handler.DeviceHandlerFactory;
 import lombok.Getter;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Optional;
 
@@ -17,26 +17,31 @@ public enum DeviceType {
 
     private final int id;
     private final String name;
-    private final Class<? extends ADeviceHandler> handlerClass;
+    private final Class<? extends DeviceHandler> handlerClass;
 
-    DeviceType(int id, String name, Class<? extends ADeviceHandler> handlerClass) {
+    DeviceType(int id, String name, Class<? extends DeviceHandler> handlerClass) {
         this.id = id;
         this.name = name;
         this.handlerClass = handlerClass;
     }
 
     public static DeviceType getType(int id) {
-        Optional<DeviceType> first = Arrays.stream(DeviceType.values()).filter(
-                t -> t.getId() == id).findFirst();
+        Optional<DeviceType> first = Arrays
+                .stream(DeviceType.values())
+                .filter(t -> t.getId() == id)
+                .findFirst();
         return first.orElse(null);
     }
 
-    public ADeviceHandler createHandler() {
-        try {
-            return handlerClass.getDeclaredConstructor().newInstance();
-        } catch (InstantiationException | IllegalAccessException | InvocationTargetException |
-                 NoSuchMethodException e) {
-            throw new RuntimeException(e);
+    public DeviceHandler getHandler() {
+        return DeviceHandlerFactory.getHandlerStatic(this);
+    }
+
+    public static DeviceHandler getHandlerByTypeId(int id) {
+        DeviceType type = getType(id);
+        if (type == null) {
+            throw new IllegalArgumentException("Unknown device type id: " + id);
         }
+        return type.getHandler();
     }
 }

@@ -1,7 +1,6 @@
 package com.tightening.util;
 
 import com.tightening.dto.BaseDTO;
-import com.tightening.dto.UserAccountInfoDTO;
 import com.tightening.entity.BaseEntity;
 import org.springframework.beans.BeanUtils;
 

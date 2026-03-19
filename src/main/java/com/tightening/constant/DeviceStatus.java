@@ -2,5 +2,6 @@ package com.tightening.constant;
 
 public enum DeviceStatus {
     CONNECTED,
-    DISCONNECTED
+    DISCONNECTED,
+    NONE
 }

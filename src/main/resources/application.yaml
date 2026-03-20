@@ -66,19 +66,6 @@ mybatis-plus:
       logic-not-delete-value: 0         # 未删除值
       logic-delete-value: 1             # 已删除值
 
-# Netty配置
-netty:
-  port: 8888
-  boss-thread-count: 1
-  worker-thread-count: 2
-  keep-alive: true
-  connect-timeout: 5000
-  max-connections: 100
-
-# 业务配置
-
-# PLC配置
-
 # 日志配置
 logging:
   level:

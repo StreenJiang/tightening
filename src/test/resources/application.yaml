@@ -1,0 +1,76 @@
+spring:
+  application:
+    name: tightening
+  profiles:
+    active: dev  # 默认开发模式
+
+  # SQLite数据库配置
+  datasource:
+    url: jdbc:sqlite:${user.home}/tightening_system/tightening.db
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 10
+      # SQLite专属优化
+      #    journal_mode: WAL          # 写入性能提升3-5倍
+      #    synchronous: NORMAL        # 平衡性能与安全
+      #    cache_size: 1000           # 4MB缓存
+      #    temp_store: MEMORY         # 临时表存内存
+      #    busy_timeout: 5000         # 5秒忙等待（解决锁库问题）
+      connection-init-sql: |
+        PRAGMA journal_mode=WAL;
+        PRAGMA synchronous=NORMAL;
+        PRAGMA cache_size=1000;
+        PRAGMA temp_store=MEMORY;
+        PRAGMA busy_timeout=5000;
+  # JPA
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  # flyway
+  flyway:
+    enabled: true                       # 默认 true
+    baseline-on-migrate: true           # 对于已有数据库的项目，首次运行会创建 flyway_schema_history 表
+    locations: classpath:db/migration   # 默认路径，可以修改或增加
+  # Web配置
+  web:
+    resources:
+      add-mappings: false
+  # 任务调度
+  task:
+    execution:
+      pool:
+        core-size: 5
+        max-size: 10
+        queue-capacity: 100
+
+# 服务器配置
+server:
+  port: 8080
+  tomcat:
+    threads:
+      max: 50
+      min-spare: 10
+    connection-timeout: 5000
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true  # 驼峰转换：device_id → deviceId
+    cache-enabled: false                # 禁用缓存（SQLite 不需要）
+    jdbc-type-for-null: 'NULL'          # 避免 SQLite NULL 问题
+  global-config:
+    db-config:
+      id-type: auto                     # 主键自增（对应 SQLite AUTOINCREMENT）
+      table-underline: true             # 表名下划线命名
+      logic-delete-field: deleted       # 逻辑删除字段名（可选）
+      logic-not-delete-value: 0         # 未删除值
+      logic-delete-value: 1             # 已删除值
+
+# 日志配置
+logging:
+  level:
+    root: DEBUG
+    com.tightening: DEBUG
+    io.netty: DEBUG
+    org.apache.plc4x: DEBUG
+    com.tightening.repository: DEBUG  # 显示 SQL 语句

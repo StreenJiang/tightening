@@ -22,20 +22,11 @@ public class LoginController {
     public ResponseEntity<Void> userLogin() {
         Device d1 = new Device();
         d1.setId(1L);
-        d1.setType(DeviceType.ATLAS_PF4000.getId());
+        d1.setType(DeviceType.FIT_FTC6.getId());
         d1.setDetail("""
-                             {"ip":"192.168.1.16","port":1200}
+                             {"ip":"172.17.10.10","port":5000}
                              """);
-
-        Device d2 = new Device();
-        d2.setId(2L);
-        d2.setType(DeviceType.ATLAS_PF6000_OP.getId());
-
-        Device d3 = new Device();
-        d3.setId(3L);
-        d3.setType(DeviceType.ATLAS_PF6000_OP.getId());
-
-        deviceManager.userLoggedIn(List.of(d1, d2, d3));
+        deviceManager.userLoggedIn(List.of(d1));
         return ResponseEntity.ok(null);
     }
 }

@@ -19,15 +19,18 @@ import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
-public abstract class TCPDeviceHandler implements DeviceHandler {
+public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
 
     protected final Bootstrap bootstrap; // TODO: 后续再看定义的位置是否可以再往上层提
+    protected final NioEventLoopGroup group;
     protected final DeviceService deviceService;
     protected final Map<Long, DeviceHolder> devices;
 
@@ -35,11 +38,12 @@ public abstract class TCPDeviceHandler implements DeviceHandler {
     protected final AttributeKey<DeviceHolder> DEVICE_HOLDER = AttributeKey.valueOf("deviceHolder");
 
     public TCPDeviceHandler(DeviceService deviceService) {
+        group = new NioEventLoopGroup();
         this.deviceService = deviceService;
 
         devices = new ConcurrentHashMap<>();
         bootstrap = new Bootstrap()
-                .group(new NioEventLoopGroup())
+                .group(group)
                 .channel(NioSocketChannel.class)
                 .handler(setupChannelInitializer());
     }
@@ -132,5 +136,10 @@ public abstract class TCPDeviceHandler implements DeviceHandler {
             return devices.get(deviceId).getStatus();
         }
         return DeviceStatus.NONE;
+    }
+
+    @Override
+    public void close() throws IOException {
+        group.shutdownGracefully();
     }
 }

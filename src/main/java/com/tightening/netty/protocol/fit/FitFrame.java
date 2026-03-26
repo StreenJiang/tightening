@@ -1,7 +1,11 @@
 package com.tightening.netty.protocol.fit;
 
-import com.tightening.util.fit.FitUtils;
+import com.tightening.constant.fit.FitCommandType;
+import com.tightening.constant.fit.FitConstants;
+import io.netty.buffer.ByteBufUtil;
 import lombok.Data;
+
+import java.util.Arrays;
 
 @Data
 public class FitFrame {
@@ -12,10 +16,21 @@ public class FitFrame {
     private short tail;
 
     public FitFrame(byte cmdType, byte[] data) {
-        this.head = FitUtils.HEAD;
+        this.head = FitConstants.HEAD;
         this.cmdType = cmdType;
         this.data = data != null ? data.clone() : new byte[0];
         this.dataLength = (short) this.data.length;
-        this.tail = FitUtils.TAIL;
+        this.tail = FitConstants.TAIL;
+    }
+
+    @Override
+    public String toString() {
+        return "FitFrame{" +
+                "head=" + head +
+                ", cmdType=" + FitCommandType.fromCode(cmdType) +
+                ", dataLength=" + dataLength +
+                ", data=" + Arrays.toString(data) +
+                ", tail=" + tail +
+                '}';
     }
 }

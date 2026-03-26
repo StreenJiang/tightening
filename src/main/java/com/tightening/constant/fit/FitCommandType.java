@@ -7,7 +7,7 @@ import lombok.Getter;
  * 对应协议中的命令字及指令名称
  */
 @Getter
-public enum CommandType {
+public enum FitCommandType {
 
     PARAMETER_SET((byte) 0x01, "发送程序号"),
     ENABLE((byte) 0x02, "发送使能信号"),
@@ -28,24 +28,9 @@ public enum CommandType {
     private final byte code;      // 命令字（十六进制值）
     private final String name;   // 指令名称
 
-    CommandType(byte code, String name) {
+    FitCommandType(byte code, String name) {
         this.code = code;
         this.name = name;
-    }
-
-    /**
-     * 根据命令字字节值获取对应的枚举实例
-     *
-     * @param code 命令字（如 0x01、0x81）
-     * @return 匹配的 CommandType，若不存在则返回 null
-     */
-    public static CommandType fromCode(int code) {
-        for (CommandType type : values()) {
-            if (type.code == code) {
-                return type;
-            }
-        }
-        return null;
     }
 
     /**
@@ -54,8 +39,13 @@ public enum CommandType {
      * @param code 命令字（byte 类型）
      * @return 匹配的 CommandType，若不存在则返回 null
      */
-    public static CommandType fromCode(byte code) {
-        return fromCode(code & 0xFF); // 将 byte 转为无符号整型
+    public static FitCommandType fromCode(byte code) {
+        for (FitCommandType type : values()) {
+            if (type.code == code) {
+                return type;
+            }
+        }
+        return null;
     }
 
     @Override

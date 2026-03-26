@@ -4,6 +4,7 @@ import com.tightening.device.handler.DeviceHandler;
 import com.tightening.device.handler.impl.AtlasPF4000Handler;
 import com.tightening.device.handler.impl.AtlasPF6000OPHandler;
 import com.tightening.device.handler.DeviceHandlerFactory;
+import com.tightening.device.handler.impl.FitFTC6Handler;
 import lombok.Getter;
 
 import java.util.Arrays;
@@ -13,6 +14,7 @@ import java.util.Optional;
 public enum DeviceType {
     ATLAS_PF4000(1, "PF4000", AtlasPF4000Handler.class),
     ATLAS_PF6000_OP(2, "PF6000-OP", AtlasPF6000OPHandler.class),
+    FIT_FTC6(3, "FIT-FTC6", FitFTC6Handler.class),
     ;
 
     private final int id;

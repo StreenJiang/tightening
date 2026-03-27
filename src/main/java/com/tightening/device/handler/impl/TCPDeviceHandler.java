@@ -29,15 +29,17 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
 
+    protected final TCPDeviceHandler self;
     protected final Bootstrap bootstrap; // TODO: 后续再看定义的位置是否可以再往上层提
     protected final NioEventLoopGroup group;
     protected final DeviceService deviceService;
     protected final Map<Long, DeviceHolder> devices;
 
-    protected final AttributeKey<Long> DEVICE_ID = AttributeKey.valueOf("deviceId");
-    protected final AttributeKey<DeviceHolder> DEVICE_HOLDER = AttributeKey.valueOf("deviceHolder");
+    public static final AttributeKey<Long> DEVICE_ID = AttributeKey.valueOf("deviceId");
+    public static final AttributeKey<DeviceHolder> DEVICE_HOLDER = AttributeKey.valueOf("deviceHolder");
 
     public TCPDeviceHandler(DeviceService deviceService) {
+        self = this;
         group = new NioEventLoopGroup();
         this.deviceService = deviceService;
 
@@ -89,14 +91,15 @@ public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
             } else {
                 // TODO: 完善重连逻辑
                 future.channel().eventLoop().schedule(() -> {
-                    System.err.println("重连服务端...");
+                    // TODO: need i18n
+                    log.info("Reconnecting to server...");
                     connectToChannel(deviceId, device, deviceHolder);
                 }, 3000, TimeUnit.MILLISECONDS);
             }
         });
     }
 
-    protected void connectToChannel(long deviceId, DeviceHolder deviceHolder) {
+    public void connectToChannel(long deviceId, DeviceHolder deviceHolder) {
         connectToChannel(deviceId, deviceHolder.getDevice(), deviceHolder);
     }
 

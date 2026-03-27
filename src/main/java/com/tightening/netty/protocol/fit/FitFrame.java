@@ -2,13 +2,13 @@ package com.tightening.netty.protocol.fit;
 
 import com.tightening.constant.fit.FitCommandType;
 import com.tightening.constant.fit.FitConstants;
-import io.netty.buffer.ByteBufUtil;
+import com.tightening.netty.protocol.CommandFrame;
 import lombok.Data;
 
 import java.util.Arrays;
 
 @Data
-public class FitFrame {
+public class FitFrame extends CommandFrame {
     private short head;
     private byte cmdType;
     private short dataLength;

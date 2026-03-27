@@ -1,7 +1,9 @@
 package com.tightening.device.handler.impl;
 
 import com.tightening.constant.DeviceStatus;
+import com.tightening.constant.TCPCommand;
 import com.tightening.device.DeviceHolder;
+import com.tightening.entity.handler.atlas.AtlasSeriesInitHandler;
 import com.tightening.service.DeviceService;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -29,36 +31,22 @@ public class AtlasPFSeriesHandler extends TCPDeviceHandler {
                 System.out.println("PF series devices initialized...");
 
                 // Init
-                ch.pipeline().addLast(new ChannelInboundHandlerAdapter() {
-                    @Override
-                    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-                        DeviceHolder deviceHolder = ctx.channel().attr(DEVICE_HOLDER).get();
-                        deviceHolder.setStatus(DeviceStatus.CONNECTED);
-
-                        // TODO: actions after active
-
-                        super.channelActive(ctx);
-                    }
-
-                    @Override
-                    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-                        System.out.println("连接断开，准备进行重连...");
-
-                        Long deviceId = ctx.channel().attr(DEVICE_ID).get();
-                        DeviceHolder deviceHolder = ctx.channel().attr(DEVICE_HOLDER).get();
-                        connectToChannel(deviceId, deviceHolder);
-
-                        super.channelInactive(ctx);
-                    }
-
-                    @Override
-                    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-                        // 捕获到异常，关闭连接，触发 channelInactive
-                        // TODO: 完善是否需要处理 cause
-                        ctx.close();
-                    }
-                });
+                ch.pipeline().addLast(new AtlasSeriesInitHandler(self));
             }
         };
+    }
+
+    @Override
+    public boolean sendCommand(long deviceId, TCPCommand cmd) {
+        DeviceHolder deviceHolder = devices.get(deviceId);
+        switch (cmd) {
+            case TOOL_ENABLE:
+                break;
+            case TOOL_DISABLE:
+                break;
+            case TOOL_PARAMETER_SET:
+                break;
+        }
+        return false;
     }
 }

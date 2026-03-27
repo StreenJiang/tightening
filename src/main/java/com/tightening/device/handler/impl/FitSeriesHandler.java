@@ -1,12 +1,15 @@
 package com.tightening.device.handler.impl;
 
+import com.tightening.constant.TCPCommand;
 import com.tightening.constant.fit.FitCommandType;
 import com.tightening.constant.fit.FitConstants;
+import com.tightening.device.DeviceHolder;
+import com.tightening.entity.Device;
+import com.tightening.entity.handler.fit.FitSeriesInBoundHandler;
+import com.tightening.entity.handler.fit.FitSeriesInitHandler;
 import com.tightening.netty.protocol.codec.FitFrameCodec;
 import com.tightening.netty.protocol.fit.FitFrame;
 import com.tightening.service.DeviceService;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
@@ -22,7 +25,7 @@ public class FitSeriesHandler extends TCPDeviceHandler {
 
     @Override
     protected ChannelInitializer<NioSocketChannel> setupChannelInitializer() {
-        return new ChannelInitializer<NioSocketChannel>() {
+        return new ChannelInitializer<>() {
             @Override
             protected void initChannel(NioSocketChannel ch) throws Exception {
                 System.out.println("FIT series devices initialized...");
@@ -36,21 +39,33 @@ public class FitSeriesHandler extends TCPDeviceHandler {
                                                          true
                         ));
                 ch.pipeline().addLast(new FitFrameCodec());
-                ch.pipeline().addLast(new ChannelInboundHandlerAdapter() {
-                    @Override
-                    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-                        super.channelActive(ctx);
-
-                        FitFrame fitFrame = new FitFrame(FitCommandType.ENABLE.getCode(),
-                                                         new byte[] { 0x01 });
-                        ctx.writeAndFlush(fitFrame);
-
-                        FitFrame fitFrame2 = new FitFrame(FitCommandType.PARAMETER_SET.getCode(),
-                                                          new byte[] { 0x01 });
-                        ctx.writeAndFlush(fitFrame2);
-                    }
-                });
+                ch.pipeline().addLast(new FitSeriesInitHandler(self));
+                ch.pipeline().addLast(new FitSeriesInBoundHandler());
             }
         };
+    }
+
+    @Override
+    public boolean sendCommand(long deviceId, TCPCommand cmd) {
+        DeviceHolder deviceHolder = devices.get(deviceId);
+        if (deviceHolder == null) {
+            throw new RuntimeException();
+        }
+
+        switch (cmd) {
+            case TOOL_ENABLE:
+                deviceHolder.getChannel().writeAndFlush(
+                        new FitFrame(FitCommandType.ENABLE.getCode(), new byte[] { 0x01 }));
+                break;
+            case TOOL_DISABLE:
+                deviceHolder.getChannel().writeAndFlush(
+                        new FitFrame(FitCommandType.ENABLE.getCode(), new byte[] { 0x00 }));
+                break;
+            case TOOL_PARAMETER_SET:
+                deviceHolder.getChannel().writeAndFlush(
+                        new FitFrame(FitCommandType.PARAMETER_SET.getCode(), new byte[] { 0x00 }));
+                break;
+        }
+        return false;
     }
 }

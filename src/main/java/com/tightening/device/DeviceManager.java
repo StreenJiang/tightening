@@ -2,6 +2,7 @@ package com.tightening.device;
 
 import com.tightening.constant.DeviceStatus;
 import com.tightening.constant.DeviceType;
+import com.tightening.constant.TCPCommand;
 import com.tightening.device.event.DeviceChangeEvent;
 import com.tightening.device.handler.DeviceHandler;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
@@ -160,6 +161,11 @@ public class DeviceManager implements AutoCloseable {
         if (old != null) {
             old.disconnect(deviceId); // 确保设备断开，内部线程清理
         }
+    }
+
+    public boolean sendCommand(Long deviceId, TCPCommand cmd) {
+        DeviceHandler deviceHandler = deviceHandlers.get(deviceId);
+        return deviceHandler.sendCommand(deviceId, cmd);
     }
 
     @Override

@@ -15,7 +15,7 @@ public class FitFrameCodec extends MessageToMessageCodec<ByteBuf, FitFrame> {
 
     @Override
     protected void encode(ChannelHandlerContext ctx, FitFrame msg, List<Object> out) throws Exception {
-        log.info("Encoding msg: {}", msg);
+        log.info("Encoding sending msg: {}", msg);
 
         ByteBuf buf = ctx.alloc().buffer();
         buf.writeShort(msg.getHead());
@@ -24,13 +24,13 @@ public class FitFrameCodec extends MessageToMessageCodec<ByteBuf, FitFrame> {
         buf.writeBytes(msg.getData());
         buf.writeShort(msg.getTail());
 
-        log.info("Encoding msg done, buffer: {}", ByteBufUtil.hexDump(buf));
+        log.info("Encoding sending msg done, buffer: {}", ByteBufUtil.hexDump(buf));
         out.add(buf);
     }
 
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) throws Exception {
-        log.info("Decoding msg buffer: {}", ByteBufUtil.hexDump(msg));
+        log.info("Decoding receiving msg buffer: {}", ByteBufUtil.hexDump(msg));
 
         short head = msg.readShort();
         if (head == FitConstants.HEAD) {
@@ -46,14 +46,14 @@ public class FitFrameCodec extends MessageToMessageCodec<ByteBuf, FitFrame> {
 
             if (tail == FitConstants.TAIL) {
                 FitFrame fitFrame = new FitFrame(cmdType, data);
-                log.info("Decoding done for msg: {}", fitFrame);
+                log.info("Decoding receiving done for msg: {}", fitFrame);
 
                 out.add(fitFrame);
             } else {
-                log.warn("TAIL validation failed...");
+                log.warn("TAIL validation failed of receiving msg...");
             }
         } else {
-            log.warn("HEAD validation failed...");
+            log.warn("HEAD validation failed of receiving msg...");
         }
     }
 }

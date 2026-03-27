@@ -1,7 +1,7 @@
 package com.tightening.device.handler;
 
 import com.tightening.constant.DeviceStatus;
-import com.tightening.entity.Device;
+import com.tightening.constant.TCPCommand;
 
 public interface DeviceHandler {
 
@@ -10,4 +10,6 @@ public interface DeviceHandler {
     void disconnect(long deviceId);
 
     DeviceStatus getStatus(long deviceId);
+
+    boolean sendCommand(long deviceId, TCPCommand cmd);
 }

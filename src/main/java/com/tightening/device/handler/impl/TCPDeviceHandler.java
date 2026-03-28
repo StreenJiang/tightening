@@ -15,35 +15,37 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.AttributeKey;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.GenericFutureListener;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
 
-    protected final TCPDeviceHandler self;
+    protected final TCPDeviceHandler deviceHandlerSelf;
     protected final Bootstrap bootstrap; // TODO: 后续再看定义的位置是否可以再往上层提
     protected final NioEventLoopGroup group;
     protected final DeviceService deviceService;
     protected final Map<Long, DeviceHolder> devices;
+    protected final Map<String, CompletableFuture<Boolean>> rspFutures;
 
+    protected static final int COMMAND_TIMEOUT = 5000;
     public static final AttributeKey<Long> DEVICE_ID = AttributeKey.valueOf("deviceId");
     public static final AttributeKey<DeviceHolder> DEVICE_HOLDER = AttributeKey.valueOf("deviceHolder");
 
     public TCPDeviceHandler(DeviceService deviceService) {
-        self = this;
+        deviceHandlerSelf = this;
         group = new NioEventLoopGroup();
         this.deviceService = deviceService;
 
         devices = new ConcurrentHashMap<>();
+        rspFutures = new ConcurrentHashMap<>();
         bootstrap = new Bootstrap()
                 .group(group)
                 .channel(NioSocketChannel.class)
@@ -131,6 +133,32 @@ public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
         DeviceHolder deviceHolder = new DeviceHolder(device);
         devices.put(device.getId(), deviceHolder);
         return deviceHolder;
+    }
+
+    protected DeviceHolder getHolder(long deviceId) {
+        DeviceHolder deviceHolder = devices.get(deviceId);
+        if (deviceHolder == null) {
+            throw new RuntimeException();
+        }
+        return deviceHolder;
+    }
+
+    /**
+     * 生成唯一请求 Key
+     *
+     * @param cmdType  命令类型（int 范围，支持 0~65535 及以上）
+     * @param deviceId 设备ID
+     * @return 格式: "cmdType:deviceId"
+     */
+    public String generateKey(int cmdType, long deviceId) {
+        return cmdType + ":" + deviceId;
+    }
+
+    public void addResultFuture(String key, boolean result) {
+        CompletableFuture<Boolean> future = rspFutures.get(key);
+        if (future != null) {
+            future.complete(result);
+        }
     }
 
     @Override

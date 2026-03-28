@@ -10,6 +10,4 @@ public interface DeviceHandler {
     void disconnect(long deviceId);
 
     DeviceStatus getStatus(long deviceId);
-
-    boolean sendCommand(long deviceId, TCPCommand cmd);
 }

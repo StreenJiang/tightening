@@ -156,16 +156,15 @@ public class DeviceManager implements AutoCloseable {
         addDevice(device);
     }
 
-    private void removeDevice(Long deviceId) {
+    private void removeDevice(long deviceId) {
         DeviceHandler old = deviceHandlers.remove(deviceId);
         if (old != null) {
             old.disconnect(deviceId); // 确保设备断开，内部线程清理
         }
     }
 
-    public boolean sendCommand(Long deviceId, TCPCommand cmd) {
-        DeviceHandler deviceHandler = deviceHandlers.get(deviceId);
-        return deviceHandler.sendCommand(deviceId, cmd);
+    public DeviceHandler getHandler(long deviceId) {
+        return deviceHandlers.get(deviceId);
     }
 
     @Override

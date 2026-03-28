@@ -14,7 +14,7 @@ import static com.tightening.device.handler.impl.TCPDeviceHandler.DEVICE_ID;
 
 @Slf4j
 public abstract class DeviceInitHandler extends ChannelInboundHandlerAdapter {
-    private final TCPDeviceHandler deviceHandler;
+    protected final TCPDeviceHandler deviceHandler;
 
     public DeviceInitHandler(TCPDeviceHandler deviceHandler) {
         this.deviceHandler = deviceHandler;

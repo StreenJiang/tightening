@@ -1,10 +1,11 @@
 package com.tightening.entity.handler.fit;
 
-import com.tightening.constant.fit.FitCommandType;
+import com.tightening.device.handler.ToolHandler;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
 import com.tightening.entity.handler.DeviceInitHandler;
-import com.tightening.netty.protocol.fit.FitFrame;
 import io.netty.channel.ChannelHandlerContext;
+
+import static com.tightening.device.handler.impl.TCPDeviceHandler.DEVICE_ID;
 
 public class FitSeriesInitHandler extends DeviceInitHandler {
     public FitSeriesInitHandler(TCPDeviceHandler deviceHandler) {
@@ -13,7 +14,7 @@ public class FitSeriesInitHandler extends DeviceInitHandler {
 
     @Override
     protected void afterChannelActive(ChannelHandlerContext ctx) {
-        ctx.writeAndFlush(new FitFrame(FitCommandType.PARAMETER_SET.getCode(), new byte[] { 0x01 }));
-        ctx.writeAndFlush(new FitFrame(FitCommandType.ENABLE.getCode(), new byte[] { 0x01 }));
+        long deviceId = ctx.channel().attr(DEVICE_ID).get();
+        ((ToolHandler) deviceHandler).forceDisableToolOp(deviceId);
     }
 }

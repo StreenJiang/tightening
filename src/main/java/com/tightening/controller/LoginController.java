@@ -5,7 +5,7 @@ import com.tightening.device.DeviceManager;
 import com.tightening.entity.Device;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -18,7 +18,7 @@ public class LoginController {
     @Autowired
     private DeviceManager deviceManager;
 
-    @GetMapping()
+    @PostMapping()
     public ResponseEntity<Void> userLogin() {
         Device d1 = new Device();
         d1.setId(1L);

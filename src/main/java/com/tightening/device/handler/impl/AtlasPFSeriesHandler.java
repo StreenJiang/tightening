@@ -1,16 +1,15 @@
 package com.tightening.device.handler.impl;
 
-import com.tightening.constant.DeviceStatus;
-import com.tightening.constant.TCPCommand;
 import com.tightening.device.DeviceHolder;
+import com.tightening.device.handler.ToolHandler;
 import com.tightening.entity.handler.atlas.AtlasSeriesInitHandler;
 import com.tightening.service.DeviceService;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
-public class AtlasPFSeriesHandler extends TCPDeviceHandler {
+import java.util.concurrent.CompletableFuture;
+
+public class AtlasPFSeriesHandler extends ToolHandler {
     protected static final String CMD_CONNECT = "";
     protected static final String CMD_HEART_BEAT = "";
     protected static final String CMD_DATA_SUBSCRIBE = "";
@@ -31,22 +30,26 @@ public class AtlasPFSeriesHandler extends TCPDeviceHandler {
                 System.out.println("PF series devices initialized...");
 
                 // Init
-                ch.pipeline().addLast(new AtlasSeriesInitHandler(self));
+                ch.pipeline().addLast(new AtlasSeriesInitHandler(deviceHandlerSelf));
             }
         };
     }
 
     @Override
-    public boolean sendCommand(long deviceId, TCPCommand cmd) {
-        DeviceHolder deviceHolder = devices.get(deviceId);
-        switch (cmd) {
-            case TOOL_ENABLE:
-                break;
-            case TOOL_DISABLE:
-                break;
-            case TOOL_PARAMETER_SET:
-                break;
-        }
-        return false;
+    protected CompletableFuture<Boolean> enableTool(long deviceId) {
+        DeviceHolder deviceHolder = getHolder(deviceId);
+        return new CompletableFuture<>();
+    }
+
+    @Override
+    protected CompletableFuture<Boolean> disableTool(long deviceId) {
+        DeviceHolder deviceHolder = getHolder(deviceId);
+        return new CompletableFuture<>();
+    }
+
+    @Override
+    protected CompletableFuture<Boolean> sendPSetCmd(long deviceId, int pSet) {
+        DeviceHolder deviceHolder = getHolder(deviceId);
+        return new CompletableFuture<>();
     }
 }

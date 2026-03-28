@@ -9,8 +9,8 @@ import lombok.Getter;
 @Getter
 public enum FitCommandType {
 
-    PARAMETER_SET((byte) 0x01, "发送程序号"),
-    ENABLE((byte) 0x02, "发送使能信号"),
+    PARAMETER_SET((byte) 0x01, "程序号"),
+    ENABLE_DISABLE((byte) 0x02, "使能/锁止信号"),
     START((byte) 0x03, "发送启动信号"),
     BARCODE((byte) 0x04, "发送条码"),
     SUBSCRIBE((byte) 0x05, "订阅指令"),

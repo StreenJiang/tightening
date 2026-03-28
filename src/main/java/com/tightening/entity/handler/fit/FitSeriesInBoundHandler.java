@@ -1,6 +1,7 @@
 package com.tightening.entity.handler.fit;
 
 import com.tightening.constant.fit.FitCommandType;
+import com.tightening.device.handler.impl.TCPDeviceHandler;
 import com.tightening.dto.TighteningDataDTO;
 import com.tightening.netty.protocol.fit.FitDataUtils;
 import com.tightening.netty.protocol.fit.FitFrame;
@@ -9,9 +10,15 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import lombok.extern.slf4j.Slf4j;
 
 import static com.tightening.constant.fit.FitConstants.COMMAND_OK;
+import static com.tightening.device.handler.impl.TCPDeviceHandler.DEVICE_ID;
 
 @Slf4j
 public class FitSeriesInBoundHandler extends SimpleChannelInboundHandler<FitFrame> {
+    private final TCPDeviceHandler deviceHandler;
+
+    public FitSeriesInBoundHandler(TCPDeviceHandler deviceHandler) {
+        this.deviceHandler = deviceHandler;
+    }
 
     @Override
     public void channelRead0(ChannelHandlerContext ctx, FitFrame msg) throws Exception {
@@ -19,16 +26,16 @@ public class FitSeriesInBoundHandler extends SimpleChannelInboundHandler<FitFram
         byte[] data = msg.getData();
 
         if (cmdType != null) {
+            long deviceId = ctx.channel().attr(DEVICE_ID).get();
+            String key = deviceHandler.generateKey(cmdType.getCode(), deviceId);
+
             switch (cmdType) {
                 case HEARTBEAT_ACK:
                     break;
                 case PARAMETER_SET:
-                case ENABLE:
+                case ENABLE_DISABLE:
                     byte datum = data[0];
-                    // TODO: 返回结果给 restAPI
-                    if (datum == COMMAND_OK) {
-                    } else {
-                    }
+                    deviceHandler.addResultFuture(key, datum == COMMAND_OK);
                     break;
                 case TIGHTEN_FINAL:
                     TighteningDataDTO tighteningDataDTO = FitDataUtils.parseTighteningData(data);

@@ -33,4 +33,16 @@ public class FitFrame extends CommandFrame {
                 ", tail=" + tail +
                 '}';
     }
+
+    public static FitFrame enableTool() {
+        return new FitFrame(FitCommandType.ENABLE_DISABLE.getCode(), new byte[] { 0x01 });
+    }
+
+    public static FitFrame disableTool() {
+        return new FitFrame(FitCommandType.ENABLE_DISABLE.getCode(), new byte[] { 0x00 });
+    }
+
+    public static FitFrame sendPSet(int pSet) {
+        return new FitFrame(FitCommandType.PARAMETER_SET.getCode(), new byte[] { (byte) pSet });
+    }
 }

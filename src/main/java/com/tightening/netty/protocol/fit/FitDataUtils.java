@@ -8,7 +8,9 @@ import com.tightening.dto.TighteningDataDTO;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
 public class FitDataUtils {
@@ -127,5 +129,55 @@ public class FitDataUtils {
         int high = (b >> 4) & 0x0F;
         int low = b & 0x0F;
         return high * 10 + low;
+    }
+
+    /**
+     * 获取当前时间戳的4字节数组（小端模式）
+     * 对应协议示例：时间戳=1234567890 → 字节数组 [D2, 02, 96, 49]
+     *
+     * @return 4字节数组，小端存储
+     */
+    public static byte[] getCurrentTimestampBytes() {
+        long timestamp = System.currentTimeMillis() / 1000; // 秒级时间戳
+        return longToLittleEndianBytes(timestamp, 4);
+    }
+
+    /**
+     * 指定时间戳的4字节数组（小端模式）
+     *
+     * @param timestamp Unix时间戳（秒）
+     * @return 4字节数组
+     */
+    public static byte[] getTimestampBytes(long timestamp) {
+        return longToLittleEndianBytes(timestamp, 4);
+    }
+
+    /**
+     * 将long转换为小端字节数组
+     */
+    private static byte[] longToLittleEndianBytes(long value, int length) {
+        byte[] bytes = new byte[length];
+        for (int i = 0; i < length; i++) {
+            bytes[i] = (byte) ((value >> (i * 8)) & 0xFF);
+        }
+        return bytes;
+    }
+
+    /**
+     * 将小端字节数组转换为long
+     */
+    public static long bytesToTimestamp(byte[] bytes) {
+        long result = 0;
+        for (int i = bytes.length - 1; i >= 0; i--) {
+            result = (result << 8) | (bytes[i] & 0xFF);
+        }
+        return result;
+    }
+
+    public static String getDateStr(byte[] bytes) {
+        long timestampSec = bytesToTimestamp(bytes);
+        Instant instant = Instant.ofEpochSecond(timestampSec);
+        LocalDateTime dateTime = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+        return dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
     }
 }

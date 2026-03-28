@@ -3,9 +3,10 @@ package com.tightening.device.handler.impl;
 import com.tightening.constant.fit.FitCommandType;
 import com.tightening.constant.fit.FitConstants;
 import com.tightening.device.DeviceHolder;
+import com.tightening.device.handler.HeartbeatHandler;
 import com.tightening.device.handler.ToolHandler;
-import com.tightening.entity.handler.fit.FitSeriesInBoundHandler;
-import com.tightening.entity.handler.fit.FitSeriesInitHandler;
+import com.tightening.netty.protocol.handler.fit.FitSeriesInBoundHandler;
+import com.tightening.netty.protocol.handler.fit.FitSeriesInitHandler;
 import com.tightening.netty.protocol.codec.FitFrameCodec;
 import com.tightening.netty.protocol.fit.FitFrame;
 import com.tightening.service.DeviceService;
@@ -13,6 +14,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.timeout.IdleStateHandler;
 import lombok.extern.slf4j.Slf4j;
 
 import java.nio.ByteOrder;
@@ -43,6 +45,8 @@ public class FitSeriesHandler extends ToolHandler {
                                 true
                         ));
                 ch.pipeline().addLast(new FitFrameCodec());
+                ch.pipeline().addLast(new IdleStateHandler(30, 0, 0, TimeUnit.SECONDS));
+                ch.pipeline().addLast(new HeartbeatHandler(3, deviceId -> sendHeartbeat(deviceId)));
                 ch.pipeline().addLast(new FitSeriesInitHandler(deviceHandlerSelf));
                 ch.pipeline().addLast(new FitSeriesInBoundHandler(deviceHandlerSelf));
             }
@@ -80,6 +84,11 @@ public class FitSeriesHandler extends ToolHandler {
                     log.warn("Error while sending pSet={} to tool", pSet, ex);
                     return false;
                 });
+    }
+
+    @Override
+    public CompletableFuture<Boolean> sendHeartbeat(long deviceId) {
+        return sendCmdAsync(FitFrame::sendHeartBeat, FitCommandType.HEARTBEAT_ACK.getCode(), deviceId);
     }
 
     /**

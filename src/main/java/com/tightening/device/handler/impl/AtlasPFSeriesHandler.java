@@ -2,7 +2,7 @@ package com.tightening.device.handler.impl;
 
 import com.tightening.device.DeviceHolder;
 import com.tightening.device.handler.ToolHandler;
-import com.tightening.entity.handler.atlas.AtlasSeriesInitHandler;
+import com.tightening.netty.protocol.handler.atlas.AtlasSeriesInitHandler;
 import com.tightening.service.DeviceService;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.nio.NioSocketChannel;

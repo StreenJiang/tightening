@@ -1,4 +1,4 @@
-package com.tightening.entity.handler;
+package com.tightening.netty.protocol.handler;
 
 import com.tightening.constant.DeviceStatus;
 import com.tightening.device.DeviceHolder;

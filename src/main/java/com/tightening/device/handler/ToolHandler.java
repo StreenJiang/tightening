@@ -26,7 +26,6 @@ public abstract class ToolHandler extends TCPDeviceHandler {
 
     public ToolHandler(DeviceService deviceService) {
         super(deviceService);
-        log.debug("ToolHandler initialized for deviceService: {}", deviceService);
     }
 
     public CompletableFuture<Boolean> enableToolOp(long deviceId) {
@@ -35,6 +34,14 @@ public abstract class ToolHandler extends TCPDeviceHandler {
 
     public CompletableFuture<Boolean> disableToolOp(long deviceId) {
         return changeToolState(false, deviceId, false);
+    }
+
+    public CompletableFuture<Boolean> forceEnableToolOp(long deviceId) {
+        return changeToolState(true, deviceId, true);
+    }
+
+    public CompletableFuture<Boolean> forceDisableToolOp(long deviceId) {
+        return changeToolState(false, deviceId, true);
     }
 
     public CompletableFuture<Boolean> sendPSetOp(long deviceId, int pSet) {
@@ -47,12 +54,8 @@ public abstract class ToolHandler extends TCPDeviceHandler {
         }
     }
 
-    public CompletableFuture<Boolean> forceEnableToolOp(long deviceId) {
-        return changeToolState(true, deviceId, true);
-    }
-
-    public CompletableFuture<Boolean> forceDisableToolOp(long deviceId) {
-        return changeToolState(false, deviceId, true);
+    public CompletableFuture<Boolean> sendHeartbeat(long deviceId) {
+        return CompletableFuture.completedFuture(false);
     }
 
     /**

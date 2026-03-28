@@ -45,4 +45,9 @@ public class FitFrame extends CommandFrame {
     public static FitFrame sendPSet(int pSet) {
         return new FitFrame(FitCommandType.PARAMETER_SET.getCode(), new byte[] { (byte) pSet });
     }
+
+    public static FitFrame sendHeartBeat() {
+        byte[] bytes = FitDataUtils.getCurrentTimestampBytes();
+        return new FitFrame(FitCommandType.HEARTBEAT_REQ.getCode(), bytes);
+    }
 }

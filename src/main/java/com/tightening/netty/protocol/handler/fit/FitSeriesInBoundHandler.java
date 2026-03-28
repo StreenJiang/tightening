@@ -1,4 +1,4 @@
-package com.tightening.entity.handler.fit;
+package com.tightening.netty.protocol.handler.fit;
 
 import com.tightening.constant.fit.FitCommandType;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
@@ -8,6 +8,8 @@ import com.tightening.netty.protocol.fit.FitFrame;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.Arrays;
 
 import static com.tightening.constant.fit.FitConstants.COMMAND_OK;
 import static com.tightening.device.handler.impl.TCPDeviceHandler.DEVICE_ID;
@@ -31,6 +33,9 @@ public class FitSeriesInBoundHandler extends SimpleChannelInboundHandler<FitFram
 
             switch (cmdType) {
                 case HEARTBEAT_ACK:
+                    byte[] timestampBytes = Arrays.copyOfRange(data, 4, 8);
+                    log.info("Heart beating from server at {}", FitDataUtils.getDateStr(timestampBytes));
+                    deviceHandler.addResultFuture(key, true);
                     break;
                 case PARAMETER_SET:
                 case ENABLE_DISABLE:

@@ -1,8 +1,8 @@
-package com.tightening.entity.handler.fit;
+package com.tightening.netty.protocol.handler.fit;
 
 import com.tightening.device.handler.ToolHandler;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
-import com.tightening.entity.handler.DeviceInitHandler;
+import com.tightening.netty.protocol.handler.DeviceInitHandler;
 import io.netty.channel.ChannelHandlerContext;
 
 import static com.tightening.device.handler.impl.TCPDeviceHandler.DEVICE_ID;

@@ -6,9 +6,11 @@ import com.tightening.netty.protocol.handler.atlas.AtlasSeriesInitHandler;
 import com.tightening.service.DeviceService;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.CompletableFuture;
 
+@Slf4j
 public class AtlasPFSeriesHandler extends ToolHandler {
     protected static final String CMD_CONNECT = "";
     protected static final String CMD_HEART_BEAT = "";

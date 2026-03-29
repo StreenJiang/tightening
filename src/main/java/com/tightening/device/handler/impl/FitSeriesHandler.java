@@ -1,5 +1,7 @@
 package com.tightening.device.handler.impl;
 
+import com.tightening.config.FitConfig;
+import com.tightening.constant.ToolConstants;
 import com.tightening.constant.fit.FitCommandType;
 import com.tightening.constant.fit.FitConstants;
 import com.tightening.device.DeviceHolder;
@@ -7,8 +9,8 @@ import com.tightening.device.handler.HeartbeatHandler;
 import com.tightening.device.handler.ToolHandler;
 import com.tightening.netty.protocol.handler.fit.FitSeriesInBoundHandler;
 import com.tightening.netty.protocol.handler.fit.FitSeriesInitHandler;
-import com.tightening.netty.protocol.codec.FitFrameCodec;
-import com.tightening.netty.protocol.fit.FitFrame;
+import com.tightening.netty.protocol.codec.fit.FitFrameCodec;
+import com.tightening.netty.protocol.codec.fit.FitFrame;
 import com.tightening.service.DeviceService;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -25,8 +27,11 @@ import java.util.function.Supplier;
 @Slf4j
 public class FitSeriesHandler extends ToolHandler {
 
-    public FitSeriesHandler(DeviceService deviceService) {
+    private final FitConfig fitConfig;
+
+    public FitSeriesHandler(DeviceService deviceService, FitConfig fitConfig) {
         super(deviceService);
+        this.fitConfig = fitConfig;
     }
 
     @Override
@@ -45,8 +50,11 @@ public class FitSeriesHandler extends ToolHandler {
                                 true
                         ));
                 ch.pipeline().addLast(new FitFrameCodec());
-                ch.pipeline().addLast(new IdleStateHandler(30, 0, 0, TimeUnit.SECONDS));
-                ch.pipeline().addLast(new HeartbeatHandler(3, deviceId -> sendHeartbeat(deviceId)));
+                ch.pipeline().addLast(
+                        new IdleStateHandler(fitConfig.getHeartBeatIntervalMs(), 0, 0,
+                                             TimeUnit.MILLISECONDS));
+                ch.pipeline().addLast(new HeartbeatHandler(fitConfig.getHeartBeatRetryMax(),
+                                                           deviceId -> sendHeartbeat(deviceId)));
                 ch.pipeline().addLast(new FitSeriesInitHandler(deviceHandlerSelf));
                 ch.pipeline().addLast(new FitSeriesInBoundHandler(deviceHandlerSelf));
             }
@@ -119,14 +127,21 @@ public class FitSeriesHandler extends ToolHandler {
             String key = generateKey(respCmd, deviceId);
             rspFutures.put(key, resultFuture);
 
+            // 无论成功、失败、超时、异常，都会执行清理
+            resultFuture.whenComplete((result, throwable) -> {
+                rspFutures.remove(key);
+                log.debug("Cleaned up future for key: {}, result: {}, error: {}",
+                          key, result,
+                          throwable != null ? throwable.getMessage() : "none");
+            });
+
             // 设置超时任务，如果超时则完成 false 并移除
             deviceHolder.getChannel().eventLoop().schedule(() -> {
                 if (!resultFuture.isDone()) {
                     resultFuture.complete(false);
-                    rspFutures.remove(key);
                     log.debug("Timeout waiting for response: command={}, deviceId={}", respCmd, deviceId);
                 }
-            }, COMMAND_TIMEOUT, TimeUnit.MILLISECONDS);
+            }, ToolConstants.CMD_TIMEOUT_MS, TimeUnit.MILLISECONDS);
         });
 
         return resultFuture;

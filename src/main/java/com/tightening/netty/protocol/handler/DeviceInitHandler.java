@@ -1,6 +1,7 @@
 package com.tightening.netty.protocol.handler;
 
 import com.tightening.constant.DeviceStatus;
+import com.tightening.constant.TCPDeviceConstants;
 import com.tightening.device.DeviceHolder;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -55,7 +56,7 @@ public abstract class DeviceInitHandler extends ChannelInboundHandlerAdapter {
             // TODO: need i18n
             log.info("Reconnecting to server...");
             deviceHandler.connectToChannel(deviceId, deviceHolder);
-        }, 3000, TimeUnit.MILLISECONDS);
+        }, TCPDeviceConstants.RECONNECT_INTERVAL_MS, TimeUnit.MILLISECONDS);
 
         super.channelInactive(ctx);
 

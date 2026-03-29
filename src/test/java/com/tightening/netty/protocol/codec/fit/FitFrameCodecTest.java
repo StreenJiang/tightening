@@ -1,7 +1,6 @@
-package com.tightening.netty.protocol.codec;
+package com.tightening.netty.protocol.codec.fit;
 
 import com.tightening.constant.fit.FitCommandType;
-import com.tightening.netty.protocol.fit.FitFrame;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelHandlerContext;
@@ -60,9 +59,9 @@ class FitFrameCodecTest {
 
         // 写入到入站
         ByteBuf buf = ByteBufAllocator.DEFAULT.buffer();
-        codec.encode(ctx, fitFrame, new ArrayList<>());
-
         when(alloc.buffer()).thenReturn(buf);
+
+        codec.encode(ctx, fitFrame, new ArrayList<>());
         channel.writeInbound(buf);
 
         FitFrame decodedFrame = channel.readInbound();

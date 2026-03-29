@@ -1,6 +1,7 @@
 package com.tightening.device.handler.impl;
 
 import com.tightening.constant.DeviceStatus;
+import com.tightening.constant.TCPDeviceConstants;
 import com.tightening.device.DeviceHolder;
 import com.tightening.device.handler.DeviceHandler;
 import com.tightening.util.JsonUtils;
@@ -35,7 +36,6 @@ public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
     protected final Map<Long, DeviceHolder> devices;
     protected final Map<String, CompletableFuture<Boolean>> rspFutures;
 
-    protected static final int COMMAND_TIMEOUT = 5000;
     public static final AttributeKey<Long> DEVICE_ID = AttributeKey.valueOf("deviceId");
     public static final AttributeKey<DeviceHolder> DEVICE_HOLDER = AttributeKey.valueOf("deviceHolder");
 
@@ -96,7 +96,7 @@ public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
                     // TODO: need i18n
                     log.info("Reconnecting to server...");
                     connectToChannel(deviceId, device, deviceHolder);
-                }, 3000, TimeUnit.MILLISECONDS);
+                }, TCPDeviceConstants.RECONNECT_INTERVAL_MS, TimeUnit.MILLISECONDS);
             }
         });
     }

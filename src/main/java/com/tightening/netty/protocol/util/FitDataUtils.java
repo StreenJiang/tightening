@@ -1,4 +1,4 @@
-package com.tightening.netty.protocol.fit;
+package com.tightening.netty.protocol.util;
 
 import com.tightening.constant.AngleResult;
 import com.tightening.constant.TighteningResult;

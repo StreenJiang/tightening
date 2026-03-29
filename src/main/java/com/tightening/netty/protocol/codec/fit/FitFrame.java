@@ -1,14 +1,14 @@
-package com.tightening.netty.protocol.fit;
+package com.tightening.netty.protocol.codec.fit;
 
 import com.tightening.constant.fit.FitCommandType;
 import com.tightening.constant.fit.FitConstants;
-import com.tightening.netty.protocol.CommandFrame;
+import com.tightening.netty.protocol.util.FitDataUtils;
 import lombok.Data;
 
 import java.util.Arrays;
 
 @Data
-public class FitFrame extends CommandFrame {
+public class FitFrame {
     private short head;
     private byte cmdType;
     private short dataLength;

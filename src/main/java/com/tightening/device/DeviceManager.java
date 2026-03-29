@@ -1,8 +1,8 @@
 package com.tightening.device;
 
+import com.tightening.config.DeviceConfig;
 import com.tightening.constant.DeviceStatus;
 import com.tightening.constant.DeviceType;
-import com.tightening.constant.TCPCommand;
 import com.tightening.device.event.DeviceChangeEvent;
 import com.tightening.device.handler.DeviceHandler;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
@@ -24,21 +24,27 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @Component
 public class DeviceManager implements AutoCloseable {
+
     private final Map<Long, DeviceHandler> deviceHandlers;
     private final ScheduledExecutorService scanScheduler;
     private final ExecutorService connectExecutor;
     private final AtomicInteger activeUserCount = new AtomicInteger(0);
+    private final DeviceConfig deviceConfig;
     private volatile boolean running = false;
 
-    public DeviceManager() {
+    public DeviceManager(DeviceConfig deviceConfig) {
         deviceHandlers = new ConcurrentHashMap<>();
         scanScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "DeviceScan-Thread");
             t.setDaemon(true);
             return t;
         });
-        connectExecutor = new ThreadPoolExecutor(5, 20, 30L, TimeUnit.SECONDS,
-                                                 new LinkedBlockingQueue<>(100),
+        this.deviceConfig = deviceConfig;
+        DeviceConfig.ConnectThread connectThread = deviceConfig.getConnectThread();
+        connectExecutor = new ThreadPoolExecutor(connectThread.getCorePoolSize(),
+                                                 connectThread.getMaxPoolSize(),
+                                                 connectThread.getKeepAliveTimeMs(), TimeUnit.MILLISECONDS,
+                                                 new LinkedBlockingQueue<>(connectThread.getCapacity()),
                                                  // 队列满时抛出异常，因为正常情况下不可能满，满了说明系统出问题了
                                                  new ThreadPoolExecutor.AbortPolicy());
     }
@@ -68,7 +74,11 @@ public class DeviceManager implements AutoCloseable {
 
         running = true;
         // 使用 scheduleWithFixedDelay 确保扫描间隔从任务结束开始计算
-        scanScheduler.scheduleWithFixedDelay(this::scanAndConnect, 0, 5, TimeUnit.SECONDS);
+        DeviceConfig.ScanThread scanThread = deviceConfig.getScanThread();
+        scanScheduler.scheduleWithFixedDelay(this::scanAndConnect,
+                                             scanThread.getInitDelayMs(),
+                                             scanThread.getDelayMs(),
+                                             TimeUnit.MILLISECONDS);
     }
 
     private void scanAndConnect() {

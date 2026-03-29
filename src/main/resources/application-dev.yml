@@ -1,0 +1,15 @@
+device-config:
+  connect-thread:
+    core-pool-size: 5
+    max-pool-size: 10
+    keep-alive-time-ms: 30000
+    capacity: 50
+  scan-thread:
+    init-delay-ms: 0
+    delay-ms: 5000
+
+tool-control:
+  atlas:
+  fit:
+    heart-beat-interval-ms: 30000
+    heart-beat-retry-max: 3

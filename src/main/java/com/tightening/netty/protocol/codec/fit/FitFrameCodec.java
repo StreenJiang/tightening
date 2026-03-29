@@ -1,7 +1,6 @@
-package com.tightening.netty.protocol.codec;
+package com.tightening.netty.protocol.codec.fit;
 
 import com.tightening.constant.fit.FitConstants;
-import com.tightening.netty.protocol.fit.FitFrame;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandlerContext;

@@ -13,7 +13,7 @@ import org.springframework.web.context.request.async.DeferredResult;
 
 import java.util.concurrent.CompletableFuture;
 
-import static com.tightening.constant.ToolConstants.CMD_TIMEOUT;
+import static com.tightening.constant.ToolConstants.CMD_TIMEOUT_MS;
 
 @RestController
 @RequestMapping("api/devices")
@@ -26,7 +26,7 @@ public class DeviceController {
     public DeferredResult<ResponseEntity<Boolean>> sendTargetEnabled(@PathVariable("id") long deviceId,
                                                                      @PathVariable boolean enable) {
         DeviceHandler handler = deviceManager.getHandler(deviceId);
-        DeferredResult<ResponseEntity<Boolean>> deferredResult = new DeferredResult<>(CMD_TIMEOUT);
+        DeferredResult<ResponseEntity<Boolean>> deferredResult = new DeferredResult<>(CMD_TIMEOUT_MS);
         deferredResult.onTimeout(() -> deferredResult.setResult(ResponseEntity.status(408).body(false)));
 
         if (handler instanceof ToolHandler toolHandler) {
@@ -60,7 +60,7 @@ public class DeviceController {
     public DeferredResult<ResponseEntity<Boolean>> sendPSet(@PathVariable("id") long deviceId,
                                                             @PathVariable int pSet) {
         DeviceHandler handler = deviceManager.getHandler(deviceId);
-        DeferredResult<ResponseEntity<Boolean>> deferredResult = new DeferredResult<>(CMD_TIMEOUT);
+        DeferredResult<ResponseEntity<Boolean>> deferredResult = new DeferredResult<>(CMD_TIMEOUT_MS);
         deferredResult.onTimeout(() -> deferredResult.setResult(ResponseEntity.status(408).body(false)));
 
         if (handler instanceof ToolHandler toolHandler) {

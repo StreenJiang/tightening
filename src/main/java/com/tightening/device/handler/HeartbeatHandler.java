@@ -27,9 +27,8 @@ import static com.tightening.device.handler.impl.TCPDeviceHandler.DEVICE_ID;
  * <p>使用示例：
  * <pre>{@code
  * HeartbeatHandler heartbeatHandler = new HeartbeatHandler(
- *     30,  // 空闲超时时间（秒）
  *     3,   // 最大重试次数
- *     () -> device.sendHeartbeat()  // 心跳发送逻辑
+ *     deviceId -> sendHeartbeat(deviceId)  // 心跳发送逻辑
  * );
  *
  * bootstrap.pipeline()

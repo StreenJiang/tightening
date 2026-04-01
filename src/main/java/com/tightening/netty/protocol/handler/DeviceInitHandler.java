@@ -4,6 +4,7 @@ import com.tightening.constant.DeviceStatus;
 import com.tightening.constant.TCPDeviceConstants;
 import com.tightening.device.DeviceHolder;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +13,7 @@ import java.util.concurrent.TimeUnit;
 
 import static com.tightening.device.handler.impl.TCPDeviceHandler.DEVICE_HOLDER;
 import static com.tightening.device.handler.impl.TCPDeviceHandler.DEVICE_ID;
+import static com.tightening.device.handler.impl.TCPDeviceHandler.MANUALLY_CLOSE;
 
 @Slf4j
 public abstract class DeviceInitHandler extends ChannelInboundHandlerAdapter {
@@ -48,15 +50,20 @@ public abstract class DeviceInitHandler extends ChannelInboundHandlerAdapter {
 
         beforeChannelInactive(ctx);
 
-        Long deviceId = ctx.channel().attr(DEVICE_ID).get();
-        DeviceHolder deviceHolder = ctx.channel().attr(DEVICE_HOLDER).get();
-        deviceHolder.setStatus(DeviceStatus.CONNECTING);
+        Channel channel = ctx.channel();
+        Boolean manuallyClose = channel.attr(MANUALLY_CLOSE).get();
 
-        ctx.channel().eventLoop().schedule(() -> {
-            // TODO: need i18n
-            log.info("Reconnecting to server...");
-            deviceHandler.connectToChannel(deviceId, deviceHolder);
-        }, TCPDeviceConstants.RECONNECT_INTERVAL_MS, TimeUnit.MILLISECONDS);
+        if (!manuallyClose) {
+            channel.eventLoop().schedule(() -> {
+                // TODO: need i18n
+                log.info("Reconnecting to server...");
+
+                Long deviceId = channel.attr(DEVICE_ID).get();
+                DeviceHolder deviceHolder = channel.attr(DEVICE_HOLDER).get();
+                deviceHolder.setStatus(DeviceStatus.CONNECTING);
+                deviceHandler.connectToChannel(deviceId, deviceHolder);
+            }, TCPDeviceConstants.RECONNECT_INTERVAL_MS, TimeUnit.MILLISECONDS);
+        }
 
         super.channelInactive(ctx);
 

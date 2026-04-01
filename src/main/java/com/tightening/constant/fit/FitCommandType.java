@@ -9,6 +9,7 @@ import lombok.Getter;
 @Getter
 public enum FitCommandType {
 
+    // TODO: need i18n here for String description
     PARAMETER_SET((byte) 0x01, "程序号"),
     ENABLE_DISABLE((byte) 0x02, "使能/锁止信号"),
     START((byte) 0x03, "发送启动信号"),

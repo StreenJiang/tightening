@@ -17,11 +17,13 @@ public class DeviceConfig {
         private int maxPoolSize;
         private long keepAliveTimeMs;
         private int capacity;
+        private long terminationAwaitMs;
     }
 
     @Data
     public static class ScanThread {
         private long initDelayMs;
         private long delayMs;
+        private long terminationAwaitMs;
     }
 }

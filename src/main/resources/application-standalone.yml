@@ -12,9 +12,11 @@ device-config:
     max-pool-size: 10
     keep-alive-time-ms: 30000
     capacity: 50
+    termination-await-ms: 30000
   scan-thread:
     init-delay-ms: 0
     delay-ms: 5000
+    termination-await-ms: 5000
 
 tool-control:
   atlas:

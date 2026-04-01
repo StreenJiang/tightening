@@ -101,11 +101,13 @@ public class DeviceManager implements AutoCloseable {
         if (!running)
             return;
         running = false;
+        DeviceConfig.ScanThread scanThread = deviceConfig.getScanThread();
+        DeviceConfig.ConnectThread connectThread = deviceConfig.getConnectThread();
 
         // 停止扫描线程
         scanScheduler.shutdown();
         try {
-            if (!scanScheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+            if (!scanScheduler.awaitTermination(scanThread.getTerminationAwaitMs(), TimeUnit.SECONDS)) {
                 scanScheduler.shutdownNow();
             }
         } catch (InterruptedException e) {
@@ -116,7 +118,7 @@ public class DeviceManager implements AutoCloseable {
         // 停止连接线程池：不再接受新任务，等待已有任务完成
         connectExecutor.shutdown();
         try {
-            if (!connectExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
+            if (!connectExecutor.awaitTermination(connectThread.getTerminationAwaitMs(), TimeUnit.SECONDS)) {
                 connectExecutor.shutdownNow();
             }
         } catch (InterruptedException e) {

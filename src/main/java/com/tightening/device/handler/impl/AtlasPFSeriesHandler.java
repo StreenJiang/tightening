@@ -1,8 +1,13 @@
 package com.tightening.device.handler.impl;
 
-import com.tightening.device.DeviceHolder;
+import com.tightening.config.ToolCommonConfig;
+import com.tightening.constant.atlas.AtlasCommandType;
+import com.tightening.constant.atlas.AtlasConstants;
 import com.tightening.device.handler.ToolHandler;
-import com.tightening.netty.protocol.handler.atlas.AtlasSeriesInitHandler;
+import com.tightening.netty.protocol.codec.atlas.AtlasFrame;
+import com.tightening.netty.protocol.codec.atlas.AtlasLengthDecoder;
+import com.tightening.netty.protocol.handler.atlas.AtlasPFSeriesInBoundHandler;
+import com.tightening.netty.protocol.handler.atlas.AtlasPFSeriesInitHandler;
 import com.tightening.service.DeviceService;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -20,8 +25,8 @@ public class AtlasPFSeriesHandler extends ToolHandler {
     protected static final String CMD_LOCK = "";
     protected static final String CMD_UNLOCK = "";
 
-    public AtlasPFSeriesHandler(DeviceService deviceService) {
-        super(deviceService);
+    public AtlasPFSeriesHandler(DeviceService deviceService, ToolCommonConfig toolCommonConfig) {
+        super(deviceService, toolCommonConfig);
     }
 
     @Override
@@ -29,29 +34,82 @@ public class AtlasPFSeriesHandler extends ToolHandler {
         return new ChannelInitializer<>() {
             @Override
             protected void initChannel(NioSocketChannel ch) throws Exception {
-                System.out.println("PF series devices initialized...");
-
-                // Init
-                ch.pipeline().addLast(new AtlasSeriesInitHandler(deviceHandlerSelf));
+                log.debug("PF series devices initialized...");
+                ch.pipeline().addLast(new AtlasLengthDecoder(
+                        Integer.MAX_VALUE,
+                        AtlasConstants.LENGTH_FIELD_OFFSET,
+                        AtlasConstants.LENGTH_FIELD_LENGTH,
+                        AtlasConstants.LENGTH_ADJUSTMENT,
+                        AtlasConstants.INIT_BYTES_TO_STRIP));
+                ch.pipeline().addLast(new AtlasPFSeriesInitHandler(deviceHandlerSelf));
+                ch.pipeline().addLast(new AtlasPFSeriesInBoundHandler(deviceHandlerSelf));
             }
         };
     }
 
+    public CompletableFuture<Boolean> connectToController(long deviceId) {
+        return sendCmdAsync(AtlasFrame::connectTool,
+                            AtlasCommandType.CONNECT.toString(),
+                            generateKey(AtlasCommandType.CONNECT_ACK, deviceId),
+                            deviceId)
+                .exceptionally(ex -> {
+                    log.warn("Error while sending connect to tool", ex);
+                    return false;
+                });
+    }
+
+    public CompletableFuture<Boolean> subscribeTighteningData(long deviceId) {
+        return sendCmdAsync(AtlasFrame::subscribeTighteningData,
+                            AtlasCommandType.SUBSCRIBE_DATA.toString(),
+                            generateKey(AtlasCommandType.SUBSCRIBE_DATA, deviceId),
+                            deviceId)
+                .exceptionally(ex -> {
+                    log.warn("Error while sending connect to tool", ex);
+                    return false;
+                });
+    }
+
     @Override
     protected CompletableFuture<Boolean> enableTool(long deviceId) {
-        DeviceHolder deviceHolder = getHolder(deviceId);
-        return new CompletableFuture<>();
+        return sendCmdAsync(AtlasFrame::enableTool,
+                            AtlasCommandType.ENABLE.toString(),
+                            generateKey(AtlasCommandType.ENABLE, deviceId),
+                            deviceId)
+                .exceptionally(ex -> {
+                    log.warn("Error while sending enable to tool", ex);
+                    return false;
+                });
     }
 
     @Override
     protected CompletableFuture<Boolean> disableTool(long deviceId) {
-        DeviceHolder deviceHolder = getHolder(deviceId);
-        return new CompletableFuture<>();
+        return sendCmdAsync(AtlasFrame::disableTool,
+                            AtlasCommandType.DISABLE.toString(),
+                            generateKey(AtlasCommandType.DISABLE, deviceId),
+                            deviceId)
+                .exceptionally(ex -> {
+                    log.warn("Error while sending disable to tool", ex);
+                    return false;
+                });
     }
 
     @Override
     protected CompletableFuture<Boolean> sendPSetCmd(long deviceId, int pSet) {
-        DeviceHolder deviceHolder = getHolder(deviceId);
-        return new CompletableFuture<>();
+        return sendCmdAsync(() -> AtlasFrame.sendPSet(pSet),
+                            AtlasCommandType.PARAMETER_SET.toString(),
+                            generateKey(AtlasCommandType.PARAMETER_SET.getMid(), deviceId),
+                            deviceId)
+                .exceptionally(ex -> {
+                    log.warn("Error while sending pSet={} to tool", pSet, ex);
+                    return false;
+                });
+    }
+
+    @Override
+    public CompletableFuture<Boolean> sendHeartbeat(long deviceId) {
+        return sendCmdAsync(AtlasFrame::sendHeartBeat,
+                            AtlasCommandType.HEARTBEAT.toString(),
+                            generateKey(AtlasCommandType.HEARTBEAT.getMid(), deviceId),
+                            deviceId);
     }
 }

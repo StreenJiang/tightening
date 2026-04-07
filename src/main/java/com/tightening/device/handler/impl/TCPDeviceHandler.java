@@ -162,6 +162,7 @@ public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
 
     /**
      * 异步发送命令并等待响应（不阻塞当前线程）
+     * 向后兼容原有调用方
      *
      * @param cmdSupplier 命令构造器
      * @param reqCmdStr   请求命令码信息，仅用作日志
@@ -173,35 +174,66 @@ public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
                                                           String reqCmdStr,
                                                           String key,
                                                           long deviceId) {
+        // 默认需要响应，复用新方法
+        return sendCmdAsync(cmdSupplier, reqCmdStr, key, deviceId, true);
+    }
+
+    /**
+     * 异步发送命令（可配置是否需要等待响应）
+     *
+     * @param cmdSupplier 命令构造器
+     * @param reqCmdStr   请求命令码信息，仅用作日志
+     * @param key         用于给应答信息存入的对应的 future 的 key（needRsp=false 时可传 null）
+     * @param deviceId    设备ID
+     * @param needRsp     是否需要等待响应
+     * @return CompletableFuture，成功时返回 true，失败或超时返回 false
+     */
+    private <T> CompletableFuture<Boolean> sendCmdAsync(Supplier<T> cmdSupplier,
+                                                        String reqCmdStr,
+                                                        String key,
+                                                        long deviceId,
+                                                        boolean needRsp) {
         DeviceHolder deviceHolder = getHolder(deviceId);
-        T cmdFrame = cmdSupplier.get();
-        ChannelFuture writeFuture = deviceHolder.getChannel().writeAndFlush(cmdFrame);
+        Channel channel = deviceHolder.getChannel();
         CompletableFuture<Boolean> resultFuture = new CompletableFuture<>();
 
+        ChannelFuture writeFuture = channel.writeAndFlush(cmdSupplier.get());
         writeFuture.addListener(f -> {
+            // 1. 写入失败：直接完成 false
             if (!f.isSuccess()) {
-                // 写入失败，直接完成 false
                 resultFuture.complete(false);
-                log.debug("Write failed for command: {}", reqCmdStr);
+                log.debug("Write failed for command: {}, deviceId={}", reqCmdStr, deviceId);
                 return;
             }
 
-            // 写入成功，将 future 放入映射，等待响应处理器完成
+            // 2. 写入成功，但不需要响应：直接完成 true，无需注册 future
+            if (!needRsp) {
+                resultFuture.complete(true);
+                log.debug("Command sent (fire-and-forget): {}, deviceId={}", reqCmdStr, deviceId);
+                return;
+            }
+
+            // 3. 需要响应：注册 future 并设置超时
+            // 注意：key 不应为 null，调用方需保证
             rspFutures.put(key, resultFuture);
 
-            // 无论成功、失败、超时、异常，都会执行清理
+            // 清理逻辑：无论成功/失败/超时/异常，都移除 future，防止内存泄漏
             resultFuture.whenComplete((result, throwable) -> {
                 rspFutures.remove(key);
-                log.debug("Cleaned up future for key: {}, result: {}, error: {}",
-                          key, result,
-                          throwable != null ? throwable.getMessage() : "none");
+                if (log.isDebugEnabled()) {
+                    log.debug("Cleaned up future for key: {}, result: {}, error: {}",
+                              key, result,
+                              throwable != null ? throwable.getMessage() : "none");
+                }
             });
 
-            // 设置超时任务，如果超时则完成 false 并移除
-            deviceHolder.getChannel().eventLoop().schedule(() -> {
+            // 超时任务：使用 channel.eventLoop() 确保线程安全
+            channel.eventLoop().schedule(() -> {
                 if (!resultFuture.isDone()) {
                     resultFuture.complete(false);
-                    log.debug("Timeout waiting for response: command={}, deviceId={}", reqCmdStr, deviceId);
+                    log.warn("Timeout waiting for response: command={}, deviceId={}", reqCmdStr, deviceId);
+                    // 超时后断开连接，防止迟来的响应干扰后续命令（根据业务需求可选）
+                    channel.close();
                 }
             }, ToolConstants.CMD_TIMEOUT_MS, TimeUnit.MILLISECONDS);
         });

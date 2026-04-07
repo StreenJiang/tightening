@@ -11,6 +11,8 @@ device-config:
     termination-await-ms: 5000
 
 tool-control:
+  common:
+    enable_disable_cooldown_ms: 5000
   atlas:
   fit:
     heart-beat-interval-ms: 30000

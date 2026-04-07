@@ -1,5 +1,6 @@
 package com.tightening.device.handler;
 
+import com.tightening.config.ToolCommonConfig;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
 import com.tightening.service.DeviceService;
 
@@ -12,7 +13,7 @@ import java.util.concurrent.locks.ReentrantLock;
 @Slf4j
 public abstract class ToolHandler extends TCPDeviceHandler {
 
-    private static final int ENABLE_DISABLE_COOLDOWN_PERIOD_MS = 5000;
+    private final ToolCommonConfig toolCommonConfig;
 
     private final ReentrantLock stateLock = new ReentrantLock();  // 保护状态字段和冷却检查
     private final ReentrantLock pSetLock = new ReentrantLock();   // 保护 PSET 操作
@@ -24,8 +25,9 @@ public abstract class ToolHandler extends TCPDeviceHandler {
     @Getter
     private volatile boolean isToolEnabled = false;
 
-    public ToolHandler(DeviceService deviceService) {
+    public ToolHandler(DeviceService deviceService, ToolCommonConfig toolCommonConfig) {
         super(deviceService);
+        this.toolCommonConfig = toolCommonConfig;
     }
 
     public CompletableFuture<Boolean> enableToolOp(long deviceId) {
@@ -81,7 +83,7 @@ public abstract class ToolHandler extends TCPDeviceHandler {
                 log.debug("{}ToolOp: deviceId={}, current isEnabled={}, oppositeState={}",
                           action, deviceId, isToolEnabled, oppositeState);
 
-                if (!oppositeState && (now - lastTime) < ENABLE_DISABLE_COOLDOWN_PERIOD_MS) {
+                if (!oppositeState && (now - lastTime) < toolCommonConfig.getEnableDisableCooldownMs()) {
                     log.debug("{}ToolOp rejected by cooldown: deviceId={}, elapsed={}ms",
                               action, deviceId, now - lastTime);
                     return CompletableFuture.completedFuture(false);

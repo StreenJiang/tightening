@@ -1,10 +1,9 @@
 package com.tightening.device.handler.impl;
 
 import com.tightening.config.FitConfig;
-import com.tightening.constant.ToolConstants;
+import com.tightening.config.ToolCommonConfig;
 import com.tightening.constant.fit.FitCommandType;
 import com.tightening.constant.fit.FitConstants;
-import com.tightening.device.DeviceHolder;
 import com.tightening.device.handler.HeartbeatHandler;
 import com.tightening.device.handler.ToolHandler;
 import com.tightening.netty.protocol.handler.fit.FitSeriesInBoundHandler;
@@ -12,7 +11,6 @@ import com.tightening.netty.protocol.handler.fit.FitSeriesInitHandler;
 import com.tightening.netty.protocol.codec.fit.FitFrameCodec;
 import com.tightening.netty.protocol.codec.fit.FitFrame;
 import com.tightening.service.DeviceService;
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
@@ -22,15 +20,15 @@ import lombok.extern.slf4j.Slf4j;
 import java.nio.ByteOrder;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 
 @Slf4j
 public class FitSeriesHandler extends ToolHandler {
 
     private final FitConfig fitConfig;
 
-    public FitSeriesHandler(DeviceService deviceService, FitConfig fitConfig) {
-        super(deviceService);
+    public FitSeriesHandler(DeviceService deviceService, FitConfig fitConfig,
+                            ToolCommonConfig toolCommonConfig) {
+        super(deviceService, toolCommonConfig);
         this.fitConfig = fitConfig;
     }
 
@@ -51,7 +49,7 @@ public class FitSeriesHandler extends ToolHandler {
                         ));
                 ch.pipeline().addLast(new FitFrameCodec());
                 ch.pipeline().addLast(
-                        new IdleStateHandler(fitConfig.getHeartBeatIntervalMs(), 0, 0,
+                        new IdleStateHandler(0, fitConfig.getHeartBeatIntervalMs(), 0,
                                              TimeUnit.MILLISECONDS));
                 ch.pipeline().addLast(new HeartbeatHandler(fitConfig.getHeartBeatRetryMax(),
                                                            deviceId -> sendHeartbeat(deviceId)));

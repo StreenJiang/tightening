@@ -116,8 +116,8 @@ public class HeartbeatHandler extends ChannelDuplexHandler {
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
         if (evt instanceof IdleStateEvent event) {
-            if (event.state() == IdleState.READER_IDLE) {
-                log.debug("IdleStateEvent triggered (READER_IDLE): logId={}, retryCount={}",
+            if (event.state() == IdleState.WRITER_IDLE) {
+                log.debug("IdleStateEvent triggered (WRITER_IDLE): logId={}, retryCount={}",
                           getLogId(ctx), retryCount);
                 onIdleTimeout(ctx);
             }

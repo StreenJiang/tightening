@@ -42,7 +42,7 @@ class FitFrameCodecTest {
 
     @Test
     void testEncode() {
-        FitFrame fitFrame = new FitFrame(FitCommandType.ENABLE_DISABLE.getCode(), new byte[] { 0x01 });
+        FitFrame fitFrame = FitFrame.enableTool();
 
         // 写入到出站
         channel.writeOutbound(fitFrame);
@@ -55,7 +55,7 @@ class FitFrameCodecTest {
 
     @Test
     void testDecode() throws Exception {
-        FitFrame fitFrame = new FitFrame(FitCommandType.PARAMETER_SET.getCode(), new byte[] { 0x05 });
+        FitFrame fitFrame = FitFrame.sendPSet(5);
 
         // 写入到入站
         ByteBuf buf = ByteBufAllocator.DEFAULT.buffer();

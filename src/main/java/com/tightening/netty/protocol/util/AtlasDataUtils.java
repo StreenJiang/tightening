@@ -1,7 +1,6 @@
 package com.tightening.netty.protocol.util;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
 import lombok.extern.slf4j.Slf4j;
 
 import java.nio.charset.StandardCharsets;
@@ -95,87 +94,37 @@ public class AtlasDataUtils {
         return formatted.getBytes(StandardCharsets.US_ASCII);
     }
 
-    /**
-     * 标准格式：20字节头部 + 数据 + '\0'结束符
-     */
-    public static byte[] decodeStandard(ByteBuf msg, int totalLength) {
-        int dataLength = totalLength - 20;
-        if (dataLength < 0) {
-            throw new IllegalArgumentException("Invalid length: " + totalLength);
-        }
-        if (msg.readableBytes() < dataLength + 1) {
+    public static byte[] decodeData(ByteBuf msg, int remainingLength) {
+        if (msg.readableBytes() < remainingLength) {
             return null;
         }
 
-        byte[] data = null;
-        if (dataLength > 0) {
-            data = new byte[dataLength];
-            msg.readBytes(data);
+        int searchStart = msg.readerIndex();
+        int searchEnd = searchStart + remainingLength + 1;
+        int nullIndex = msg.indexOf(searchStart, searchEnd, (byte) 0);
+
+        if (nullIndex == -1) {
+            return null;
         }
 
+        // 只读取结束符之前的，因为特殊情况下，结束符后面可能还有额外数据，也会被计算入 remainingLength
+        int dataLength = nullIndex - searchStart;
+        byte[] data = new byte[dataLength];
+        msg.readBytes(data);
+
         // 消费结束符
-        if (msg.readByte() != 0) {
-            log.warn("Expected terminator 0x00, got 0x{}",
-                     Integer.toHexString(msg.getByte(msg.readerIndex() - 1) & 0xFF));
-        }
+        msg.readByte();
         return data;
     }
 
-    /**
-     * CURVE_DATA 特殊格式：
-     * [主数据...][5字节ASCII长度][\0][扩展数据...]
-     */
-    public static byte[] decodeCurveData(ChannelHandlerContext ctx, ByteBuf msg, int declaredTotalLength) {
-        int declaredDataLength = declaredTotalLength - 20;
-        if (declaredDataLength < 0) {
-            throw new IllegalArgumentException("Invalid length field: " + declaredTotalLength);
+    public static byte[] decodeCurveData(ByteBuf msg, int curveDataLength) {
+        if (msg.readableBytes() < curveDataLength) {
+            return null; // 数据不完整，等待
         }
 
-        // 定位 '\0'
-        int searchStart = msg.readerIndex();
-        int searchEnd = searchStart + declaredDataLength;
-        int nullAbsIndex = msg.indexOf(searchStart, searchEnd, (byte) 0);
-
-        if (nullAbsIndex == -1) {
-            return null; // 未找到分隔符，数据不足
-        }
-
-        int nullRelPos = nullAbsIndex - searchStart;
-        if (nullRelPos < 5) {
-            throw new IllegalArgumentException("CURVE_DATA: < 5 bytes before terminator");
-        }
-
-        // 提取最后 5 字节 ASCII 长度
-        byte[] lenAscii = new byte[5];
-        msg.getBytes(nullAbsIndex - 5, lenAscii);
-        int trailingLen = Integer.parseInt(new String(lenAscii, StandardCharsets.US_ASCII).trim());
-
-        // 检查是否足够：nullRelPos(主数据+5字节长度) + 1(\0) + trailingLen
-        int neededBytes = nullRelPos + 1 + trailingLen;
-        if (msg.readableBytes() < neededBytes) {
-            return null; // 扩展数据未到达，等待
-        }
-
-        // 数据完整，开始读取
-        int mainDataLen = nullRelPos - 5;
-        ByteBuf combined = ctx.alloc().buffer(mainDataLen + trailingLen);
-        try {
-            if (mainDataLen > 0) {
-                combined.writeBytes(msg, mainDataLen);
-            }
-
-            msg.readByte(); // 跳过 '\0'
-
-            if (trailingLen > 0) {
-                combined.writeBytes(msg, trailingLen);
-            }
-
-            byte[] result = new byte[combined.readableBytes()];
-            combined.getBytes(combined.readerIndex(), result);
-            return result;
-        } finally {
-            combined.release(); // 确保池化内存释放
-        }
+        byte[] data = new byte[curveDataLength];
+        msg.readBytes(data);
+        return data;
     }
 
     /**
@@ -186,5 +135,10 @@ public class AtlasDataUtils {
         buf.readBytes(bytes);
         String str = new String(bytes, StandardCharsets.US_ASCII).trim();
         return str.isEmpty() ? null : Integer.valueOf(str);
+    }
+
+    public static int parseAsciiInt(byte[] data) {
+        String str = new String(data, StandardCharsets.US_ASCII).trim();
+        return str.isEmpty() ? 0 : Integer.parseInt(str);
     }
 }

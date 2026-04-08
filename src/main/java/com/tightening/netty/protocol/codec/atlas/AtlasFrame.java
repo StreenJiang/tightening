@@ -6,8 +6,12 @@ import com.tightening.constant.fit.FitCommandType;
 import com.tightening.constant.fit.FitConstants;
 import com.tightening.netty.protocol.util.AtlasDataUtils;
 import com.tightening.netty.protocol.util.FitDataUtils;
+import io.netty.buffer.ByteBufUtil;
 import lombok.Data;
 import lombok.experimental.Accessors;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 @Data
 @Accessors(chain = true)
@@ -23,6 +27,7 @@ public class AtlasFrame {
     private Integer messagePartsEnd;        // 20
     private byte[] data;                    // 21-length
     private char end = '\0';                // end
+    private byte[] attachedData;
 
     public AtlasFrame(int mid) {
         this(mid, 1, null);
@@ -36,11 +41,29 @@ public class AtlasFrame {
         this(mid, 1, data);
     }
 
-    public AtlasFrame(int mid, int revision, byte[] data) {
+    public AtlasFrame(int mid, Integer revision, byte[] data) {
         this.mid = mid;
         this.revision = revision;
         this.data = data;
         this.length = AtlasConstants.HEADER_LENGTH + (data != null ? data.length : 0);
+    }
+
+    @Override
+    public String toString() {
+        return "AtlasFrame{" +
+                "length=" + length +
+                ", mid=" + AtlasCommandType.fromMid(mid) +
+                ", revision=" + revision +
+                ", noAckFlag=" + noAckFlag +
+                ", stationId=" + stationId +
+                ", spindleId=" + spindleId +
+                ", sequenceNumber=" + sequenceNumber +
+                ", numberOfMessageParts=" + numberOfMessageParts +
+                ", messagePartsEnd=" + messagePartsEnd +
+                ", data=" + new String(data, StandardCharsets.US_ASCII) +
+                ", end=" + end +
+                ", attachedData=" + ByteBufUtil.hexDump(attachedData) +
+                '}';
     }
 
     public static AtlasFrame connectTool() {

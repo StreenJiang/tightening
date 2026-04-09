@@ -1,6 +1,10 @@
-# 🔩 Tightening
+# 🔩 Tightening - Industrial Tightening Flow Control System
 
-> Industrial tightening flow control system · 工业拧紧流程控制系统
+🌍 **Languages**: 
+[English](README.md) | [中文](README.zh.md)
+
+---
+<!-- 下方继续原英文内容 -->
 
 [![Java](https://img.shields.io/badge/Java-17-blue)](https://www.oracle.com/java/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.10-brightgreen)](https://spring.io/projects/spring-boot)

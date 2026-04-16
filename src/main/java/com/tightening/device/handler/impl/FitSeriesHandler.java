@@ -11,6 +11,8 @@ import com.tightening.netty.protocol.handler.fit.FitSeriesInitHandler;
 import com.tightening.netty.protocol.codec.fit.FitFrameCodec;
 import com.tightening.netty.protocol.codec.fit.FitFrame;
 import com.tightening.service.DeviceService;
+import com.tightening.service.TighteningDataService;
+
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
@@ -26,9 +28,11 @@ public class FitSeriesHandler extends ToolHandler {
 
     private final FitConfig fitConfig;
 
-    public FitSeriesHandler(DeviceService deviceService, FitConfig fitConfig,
+    public FitSeriesHandler(DeviceService deviceService,
+                            FitConfig fitConfig,
+                            TighteningDataService tighteningDataService,
                             ToolCommonConfig toolCommonConfig) {
-        super(deviceService, toolCommonConfig);
+        super(deviceService, tighteningDataService, toolCommonConfig);
         this.fitConfig = fitConfig;
     }
 
@@ -53,8 +57,8 @@ public class FitSeriesHandler extends ToolHandler {
                                              TimeUnit.MILLISECONDS));
                 ch.pipeline().addLast(new HeartbeatHandler(fitConfig.getHeartBeatRetryMax(),
                                                            deviceId -> sendHeartbeat(deviceId)));
-                ch.pipeline().addLast(new FitSeriesInitHandler(deviceHandlerSelf));
-                ch.pipeline().addLast(new FitSeriesInBoundHandler(deviceHandlerSelf));
+                ch.pipeline().addLast(new FitSeriesInitHandler(self));
+                ch.pipeline().addLast(new FitSeriesInBoundHandler(self));
             }
         };
     }

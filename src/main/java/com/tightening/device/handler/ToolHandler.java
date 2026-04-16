@@ -3,6 +3,7 @@ package com.tightening.device.handler;
 import com.tightening.config.ToolCommonConfig;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
 import com.tightening.service.DeviceService;
+import com.tightening.service.TighteningDataService;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +14,8 @@ import java.util.concurrent.locks.ReentrantLock;
 @Slf4j
 public abstract class ToolHandler extends TCPDeviceHandler {
 
+    @Getter
+    private final TighteningDataService tighteningDataService;
     private final ToolCommonConfig toolCommonConfig;
 
     private final ReentrantLock stateLock = new ReentrantLock();  // 保护状态字段和冷却检查
@@ -25,8 +28,11 @@ public abstract class ToolHandler extends TCPDeviceHandler {
     @Getter
     private volatile boolean isToolEnabled = false;
 
-    public ToolHandler(DeviceService deviceService, ToolCommonConfig toolCommonConfig) {
+    public ToolHandler(DeviceService deviceService,
+                       TighteningDataService tighteningDataService,
+                       ToolCommonConfig toolCommonConfig) {
         super(deviceService);
+        this.tighteningDataService = tighteningDataService;
         this.toolCommonConfig = toolCommonConfig;
     }
 

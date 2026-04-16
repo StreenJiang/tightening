@@ -6,6 +6,8 @@ import com.tightening.constant.TighteningResultType;
 import com.tightening.constant.TorqueResult;
 import com.tightening.dto.TighteningDataDTO;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.time.Instant;
@@ -13,8 +15,8 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
+@Slf4j
 public class FitDataUtils {
-
 
     /**
      * 解析报警信息数据区内容
@@ -104,7 +106,7 @@ public class FitDataUtils {
 
         // 1. 拧紧ID（4字节，小端）
         int tighteningId = buffer.getInt(offset);
-        System.out.println("tighteningId=" + tighteningId);
+        log.debug("tighteningId=" + tighteningId);
         offset += 4;
 
         // 2. 状态（1字节）
@@ -117,17 +119,17 @@ public class FitDataUtils {
             tighteningData.setTorqueResult(TorqueResult.NG.getCode());
             tighteningData.setAngleResult(AngleResult.NG.getCode());
         }
-        System.out.println("tightening_status=" + tighteningData.getTighteningResult());
+        log.debug("tightening_status=" + tighteningData.getTighteningResult());
         offset += 1;
 
         // 3. 程序号（1字节）
         tighteningData.setParameterSet(data[offset] & 0xFF);
-        System.out.println("parameter_set=" + tighteningData.getParameterSet());
+        log.debug("parameter_set=" + tighteningData.getParameterSet());
         offset += 1;
 
         // 4. 条码长度（1字节）
         int barcodeLength = data[offset] & 0xFF;
-        System.out.println("barcode length=" + barcodeLength);
+        log.debug("barcode length=" + barcodeLength);
         offset += 1;
 
         // 5. 条码内容（N字节，GBK编码）
@@ -137,21 +139,21 @@ public class FitDataUtils {
             byte[] barcodeBytes = new byte[barcodeLength];
             System.arraycopy(data, offset, barcodeBytes, 0, barcodeLength);
             String barcode = new String(barcodeBytes, "GBK");
-            System.out.println("barcode=" + barcode);
+            log.debug("barcode=" + barcode);
             offset += barcodeLength;
         }
 
         // 6. 扭矩（4字节，IEEE 754 Float，小端）
         float torque = buffer.getFloat(offset);
         tighteningData.setTorque(torque);
-        System.out.println("torque=" + torque);
+        log.debug("torque=" + torque);
         offset += 4;
 
         // 7. 角度（4字节，IEEE 754 Float，小端）
         float angleFloat = buffer.getFloat(offset);
         int angle = (int) angleFloat;
         tighteningData.setAngle(angle);
-        System.out.println("angle=" + angle);
+        log.debug("angle=" + angle);
         offset += 4;
 
         if (angle >= 0) {
@@ -163,7 +165,7 @@ public class FitDataUtils {
         // 8. 时间戳（7字节，BCD码）
         String timestamp = parseBcdTimestamp(data, offset);
         tighteningData.setTimestamp(timestamp);
-        System.out.println("timestamp=" + timestamp);
+        log.debug("timestamp=" + timestamp);
         offset += 7;
 
         // 注意：数据区不包含帧尾，无需验证

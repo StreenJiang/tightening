@@ -1,9 +1,13 @@
 package com.tightening.netty.protocol.handler.fit;
 
 import com.tightening.constant.fit.FitCommandType;
+import com.tightening.device.handler.ToolHandler;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
 import com.tightening.dto.TighteningDataDTO;
+import com.tightening.entity.TighteningData;
 import com.tightening.netty.protocol.util.FitDataUtils;
+import com.tightening.service.TighteningDataService;
+import com.tightening.util.Converter;
 import com.tightening.netty.protocol.codec.fit.FitFrame;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -43,7 +47,15 @@ public class FitSeriesInBoundHandler extends SimpleChannelInboundHandler<FitFram
                     break;
                 case TIGHTEN_FINAL:
                     TighteningDataDTO tighteningDataDTO = FitDataUtils.parseTighteningData(data);
-                    System.out.println();
+                    log.debug("Read from tool: tighteningDataDTO={}", tighteningDataDTO);
+
+                    // TODO: 这里需要对 tighteningDataDTO 中的任务（配方）相关的数据进行补充，包括 mission record
+
+                    ToolHandler toolHandler = (ToolHandler) deviceHandler;
+                    TighteningDataService tighteningDataService = toolHandler.getTighteningDataService();
+                    tighteningDataService.save(Converter.dto2Entity(tighteningDataDTO, TighteningData::new));
+
+                    // TODO: 这里需要 SSE 给前端发送拧紧数据，必须包含结果
                     break;
                 case CURVE:
                     break;

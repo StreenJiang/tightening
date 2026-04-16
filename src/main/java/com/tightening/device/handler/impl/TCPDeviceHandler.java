@@ -31,7 +31,7 @@ import java.util.function.Supplier;
 @Slf4j
 public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
 
-    protected final TCPDeviceHandler deviceHandlerSelf;
+    protected final TCPDeviceHandler self;
     protected final Bootstrap bootstrap; // TODO: 后续再看定义的位置是否可以再往上层提
     protected final NioEventLoopGroup group;
     protected final DeviceService deviceService;
@@ -43,7 +43,7 @@ public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
     public static final AttributeKey<Boolean> MANUALLY_CLOSE = AttributeKey.valueOf("manuallyClose");
 
     public TCPDeviceHandler(DeviceService deviceService) {
-        deviceHandlerSelf = this;
+        self = this;
         group = new NioEventLoopGroup();
         this.deviceService = deviceService;
 

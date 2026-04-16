@@ -9,6 +9,8 @@ import com.tightening.netty.protocol.codec.atlas.AtlasLengthDecoder;
 import com.tightening.netty.protocol.handler.atlas.AtlasPFSeriesInBoundHandler;
 import com.tightening.netty.protocol.handler.atlas.AtlasPFSeriesInitHandler;
 import com.tightening.service.DeviceService;
+import com.tightening.service.TighteningDataService;
+
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import lombok.extern.slf4j.Slf4j;
@@ -17,16 +19,11 @@ import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 public class AtlasPFSeriesHandler extends ToolHandler {
-    protected static final String CMD_CONNECT = "";
-    protected static final String CMD_HEART_BEAT = "";
-    protected static final String CMD_DATA_SUBSCRIBE = "";
-    protected static final String CMD_CURVE_SUBSCRIBE = "";
-    protected static final String CMD_CURVE_DATA_ACK = "";
-    protected static final String CMD_LOCK = "";
-    protected static final String CMD_UNLOCK = "";
 
-    public AtlasPFSeriesHandler(DeviceService deviceService, ToolCommonConfig toolCommonConfig) {
-        super(deviceService, toolCommonConfig);
+    public AtlasPFSeriesHandler(DeviceService deviceService,
+                                TighteningDataService tighteningDataService,
+                                ToolCommonConfig toolCommonConfig) {
+        super(deviceService, tighteningDataService, toolCommonConfig);
     }
 
     @Override
@@ -41,8 +38,8 @@ public class AtlasPFSeriesHandler extends ToolHandler {
                         AtlasConstants.LENGTH_FIELD_LENGTH,
                         AtlasConstants.LENGTH_ADJUSTMENT,
                         AtlasConstants.INIT_BYTES_TO_STRIP));
-                ch.pipeline().addLast(new AtlasPFSeriesInitHandler(deviceHandlerSelf));
-                ch.pipeline().addLast(new AtlasPFSeriesInBoundHandler(deviceHandlerSelf));
+                ch.pipeline().addLast(new AtlasPFSeriesInitHandler(self));
+                ch.pipeline().addLast(new AtlasPFSeriesInBoundHandler(self));
             }
         };
     }

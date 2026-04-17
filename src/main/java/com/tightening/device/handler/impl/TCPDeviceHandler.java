@@ -37,6 +37,7 @@ public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
     protected final DeviceService deviceService;
     protected final Map<Long, DeviceHolder> devices;
     protected final Map<String, CompletableFuture<Boolean>> rspFutures;
+    protected final Map<String, CompletableFuture<String>> errorMsgFutures;
 
     public static final AttributeKey<Long> DEVICE_ID = AttributeKey.valueOf("deviceId");
     public static final AttributeKey<DeviceHolder> DEVICE_HOLDER = AttributeKey.valueOf("deviceHolder");
@@ -49,6 +50,7 @@ public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
 
         devices = new ConcurrentHashMap<>();
         rspFutures = new ConcurrentHashMap<>();
+        errorMsgFutures = new ConcurrentHashMap<>();
         bootstrap = new Bootstrap()
                 .group(group)
                 .channel(NioSocketChannel.class)
@@ -246,6 +248,14 @@ public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
         if (future != null) {
             future.complete(result);
         }
+    }
+
+    public void addErrorMsgFuture(String key, String errorMsg) {
+        errorMsgFutures.put(key, CompletableFuture.completedFuture(errorMsg));
+    }
+
+    public CompletableFuture<String> getErrorMsgFuture(String key) {
+        return errorMsgFutures.get(key);
     }
 
     @Override

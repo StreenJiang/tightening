@@ -1,6 +1,7 @@
 package com.tightening.netty.protocol.handler.atlas;
 
 import com.tightening.constant.atlas.AtlasCommandType;
+import com.tightening.constant.atlas.AtlasErrorCode;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
 import com.tightening.netty.protocol.codec.atlas.AtlasFrame;
 import com.tightening.netty.protocol.util.AtlasDataUtils;
@@ -9,6 +10,8 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import lombok.extern.slf4j.Slf4j;
 
 import static com.tightening.device.handler.impl.TCPDeviceHandler.DEVICE_ID;
+
+import java.util.Optional;
 
 @Slf4j
 public class AtlasPFSeriesInBoundHandler extends SimpleChannelInboundHandler<AtlasFrame> {
@@ -33,7 +36,13 @@ public class AtlasPFSeriesInBoundHandler extends SimpleChannelInboundHandler<Atl
                     break;
                 case NEGATIVE_ACK:
                     handleResult(data, deviceId, false);
-                    // TODO: 0004 失败报文还包含了一个长度=2的 error code，可以考虑把这个内容加进来
+                    Integer errCodeInt = AtlasDataUtils.parseAsciiInt(data, 4, 2);
+                    AtlasErrorCode errorCode = AtlasErrorCode.fromCode(errCodeInt).orElse(null);
+                    if (errorCode != null) {
+                        String key = deviceHandler.generateKey(AtlasCommandType.NEGATIVE_ACK.getMid(),
+                                                               deviceId);
+                        deviceHandler.addErrorMsgFuture(key, errorCode.getDescription());
+                    }
                     break;
                 case POSITIVE_ACK:
                     handleResult(data, deviceId, true);
@@ -53,7 +62,7 @@ public class AtlasPFSeriesInBoundHandler extends SimpleChannelInboundHandler<Atl
     }
 
     private void handleResult(byte[] data, long deviceId, boolean resultOk) {
-        Integer value = AtlasDataUtils.parseAsciiInt(data, 0, 3);
+        Integer value = AtlasDataUtils.parseAsciiInt(data, 0, 4);
         if (value != null) {
             AtlasCommandType mid = AtlasCommandType.fromMid(value);
             if (mid != null) {

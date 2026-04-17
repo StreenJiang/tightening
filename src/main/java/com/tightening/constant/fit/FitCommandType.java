@@ -2,6 +2,9 @@ package com.tightening.constant.fit;
 
 import lombok.Getter;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * 指令类型枚举
  * 对应协议中的命令字及指令名称
@@ -29,6 +32,14 @@ public enum FitCommandType {
     private final byte code;      // 命令字（十六进制值）
     private final String name;   // 指令名称
 
+    private static final Map<Byte, FitCommandType> BY_CODE = new HashMap<>();
+
+    static {
+        for (FitCommandType type : values()) {
+            BY_CODE.put(type.code, type);
+        }
+    }
+
     FitCommandType(byte code, String name) {
         this.code = code;
         this.name = name;
@@ -41,12 +52,7 @@ public enum FitCommandType {
      * @return 匹配的 CommandType，若不存在则返回 null
      */
     public static FitCommandType fromCode(byte code) {
-        for (FitCommandType type : values()) {
-            if (type.code == code) {
-                return type;
-            }
-        }
-        return null;
+        return BY_CODE.get(code);
     }
 
     @Override

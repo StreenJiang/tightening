@@ -2,6 +2,9 @@ package com.tightening.constant.atlas;
 
 import lombok.Getter;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * 指令类型枚举
  * 对应协议中的命令字及指令名称
@@ -30,6 +33,14 @@ public enum AtlasCommandType {
     private final int mid;       // MID（4位ASCII整数）
     private final String name;   // 指令名称
 
+    private static final Map<Integer, AtlasCommandType> BY_MID = new HashMap<>();
+
+    static {
+        for (AtlasCommandType type : values()) {
+            BY_MID.put(type.mid, type);
+        }
+    }
+
     AtlasCommandType(int mid, String name) {
         this.mid = mid;
         this.name = name;
@@ -42,12 +53,7 @@ public enum AtlasCommandType {
      * @return 匹配的 CommandType，若不存在则返回 null
      */
     public static AtlasCommandType fromMid(int mid) {
-        for (AtlasCommandType type : values()) {
-            if (type.mid == mid) {
-                return type;
-            }
-        }
-        return null;
+        return BY_MID.get(mid);
     }
 
     @Override

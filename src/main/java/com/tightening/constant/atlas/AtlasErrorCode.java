@@ -159,11 +159,8 @@ public enum AtlasErrorCode {
      * @throws IllegalArgumentException if code not found
      */
     public static AtlasErrorCode fromCodeOrThrow(int code) {
-        AtlasErrorCode errorCode = BY_CODE.get(code);
-        if (errorCode == null) {
-            throw new IllegalArgumentException("Unknown error code: " + code);
-        }
-        return errorCode;
+        return fromCode(code)
+                .orElseThrow(() -> new IllegalArgumentException("Unknown error code: " + code));
     }
 
     /**

@@ -251,11 +251,17 @@ public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
     }
 
     public void addErrorMsgFuture(String key, String errorMsg) {
-        errorMsgFutures.put(key, CompletableFuture.completedFuture(errorMsg));
+        CompletableFuture<String> future = new CompletableFuture<>();
+        future.complete(errorMsg);
+        CompletableFuture<String> existing = errorMsgFutures.put(key, future);
+        // Clean up any existing entry that was never consumed
+        if (existing != null && !existing.isDone()) {
+            existing.cancel(false);
+        }
     }
 
     public CompletableFuture<String> getErrorMsgFuture(String key) {
-        return errorMsgFutures.get(key);
+        return errorMsgFutures.remove(key);
     }
 
     @Override

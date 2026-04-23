@@ -4,6 +4,7 @@ import com.tightening.constant.AngleResult;
 import com.tightening.constant.TighteningResult;
 import com.tightening.constant.TighteningResultType;
 import com.tightening.constant.TorqueResult;
+import com.tightening.dto.CurveDataDTO;
 import com.tightening.dto.TighteningDataDTO;
 
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +15,8 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 public class FitDataUtils {
@@ -254,5 +257,141 @@ public class FitDataUtils {
         Instant instant = Instant.ofEpochSecond(timestampSec);
         LocalDateTime dateTime = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
         return dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+    }
+
+    /**
+     * 曲线数据点
+     */
+    public static class CurvePoint {
+        private float time;      // 时间 (秒)
+        private float torque;    // 扭矩
+        private float angle;     // 角度
+
+        public CurvePoint(float time, float torque, float angle) {
+            this.time = time;
+            this.torque = torque;
+            this.angle = angle;
+        }
+
+        public float getTime() { return time; }
+        public float getTorque() { return torque; }
+        public float getAngle() { return angle; }
+
+        @Override
+        public String toString() {
+            return String.format("Point[time=%.4f, torque=%.2f, angle=%.2f]", time, torque, angle);
+        }
+    }
+
+    /**
+     * 解析拧紧曲线数据（数据区从拧紧ID开始，不含帧头和帧尾）
+     * 数据区格式：[拧紧ID(4)][总包数(2)][当前包号(2)][点1时间(4)][点1扭矩(4)][点1角度(4)]...[点20时间(4)][点20扭矩(4)][点20角度(4)]
+     * 分包方案：1000个曲线点分为50包，每包20个点
+     *
+     * @param data 原始字节数组，数据区内容
+     * @return 解析后的 CurveDataDTO 对象
+     */
+    public static CurveDataDTO parseCurveData(byte[] data) throws Exception {
+        if (data == null || data.length < 8) {
+            throw new IllegalArgumentException("数据区长度不足，最小需要8字节（拧紧ID+总包数+当前包号）");
+        }
+
+        int offset = 0;
+        CurveDataDTO curveData = new CurveDataDTO();
+
+        // 使用 ByteBuffer 方便读取小端数据
+        ByteBuffer buffer = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
+
+        // 1. 拧紧ID（4字节，小端）
+        int tighteningId = buffer.getInt(offset);
+        curveData.setTighteningId(tighteningId);
+        log.debug("tighteningId=" + tighteningId);
+        offset += 4;
+
+        // 2. 总包数（2字节，小端）
+        int totalPackets = Short.toUnsignedInt(buffer.getShort(offset));
+        log.debug("totalPackets=" + totalPackets);
+        offset += 2;
+
+        // 3. 当前包号（2字节，小端）
+        int currentPacket = Short.toUnsignedInt(buffer.getShort(offset));
+        log.debug("currentPacket=" + currentPacket);
+        offset += 2;
+
+        // 4. 解析曲线点数据（每个点12字节：时间4+扭矩4+角度4）
+        // 每包最多20个点
+        int pointsPerPacket = 20;
+        int pointDataLength = pointsPerPacket * 12; // 20 * 12 = 240字节
+
+        List<CurvePoint> curvePoints = new ArrayList<>();
+
+        // 计算实际有多少个点（根据剩余数据长度）
+        int remainingBytes = data.length - offset;
+        int actualPoints = Math.min(pointsPerPacket, remainingBytes / 12);
+
+        for (int i = 0; i < actualPoints; i++) {
+            // 时间（4字节，IEEE 754 Float，小端）
+            float time = buffer.getFloat(offset);
+            offset += 4;
+
+            // 扭矩（4字节，IEEE 754 Float，小端）
+            float torque = buffer.getFloat(offset);
+            offset += 4;
+
+            // 角度（4字节，IEEE 754 Float，小端）
+            float angle = buffer.getFloat(offset);
+            offset += 4;
+
+            curvePoints.add(new CurvePoint(time, torque, angle));
+
+            log.debug("Point {}: time={:.4f}s, torque={:.2f}, angle={:.2f}",
+                      i + 1, time, torque, angle);
+        }
+
+        // 5. 计算全局点索引
+        // 当前包号从1开始，每包20个点
+        int startPointIndex = (currentPacket - 1) * pointsPerPacket;
+
+        // 6. 组装数据样本字符串（JSON格式或自定义格式）
+        String dataSamples = buildDataSamplesString(curvePoints, startPointIndex);
+        curveData.setDataSamples(dataSamples);
+
+        // 7. 设置其他字段
+        curveData.setDataType(1); // 曲线数据类型
+        curveData.setTimestamp(getCurrentTimestampStr()); // 使用当前时间或从其他地方获取
+
+        log.debug("解析完成：包{}/{}, 点数={}, tighteningId={}",
+                  currentPacket, totalPackets, curvePoints.size(), tighteningId);
+
+        return curveData;
+    }
+
+    /**
+     * 构建数据样本字符串（JSON格式）
+     */
+    private static String buildDataSamplesString(List<CurvePoint> points, int startIndex) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < points.size(); i++) {
+            CurvePoint point = points.get(i);
+            if (i > 0) {
+                sb.append(",");
+            }
+            sb.append("{")
+              .append("\"index\":").append(startIndex + i).append(",")
+              .append("\"time\":").append(String.format("%.4f", point.getTime())).append(",")
+              .append("\"torque\":").append(String.format("%.2f", point.getTorque())).append(",")
+              .append("\"angle\":").append(String.format("%.2f", point.getAngle()))
+              .append("}");
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+
+    /**
+     * 获取当前时间戳字符串
+     */
+    private static String getCurrentTimestampStr() {
+        LocalDateTime now = LocalDateTime.now();
+        return now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
     }
 }

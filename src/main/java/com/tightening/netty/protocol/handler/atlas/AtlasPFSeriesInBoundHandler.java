@@ -31,21 +31,29 @@ public class AtlasPFSeriesInBoundHandler extends SimpleChannelInboundHandler<Atl
             switch (cmdType) {
                 case HEARTBEAT:
                     log.info("Heart beating from server...");
-                    deviceHandler.addResultFuture(deviceHandler.generateKey(cmdType.getMid(), deviceId),
-                                                  true);
+                    deviceHandler.addResultFuture(deviceHandler.generateKey(cmdType.getMid(), deviceId), true);
+                    break;
+                case CONNECT_ACK:
+                    log.info("Connect succeed...");
+                    deviceHandler.addResultFuture(deviceHandler.generateKey(cmdType.getMid(), deviceId), true);
                     break;
                 case NEGATIVE_ACK:
-                    handleResult(data, deviceId, false);
                     Integer errCodeInt = AtlasDataUtils.parseAsciiInt(data, 4, 2);
-                    AtlasErrorCode errorCode = AtlasErrorCode.fromCode(errCodeInt).orElse(null);
-                    if (errorCode != null) {
-                        String key = deviceHandler.generateKey(AtlasCommandType.NEGATIVE_ACK.getMid(),
-                                                               deviceId);
-                        deviceHandler.addErrorMsgFuture(key, errorCode.getDescription());
+                    if (errCodeInt != null) {
+                        AtlasErrorCode errorCode = AtlasErrorCode.fromCode(errCodeInt).orElse(null);
+                        if (errorCode != null) {
+                            String key = deviceHandler.generateKey(AtlasCommandType.NEGATIVE_ACK.getMid(), deviceId);
+                            deviceHandler.addErrorMsgFuture(key, errorCode.getDescription());
+                        }
+                    } else {
+                        log.warn("Negative ack error code not found, deviceId={}", deviceId);
                     }
+
+                    // 最后再处理结果以保证结果拿到后错误信息一定已经存在
+                    handlePositiveOrNegativeResult(data, deviceId, false);
                     break;
                 case POSITIVE_ACK:
-                    handleResult(data, deviceId, true);
+                    handlePositiveOrNegativeResult(data, deviceId, true);
                     break;
                 case TIGHTEN_DATA:
                     log.debug("tightening data");
@@ -61,7 +69,7 @@ public class AtlasPFSeriesInBoundHandler extends SimpleChannelInboundHandler<Atl
         }
     }
 
-    private void handleResult(byte[] data, long deviceId, boolean resultOk) {
+    private void handlePositiveOrNegativeResult(byte[] data, long deviceId, boolean result) {
         Integer value = AtlasDataUtils.parseAsciiInt(data, 0, 4);
         if (value != null) {
             AtlasCommandType mid = AtlasCommandType.fromMid(value);
@@ -76,7 +84,7 @@ public class AtlasPFSeriesInBoundHandler extends SimpleChannelInboundHandler<Atl
                     case DISABLE:
                     case ENABLE:
                     case PARAMETER_SET:
-                        deviceHandler.addResultFuture(key, resultOk);
+                        deviceHandler.addResultFuture(key, result);
                         break;
                 }
             }

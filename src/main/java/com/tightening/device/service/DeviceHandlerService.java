@@ -24,7 +24,7 @@ public class DeviceHandlerService {
 
     @PostConstruct
     public void registerProvider() {
-          DeviceType.initProvider(deviceHandlerFactory::getHandler);
-          log.info("DeviceType handler provider registered");
-      }
+        DeviceType.initProvider(deviceHandlerFactory::getHandler);
+        log.info("DeviceType handler provider registered");
+    }
 }

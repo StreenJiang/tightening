@@ -3,7 +3,6 @@ package com.tightening.netty.protocol.codec.atlas;
 import com.tightening.constant.atlas.AtlasCommandType;
 import com.tightening.constant.atlas.AtlasConstants;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageCodec;
 import lombok.extern.slf4j.Slf4j;
@@ -41,15 +40,13 @@ public class AtlasFrameCodec extends MessageToMessageCodec<ByteBuf, AtlasFrame> 
         }
         buf.writeByte(0);                                                     // end: '\0'
 
-        log.info("Encoding sending msg done, buf: {}",
-                 buf.toString(buf.readerIndex(), buf.readableBytes(), StandardCharsets.US_ASCII));
+        log.info("Encoding sending msg done, buf: {}", buf.toString(buf.readerIndex(), buf.readableBytes(), StandardCharsets.US_ASCII));
         out.add(buf);
     }
 
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) throws Exception {
-        log.info("Decoding received msg, buf: {}",
-                 msg.toString(msg.readerIndex(), msg.readableBytes(), StandardCharsets.US_ASCII));
+        log.info("Decoding received msg, buf: {}", msg.toString(msg.readerIndex(), msg.readableBytes(), StandardCharsets.US_ASCII));
 
         if (msg.readableBytes() < AtlasConstants.HEADER_LENGTH) {
             return;
@@ -86,8 +83,7 @@ public class AtlasFrameCodec extends MessageToMessageCodec<ByteBuf, AtlasFrame> 
         if (Objects.equals(mid, AtlasCommandType.CURVE_DATA.getMid())) {
             data = decodeData(msg, remainingLength);
             if (data == null || data.length < 5) {
-                log.warn("Critical field is null: curve data length need 5 bytes but get ={}",
-                         data == null ? null : data.length);
+                log.warn("Critical field is null: curve data length need 5 bytes but get ={}", data == null ? null : data.length);
                 return;
             }
             int curveDataLength = parseAsciiInt(Arrays.copyOfRange(data, data.length - 5, data.length));

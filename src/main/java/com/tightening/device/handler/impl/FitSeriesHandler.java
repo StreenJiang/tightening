@@ -6,6 +6,7 @@ import com.tightening.constant.fit.FitCommandType;
 import com.tightening.constant.fit.FitConstants;
 import com.tightening.device.handler.HeartbeatHandler;
 import com.tightening.device.handler.ToolHandler;
+import com.tightening.netty.protocol.codec.fit.FitCurveDataReassembler;
 import com.tightening.netty.protocol.handler.fit.FitSeriesInBoundHandler;
 import com.tightening.netty.protocol.handler.fit.FitSeriesInitHandler;
 import com.tightening.netty.protocol.codec.fit.FitFrameCodec;
@@ -42,22 +43,18 @@ public class FitSeriesHandler extends ToolHandler {
             @Override
             protected void initChannel(NioSocketChannel ch) {
                 log.debug("FIT series device channel initialized");
-                ch.pipeline().addLast(
-                        new LengthFieldBasedFrameDecoder(
-                                ByteOrder.LITTLE_ENDIAN, Integer.MAX_VALUE,
-                                FitConstants.LENGTH_FIELD_OFFSET,
-                                FitConstants.LENGTH_FIELD_LENGTH,
-                                FitConstants.LENGTH_ADJUSTMENT,
-                                FitConstants.INIT_BYTES_TO_STRIP,
-                                true
-                        ));
+                ch.pipeline().addLast(new LengthFieldBasedFrameDecoder(
+                        ByteOrder.LITTLE_ENDIAN, Integer.MAX_VALUE,
+                        FitConstants.LENGTH_FIELD_OFFSET,
+                        FitConstants.LENGTH_FIELD_LENGTH,
+                        FitConstants.LENGTH_ADJUSTMENT,
+                        FitConstants.INIT_BYTES_TO_STRIP,
+                        true));
                 ch.pipeline().addLast(new FitFrameCodec());
-                ch.pipeline().addLast(
-                        new IdleStateHandler(0, fitConfig.getHeartBeatIntervalMs(), 0,
-                                             TimeUnit.MILLISECONDS));
-                ch.pipeline().addLast(new HeartbeatHandler(fitConfig.getHeartBeatRetryMax(),
-                                                           deviceId -> sendHeartbeat(deviceId)));
+                ch.pipeline().addLast(new IdleStateHandler(0, fitConfig.getHeartBeatIntervalMs(), 0, TimeUnit.MILLISECONDS));
+                ch.pipeline().addLast(new HeartbeatHandler(fitConfig.getHeartBeatRetryMax(), deviceId -> sendHeartbeat(deviceId)));
                 ch.pipeline().addLast(new FitSeriesInitHandler(self));
+                ch.pipeline().addLast(new FitCurveDataReassembler());
                 ch.pipeline().addLast(new FitSeriesInBoundHandler(self));
             }
         };

@@ -3,6 +3,7 @@ package com.tightening.netty.protocol.handler.fit;
 import com.tightening.constant.fit.FitCommandType;
 import com.tightening.device.handler.ToolHandler;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
+import com.tightening.dto.CurveDataDTO;
 import com.tightening.dto.TighteningDataDTO;
 import com.tightening.entity.TighteningData;
 import com.tightening.netty.protocol.util.FitDataUtils;
@@ -51,17 +52,24 @@ public class FitSeriesInBoundHandler extends SimpleChannelInboundHandler<FitFram
 
                     // TODO: 这里需要对 tighteningDataDTO 中的任务（配方）相关的数据进行补充，包括 mission record
 
-                    ToolHandler toolHandler = (ToolHandler) deviceHandler;
-                    TighteningDataService tighteningDataService = toolHandler.getTighteningDataService();
+                    TighteningDataService tighteningDataService = ((ToolHandler) deviceHandler).getTighteningDataService();
                     tighteningDataService.save(Converter.dto2Entity(tighteningDataDTO, TighteningData::new));
 
                     // TODO: 这里需要 SSE 给前端发送拧紧数据，必须包含结果
                     break;
                 case CURVE:
+                    CurveDataDTO curveDataDTO = FitDataUtils.parseCurveData(data);
+                    log.debug("Read from tool: curveDataDTO={}", curveDataDTO);
+
+                    // TODO: 这里需要对 curveDataDTO 中的任务（配方）相关的数据进行补充，包括 mission record
+
+                    // ToolHandler toolHandler2 = (ToolHandler) deviceHandler;
+
+                    // TODO: 这里需要 SSE 给前端发送拧紧数据，必须包含结果
                     break;
                 case ALARM:
                     String alarmMsg = FitDataUtils.parseAlarmData(data);
-                    log.info("Alarm message: {}", alarmMsg);
+                    log.warn("Alarm message: {}", alarmMsg);
                     break;
                 default:
                     break;

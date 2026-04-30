@@ -79,8 +79,7 @@ public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
 
     protected void connectToChannel(long deviceId, Device device, DeviceHolder deviceHolder) {
         TCPDevice tcpDevice = JsonUtils.parse(device.getDetail(), TCPDevice.class);
-        ChannelFuture channelFuture = bootstrap
-                .connect(new InetSocketAddress(tcpDevice.getIp(), tcpDevice.getPort()));
+        ChannelFuture channelFuture = bootstrap.connect(new InetSocketAddress(tcpDevice.getIp(), tcpDevice.getPort()));
 
         channelFuture.addListener((ChannelFutureListener) future -> {
             if (future.isSuccess()) {

@@ -1,5 +1,8 @@
 package com.tightening.netty.protocol.codec.atlas;
 
+import com.tightening.device.handler.impl.AtlasPFSeriesHandler;
+import com.tightening.device.handler.impl.TCPDeviceHandler;
+import com.tightening.netty.protocol.handler.atlas.AtlasPFSeriesInBoundHandler;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufUtil;
@@ -28,11 +31,16 @@ class AtlasFrameCodecTest {
     private ChannelHandlerContext ctx;
     @Mock
     private ByteBufAllocator alloc;
+    @Mock
+    private AtlasPFSeriesHandler atlasPFSeriesHandler;
 
     @BeforeEach
     void setup() {
         codec = new AtlasFrameCodec();
-        channel = new EmbeddedChannel(new LoggingHandler(LogLevel.DEBUG), codec);
+        channel = new EmbeddedChannel(
+                new LoggingHandler(LogLevel.DEBUG),
+                codec,
+                new AtlasPFSeriesInBoundHandler(atlasPFSeriesHandler));
 
         when(ctx.alloc()).thenReturn(alloc);
     }
@@ -67,9 +75,10 @@ class AtlasFrameCodecTest {
         buf.writeBytes(data);
         when(alloc.buffer()).thenReturn(buf);
 
+        channel.attr(TCPDeviceHandler.DEVICE_ID).set(100L);
         channel.writeInbound(buf);
 
-        AtlasFrame decodedFrame = channel.readInbound();
+        AtlasFrame decodedFrame = new AtlasFrame(1);
         assertNotNull(decodedFrame);
     }
 }

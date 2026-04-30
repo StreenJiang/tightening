@@ -71,8 +71,7 @@ public class AtlasFrame {
     }
 
     public static AtlasFrame subscribeTighteningData() {
-        return new AtlasFrame(AtlasCommandType.SUBSCRIBE_DATA.getMid(), 3)
-                .setNoAckFlag(1);
+        return new AtlasFrame(AtlasCommandType.SUBSCRIBE_DATA.getMid(), 3).setNoAckFlag(1);
     }
 
     public static AtlasFrame enableTool() {
@@ -84,8 +83,7 @@ public class AtlasFrame {
     }
 
     public static AtlasFrame sendPSet(int pSet) {
-        return new AtlasFrame(AtlasCommandType.PARAMETER_SET.getMid(),
-                              AtlasDataUtils.formatAscii(pSet, 3));
+        return new AtlasFrame(AtlasCommandType.PARAMETER_SET.getMid(), AtlasDataUtils.formatAscii(pSet, 3));
     }
 
     public static AtlasFrame sendHeartBeat() {

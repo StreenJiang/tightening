@@ -62,7 +62,7 @@ class HeartbeatHandlerTest {
 
         // 触发 2 次空闲
         for (int i = 0; i < 2; i++) {
-            channel.pipeline().fireUserEventTriggered(IdleStateEvent.FIRST_READER_IDLE_STATE_EVENT);
+            channel.pipeline().fireUserEventTriggered(IdleStateEvent.FIRST_WRITER_IDLE_STATE_EVENT);
             Thread.sleep(100);
         }
 
@@ -94,7 +94,7 @@ class HeartbeatHandlerTest {
 
         // 触发 3 次（超过 maxRetry=2）
         for (int i = 0; i < 3; i++) {
-            channel.pipeline().fireUserEventTriggered(IdleStateEvent.FIRST_READER_IDLE_STATE_EVENT);
+            channel.pipeline().fireUserEventTriggered(IdleStateEvent.FIRST_WRITER_IDLE_STATE_EVENT);
             Thread.sleep(100);
         }
 

@@ -11,8 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import static com.tightening.device.handler.impl.TCPDeviceHandler.DEVICE_ID;
 
-import java.util.Optional;
-
 @Slf4j
 public class AtlasPFSeriesInBoundHandler extends SimpleChannelInboundHandler<AtlasFrame> {
     private final TCPDeviceHandler deviceHandler;

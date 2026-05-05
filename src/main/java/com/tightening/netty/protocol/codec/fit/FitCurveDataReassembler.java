@@ -14,7 +14,7 @@ import com.tightening.constant.fit.FitCommandType;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageDecoder;
-import io.netty.util.concurrent.EventExecutor;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -96,19 +96,18 @@ public class FitCurveDataReassembler extends MessageToMessageDecoder<FitFrame> {
     }
 
     private void scheduleTimeoutCheck(ChannelHandlerContext ctx, long tighteningId) {
-        try (EventExecutor executor = ctx.executor()) {
-            executor.schedule(() -> {
-                CurveReassemblyState state = reassemblyCache.remove(tighteningId);
-                if (state != null && !state.isComplete()) {
-                    String errorMsg = String.format(
-                            "Curve packet reassembly timeout: ID=%d, received=%d/%d",
-                            tighteningId, state.getReceivedCount(), state.getTotalPackets()
-                    );
-                    log.warn(errorMsg);
-                    ctx.fireExceptionCaught(new TimeoutException(errorMsg));
-                }
-            }, REASSEMBLY_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-        }
+        // 这里的 executor 不需要 释放资源，因为这里释放掉会导致 event loop 无法正常工作
+        ctx.executor().schedule(() -> {
+            CurveReassemblyState state = reassemblyCache.remove(tighteningId);
+            if (state != null && !state.isComplete()) {
+                String errorMsg = String.format(
+                        "Curve packet reassembly timeout: ID=%d, received=%d/%d",
+                        tighteningId, state.getReceivedCount(), state.getTotalPackets()
+                );
+                log.warn(errorMsg);
+                ctx.fireExceptionCaught(new TimeoutException(errorMsg));
+            }
+        }, REASSEMBLY_TIMEOUT_MS, TimeUnit.MILLISECONDS);
     }
 
     private static class CurveReassemblyState {

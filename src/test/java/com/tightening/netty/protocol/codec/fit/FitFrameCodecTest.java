@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.springframework.boot.test.context.SpringBootTest;
 
-import java.util.ArrayList;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
@@ -37,6 +36,7 @@ class FitFrameCodecTest {
         channel = new EmbeddedChannel(
                 new LoggingHandler(LogLevel.DEBUG),
                 codec,
+                new FitCurveDataReassembler(),
                 new FitSeriesInBoundHandler(fitSeriesHandler)
         );
 

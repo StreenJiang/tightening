@@ -2,16 +2,12 @@ package com.tightening.netty.protocol.codec.atlas;
 
 import com.tightening.constant.atlas.AtlasCommandType;
 import com.tightening.constant.atlas.AtlasConstants;
-import com.tightening.constant.fit.FitCommandType;
-import com.tightening.constant.fit.FitConstants;
 import com.tightening.netty.protocol.util.AtlasDataUtils;
-import com.tightening.netty.protocol.util.FitDataUtils;
 import io.netty.buffer.ByteBufUtil;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 
 @Data
 @Accessors(chain = true)

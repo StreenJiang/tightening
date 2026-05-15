@@ -8,7 +8,6 @@ import io.netty.channel.ChannelHandlerContext;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 import static com.tightening.device.handler.impl.TCPDeviceHandler.DEVICE_ID;
 

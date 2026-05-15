@@ -6,7 +6,7 @@
 ---
 <!-- 下方继续原英文内容 -->
 
-[![Java](https://img.shields.io/badge/Java-17-blue)](https://www.oracle.com/java/)
+[![Java](https://img.shields.io/badge/Java-21-blue)](https://www.oracle.com/java/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.10-brightgreen)](https://spring.io/projects/spring-boot)
 [![License](https://img.shields.io/badge/License-Apache--2.0-yellow.svg)](LICENSE)
 
@@ -26,7 +26,7 @@
 | 模块 | 版本 | 用途 |
 |------|------|------|
 | Spring Boot | 3.5.10 | 应用框架 |
-| Java | 17 | 开发语言 |
+| Java | 21 | 开发语言 |
 | Netty | 4.1.129.Final | 异步设备通信 |
 | MyBatis-Plus | 3.5.9 | 数据持久化 |
 | SQLite JDBC | 3.49.1.0 | 嵌入式数据库 |
@@ -73,7 +73,7 @@ tightening/
 ## 🚀 快速开始
 
 ### 1. 环境要求
-- JDK 17+
+- JDK 21+
 - Maven 3.8+
 
 ### 2. 克隆与构建

@@ -5,7 +5,7 @@
 🌍 **Languages**: 
 [English](README.md) | [中文](README.zh.md)
 
-[![Java](https://img.shields.io/badge/Java-17-blue)](https://www.oracle.com/java/)
+[![Java](https://img.shields.io/badge/Java-21-blue)](https://www.oracle.com/java/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.10-brightgreen)](https://spring.io/projects/spring-boot)
 [![License](https://img.shields.io/badge/License-Apache--2.0-yellow.svg)](LICENSE)
 
@@ -25,7 +25,7 @@ Designed for edge deployment at assembly workstations, supporting lightweight, s
 | Module | Version | Purpose |
 |--------|---------|---------|
 | **Spring Boot** | 3.5.10 | Application framework |
-| **Java** | 17 | Core language |
+| **Java** | 21 | Core language |
 | **Netty** | 4.1.129.Final | Async device communication |
 | **MyBatis-Plus** | 3.5.9 | Data persistence & ORM |
 | **SQLite JDBC** | 3.49.1.0 | Embedded database |
@@ -72,7 +72,7 @@ tightening/
 ## 🚀 Quick Start
 
 ### 1. Prerequisites
-- JDK 17+
+- JDK 21+
 - Maven 3.8+
 
 ### 2. Clone & Build

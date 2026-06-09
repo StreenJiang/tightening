@@ -21,9 +21,9 @@ import static com.tightening.device.handler.impl.TCPDeviceHandler.DEVICE_ID;
 
 @Slf4j
 public class FitSeriesInBoundHandler extends SimpleChannelInboundHandler<FitFrame> {
-    private final TCPDeviceHandler deviceHandler;
+    private final ToolHandler deviceHandler;
 
-    public FitSeriesInBoundHandler(TCPDeviceHandler deviceHandler) {
+    public FitSeriesInBoundHandler(ToolHandler deviceHandler) {
         this.deviceHandler = deviceHandler;
     }
 
@@ -52,8 +52,11 @@ public class FitSeriesInBoundHandler extends SimpleChannelInboundHandler<FitFram
 
                     // TODO: 这里需要对 tighteningDataDTO 中的任务（配方）相关的数据进行补充，包括 mission record
 
-                    TighteningDataService tighteningDataService = ((ToolHandler) deviceHandler).getTighteningDataService();
-                    tighteningDataService.save(Converter.dto2Entity(tighteningDataDTO, TighteningData::new));
+                    TighteningData tighteningData = Converter.dto2Entity(tighteningDataDTO, TighteningData::new);
+                    TCPDeviceHandler.applyToolTypeName(ctx.channel(), tighteningData);
+
+                    TighteningDataService tighteningDataService = deviceHandler.getTighteningDataService();
+                    tighteningDataService.save(tighteningData);
 
                     // TODO: 这里需要 SSE 给前端发送拧紧数据，必须包含结果
                     break;

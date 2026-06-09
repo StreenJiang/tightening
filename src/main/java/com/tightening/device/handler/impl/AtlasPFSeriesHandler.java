@@ -39,7 +39,7 @@ public class AtlasPFSeriesHandler extends ToolHandler {
                         AtlasConstants.LENGTH_ADJUSTMENT,
                         AtlasConstants.INIT_BYTES_TO_STRIP));
                 ch.pipeline().addLast(new AtlasPFSeriesInitHandler(self));
-                ch.pipeline().addLast(new AtlasPFSeriesInBoundHandler(self));
+                ch.pipeline().addLast(new AtlasPFSeriesInBoundHandler((ToolHandler) self));
             }
         };
     }

@@ -196,6 +196,20 @@ Flyway 迁移文件：
 - Controller 路径：`/api/devices`, `/api/login` 等，只用 POST
 - 异步响应使用 `DeferredResult` + `CompletableFuture`
 
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues for `StreenJiang/tightening`，通过 `gh` CLI 操作。See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+五个分类标签使用默认名称：`needs-triage`、`needs-info`、`ready-for-agent`、`ready-for-human`、`wontfix`。See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context 仓库 — 根目录 `CONTEXT.md` + `docs/adr/`。See `docs/agents/domain.md`.
+
 ## 运行
 
 ```bash

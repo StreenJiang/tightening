@@ -58,7 +58,7 @@ public class AtlasFrame {
                 ", messagePartsEnd=" + messagePartsEnd +
                 ", data=" + new String(data, StandardCharsets.US_ASCII) +
                 ", end=" + end +
-                ", attachedData=" + ByteBufUtil.hexDump(attachedData) +
+                ", attachedData=" + (attachedData != null ? ByteBufUtil.hexDump(attachedData) : null) +
                 '}';
     }
 

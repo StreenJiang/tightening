@@ -22,12 +22,12 @@ public class TighteningDataDTO extends BaseDTO {
     private int parameterSet;
     private String parameterSetName;
 
-    private int tighteningId;
-    private int tighteningResult;
+    private long tighteningId;
+    private int tighteningStatus;
     private int resultType;
-    private int torqueResult;
-    private int angleResult;
-    private int rundownAngleResult;
+    private int torqueStatus;
+    private int angleStatus;
+    private int rundownAngleStatus;
     private int torqueValuesUnit;
 
     private double torqueMinLimit;
@@ -43,4 +43,16 @@ public class TighteningDataDTO extends BaseDTO {
     private double rundownAngle;
 
     private String timestamp;
+
+    private int cellId;
+    private int channelId;
+    private String controllerName;
+    private String vin;
+    private int jobId;
+    private int batchSize;
+    private int batchCounter;
+    private int batchStatus;
+
+    private int revision;
+    private String extraData;
 }

@@ -55,7 +55,7 @@ public class FitSeriesHandler extends ToolHandler {
                 ch.pipeline().addLast(new HeartbeatHandler(fitConfig.getHeartBeatRetryMax(), deviceId -> sendHeartbeat(deviceId)));
                 ch.pipeline().addLast(new FitSeriesInitHandler(self));
                 ch.pipeline().addLast(new FitCurveDataReassembler());
-                ch.pipeline().addLast(new FitSeriesInBoundHandler(self));
+                ch.pipeline().addLast(new FitSeriesInBoundHandler((ToolHandler) self));
             }
         };
     }

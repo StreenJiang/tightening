@@ -8,6 +8,7 @@ import com.tightening.device.handler.DeviceHandler;
 import com.tightening.util.JsonUtils;
 import com.tightening.device.type.TCPDevice;
 import com.tightening.entity.Device;
+import com.tightening.entity.TighteningData;
 import com.tightening.service.DeviceService;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
@@ -42,6 +43,13 @@ public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
     public static final AttributeKey<Long> DEVICE_ID = AttributeKey.valueOf("deviceId");
     public static final AttributeKey<DeviceHolder> DEVICE_HOLDER = AttributeKey.valueOf("deviceHolder");
     public static final AttributeKey<Boolean> MANUALLY_CLOSE = AttributeKey.valueOf("manuallyClose");
+
+    public static void applyToolTypeName(Channel channel, TighteningData data) {
+        DeviceHolder holder = channel.attr(DEVICE_HOLDER).get();
+        if (holder != null) {
+            data.setToolTypeName(holder.resolveToolTypeName());
+        }
+    }
 
     public TCPDeviceHandler(DeviceService deviceService) {
         self = this;

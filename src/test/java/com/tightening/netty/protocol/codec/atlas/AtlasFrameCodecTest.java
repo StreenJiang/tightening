@@ -2,7 +2,9 @@ package com.tightening.netty.protocol.codec.atlas;
 
 import com.tightening.device.handler.impl.AtlasPFSeriesHandler;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
+import com.tightening.entity.TighteningData;
 import com.tightening.netty.protocol.handler.atlas.AtlasPFSeriesInBoundHandler;
+import com.tightening.service.TighteningDataService;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufUtil;
@@ -19,7 +21,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import java.nio.charset.StandardCharsets;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 
@@ -33,6 +38,8 @@ class AtlasFrameCodecTest {
     private ByteBufAllocator alloc;
     @Mock
     private AtlasPFSeriesHandler atlasPFSeriesHandler;
+    @Mock
+    private TighteningDataService tighteningDataService;
 
     @BeforeEach
     void setup() {
@@ -43,6 +50,7 @@ class AtlasFrameCodecTest {
                 new AtlasPFSeriesInBoundHandler(atlasPFSeriesHandler));
 
         when(ctx.alloc()).thenReturn(alloc);
+        when(atlasPFSeriesHandler.getTighteningDataService()).thenReturn(tighteningDataService);
     }
 
     @AfterEach
@@ -80,5 +88,16 @@ class AtlasFrameCodecTest {
 
         AtlasFrame decodedFrame = new AtlasFrame(1);
         assertNotNull(decodedFrame);
+    }
+
+    @Test
+    void testDecodeTightenData() {
+        String asciiStr = "0419006100310000    010000020003ND-5                     04780270-001680000000S00X3 05000006008070108000000900001000001101221301401511611711811912000001310722100092022001080230010002400020825000032600100270000028000002900100300500031000003200033000340003500000036005000370000003800000039999999400000004100000439584200000430000044A7550367      452026-06-02:13:43:19462025-11-30:15:37:2047P01 10.0??0.8N.m         4814901\0";
+        ByteBuf buf = Unpooled.copiedBuffer(asciiStr, StandardCharsets.US_ASCII);
+
+        channel.attr(TCPDeviceHandler.DEVICE_ID).set(100L);
+        channel.writeInbound(buf);
+
+        verify(tighteningDataService).save(any(TighteningData.class));
     }
 }

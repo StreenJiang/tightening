@@ -1,10 +1,10 @@
 package com.tightening.netty.protocol.util;
 
-import com.tightening.constant.AngleResult;
 import com.tightening.constant.DeviceType;
-import com.tightening.constant.TighteningResult;
+import com.tightening.constant.FitAngleStatus;
+import com.tightening.constant.FitTorqueStatus;
 import com.tightening.constant.TighteningResultType;
-import com.tightening.constant.TorqueResult;
+import com.tightening.constant.TighteningStatus;
 import com.tightening.dto.CurveDataDTO;
 import com.tightening.dto.TighteningDataDTO;
 
@@ -115,15 +115,15 @@ public class FitDataUtils {
 
         // 2. 状态（1字节）
         if (data[offset] == 1) {
-            tighteningData.setTighteningResult(TighteningResult.OK.getCode());
-            tighteningData.setTorqueResult(TorqueResult.OK.getCode());
-            tighteningData.setAngleResult(AngleResult.OK.getCode());
+            tighteningData.setTighteningStatus(TighteningStatus.OK.getCode());
+            tighteningData.setTorqueStatus(FitTorqueStatus.OK.getCode());
+            tighteningData.setAngleStatus(FitAngleStatus.OK.getCode());
         } else {
-            tighteningData.setTighteningResult(TighteningResult.NG.getCode());
-            tighteningData.setTorqueResult(TorqueResult.NG.getCode());
-            tighteningData.setAngleResult(AngleResult.NG.getCode());
+            tighteningData.setTighteningStatus(TighteningStatus.NG.getCode());
+            tighteningData.setTorqueStatus(FitTorqueStatus.NG.getCode());
+            tighteningData.setAngleStatus(FitAngleStatus.NG.getCode());
         }
-        log.debug("tightening_status=" + tighteningData.getTighteningResult());
+        log.debug("tightening_status=" + tighteningData.getTighteningStatus());
         offset += 1;
 
         // 3. 程序号（1字节）

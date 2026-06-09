@@ -2,9 +2,12 @@ package com.tightening.netty.protocol.handler.atlas;
 
 import com.tightening.constant.atlas.AtlasCommandType;
 import com.tightening.constant.atlas.AtlasErrorCode;
+import com.tightening.device.handler.ToolHandler;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
+import com.tightening.entity.TighteningData;
 import com.tightening.netty.protocol.codec.atlas.AtlasFrame;
 import com.tightening.netty.protocol.util.AtlasDataUtils;
+import com.tightening.netty.protocol.util.AtlasTighteningDataParser;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import lombok.extern.slf4j.Slf4j;
@@ -13,9 +16,9 @@ import static com.tightening.device.handler.impl.TCPDeviceHandler.DEVICE_ID;
 
 @Slf4j
 public class AtlasPFSeriesInBoundHandler extends SimpleChannelInboundHandler<AtlasFrame> {
-    private final TCPDeviceHandler deviceHandler;
+    private final ToolHandler deviceHandler;
 
-    public AtlasPFSeriesInBoundHandler(TCPDeviceHandler deviceHandler) {
+    public AtlasPFSeriesInBoundHandler(ToolHandler deviceHandler) {
         this.deviceHandler = deviceHandler;
     }
 
@@ -54,7 +57,13 @@ public class AtlasPFSeriesInBoundHandler extends SimpleChannelInboundHandler<Atl
                     handlePositiveOrNegativeResult(data, deviceId, true);
                     break;
                 case TIGHTEN_DATA:
-                    log.debug("tightening data");
+                    TighteningData tighteningData = AtlasTighteningDataParser.parse(
+                            msg.getData(), msg.getRevision());
+                    TCPDeviceHandler.applyToolTypeName(ctx.channel(), tighteningData);
+                    log.debug("Parsed tightening data: tighteningId={}, torque={}, revision={}",
+                            tighteningData.getTighteningId(), tighteningData.getTorque(),
+                            tighteningData.getRevision());
+                    deviceHandler.getTighteningDataService().save(tighteningData);
                     break;
                 case CURVE_DATA:
                     log.debug("curve data");

@@ -153,7 +153,8 @@ public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
     protected DeviceHolder getHolder(long deviceId) {
         DeviceHolder deviceHolder = devices.get(deviceId);
         if (deviceHolder == null) {
-            throw new RuntimeException();
+            log.warn("DeviceHolder not found for deviceId={}", deviceId);
+            throw new RuntimeException("DeviceHolder not found for deviceId=" + deviceId);
         }
         return deviceHolder;
     }

@@ -79,7 +79,7 @@ _Avoid_: 组、轮次
 _Avoid_: 连接管理器
 
 **DeviceHolder（设备持有者）**:
-设备在内存中的运行时对象，包含 Device 实体引用、Netty Channel、当前 DeviceStatus。
+设备在内存中的运行时对象，包含 Device 实体引用、Netty Channel、当前 DeviceStatus、工具 enable/disable 状态和冷却时间戳。
 _Avoid_: 设备会话、设备连接
 
 **DeviceStatus（设备连接状态）**:

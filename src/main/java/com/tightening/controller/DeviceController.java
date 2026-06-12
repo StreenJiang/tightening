@@ -51,7 +51,7 @@ public class DeviceController {
         DeviceHandler handler = deviceManager.getHandler(deviceId);
         boolean result = false;
         if (handler instanceof ToolHandler toolHandler) {
-            result = toolHandler.isToolEnabled();
+            result = toolHandler.isToolEnabled(deviceId);
         }
         return ResponseEntity.ok(result);
     }

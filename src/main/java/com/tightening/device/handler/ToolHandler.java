@@ -1,6 +1,7 @@
 package com.tightening.device.handler;
 
 import com.tightening.config.ToolCommonConfig;
+import com.tightening.device.DeviceHolder;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
 import com.tightening.service.DeviceService;
 import com.tightening.service.TighteningDataService;
@@ -9,7 +10,6 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.locks.ReentrantLock;
 
 @Slf4j
 public abstract class ToolHandler extends TCPDeviceHandler {
@@ -17,16 +17,6 @@ public abstract class ToolHandler extends TCPDeviceHandler {
     @Getter
     private final TighteningDataService tighteningDataService;
     private final ToolCommonConfig toolCommonConfig;
-
-    private final ReentrantLock stateLock = new ReentrantLock();  // 保护状态字段和冷却检查
-    private final ReentrantLock pSetLock = new ReentrantLock();   // 保护 PSET 操作
-
-    @Getter
-    private volatile long lastEnableTime = 0;
-    @Getter
-    private volatile long lastDisableTime = 0;
-    @Getter
-    private volatile boolean isToolEnabled = false;
 
     public ToolHandler(DeviceService deviceService,
                        TighteningDataService tighteningDataService,
@@ -53,13 +43,18 @@ public abstract class ToolHandler extends TCPDeviceHandler {
     }
 
     public CompletableFuture<Boolean> sendPSetOp(long deviceId, int pSet) {
-        pSetLock.lock();
+        DeviceHolder holder = getHolder(deviceId);
+        holder.getPSetLock().lock();
         try {
             log.debug("sendPSetOp: deviceId={}, pSet={}", deviceId, pSet);
             return sendPSetCmd(deviceId, pSet);
         } finally {
-            pSetLock.unlock();
+            holder.getPSetLock().unlock();
         }
+    }
+
+    public boolean isToolEnabled(long deviceId) {
+        return getHolder(deviceId).isToolEnabled();
     }
 
     public CompletableFuture<Boolean> sendHeartbeat(long deviceId) {
@@ -78,16 +73,15 @@ public abstract class ToolHandler extends TCPDeviceHandler {
                                                        boolean bypassCooldown) {
         String action = targetEnabled ? "enable" : "disable";
         long now = System.currentTimeMillis();
+        DeviceHolder holder = getHolder(deviceId);
 
-        // 1. 冷却检查与意图记录（同步）
-        stateLock.lock();
+        holder.getStateLock().lock();
         try {
-            // 如果不是强制绕过，则进行常规冷却检查
             if (!bypassCooldown) {
-                boolean oppositeState = targetEnabled != isToolEnabled; // 与当前状态相反时绕过冷却
-                long lastTime = targetEnabled ? lastEnableTime : lastDisableTime;
+                boolean oppositeState = targetEnabled != holder.isToolEnabled();
+                long lastTime = targetEnabled ? holder.getLastEnableTime() : holder.getLastDisableTime();
                 log.debug("{}ToolOp: deviceId={}, current isEnabled={}, oppositeState={}",
-                          action, deviceId, isToolEnabled, oppositeState);
+                          action, deviceId, holder.isToolEnabled(), oppositeState);
 
                 if (!oppositeState && (now - lastTime) < toolCommonConfig.getEnableDisableCooldownMs()) {
                     log.debug("{}ToolOp rejected by cooldown: deviceId={}, elapsed={}ms",
@@ -98,32 +92,30 @@ public abstract class ToolHandler extends TCPDeviceHandler {
                 log.debug("force{}Tool: deviceId={}, bypass cooldown", action, deviceId);
             }
         } finally {
-            stateLock.unlock();
+            holder.getStateLock().unlock();
         }
 
-        // 2. 调用底层异步操作
         CompletableFuture<Boolean> operation = targetEnabled ? enableTool(deviceId) : disableTool(deviceId);
 
-        // 3. 操作完成后更新状态（如果成功）
         return operation.whenComplete((result, ex) -> {
             if (ex != null) {
                 log.error("{}Tool exception: deviceId={}", action, deviceId, ex);
                 return;
             }
             if (result != null && result) {
-                stateLock.lock();
+                holder.getStateLock().lock();
                 try {
                     if (targetEnabled) {
-                        isToolEnabled = true;
-                        lastEnableTime = System.currentTimeMillis();
+                        holder.setToolEnabled(true);
+                        holder.setLastEnableTime(System.currentTimeMillis());
                         log.info("{}Tool enable succeeded: deviceId={}", action, deviceId);
                     } else {
-                        isToolEnabled = false;
-                        lastDisableTime = System.currentTimeMillis();
+                        holder.setToolEnabled(false);
+                        holder.setLastDisableTime(System.currentTimeMillis());
                         log.info("{}Tool disable succeeded: deviceId={}", action, deviceId);
                     }
                 } finally {
-                    stateLock.unlock();
+                    holder.getStateLock().unlock();
                 }
             } else {
                 log.debug("{}Tool failed: deviceId={}", action, deviceId);

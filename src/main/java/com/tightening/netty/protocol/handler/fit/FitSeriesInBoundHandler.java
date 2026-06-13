@@ -6,7 +6,9 @@ import com.tightening.device.handler.impl.TCPDeviceHandler;
 import com.tightening.dto.CurveDataDTO;
 import com.tightening.dto.TighteningDataDTO;
 import com.tightening.entity.TighteningData;
-import com.tightening.netty.protocol.util.FitDataUtils;
+import com.tightening.netty.protocol.util.fit.FitDataUtils;
+import com.tightening.netty.protocol.util.fit.FitCurveDataParser;
+import com.tightening.netty.protocol.util.fit.FitTighteningDataParser;
 import com.tightening.service.TighteningDataService;
 import com.tightening.util.Converter;
 import com.tightening.netty.protocol.codec.fit.FitFrame;
@@ -47,7 +49,7 @@ public class FitSeriesInBoundHandler extends SimpleChannelInboundHandler<FitFram
                     deviceHandler.addResultFuture(key, datum == COMMAND_OK);
                     break;
                 case TIGHTEN_FINAL:
-                    TighteningDataDTO tighteningDataDTO = FitDataUtils.parseTighteningData(data);
+                    TighteningDataDTO tighteningDataDTO = FitTighteningDataParser.parse(data);
                     log.debug("Read from tool: tighteningDataDTO={}", tighteningDataDTO);
 
                     // TODO: 这里需要对 tighteningDataDTO 中的任务（配方）相关的数据进行补充，包括 mission record
@@ -61,7 +63,7 @@ public class FitSeriesInBoundHandler extends SimpleChannelInboundHandler<FitFram
                     // TODO: 这里需要 SSE 给前端发送拧紧数据，必须包含结果
                     break;
                 case CURVE:
-                    CurveDataDTO curveDataDTO = FitDataUtils.parseCurveData(data);
+                    CurveDataDTO curveDataDTO = FitCurveDataParser.parse(data);
                     log.debug("Read from tool: curveDataDTO={}", curveDataDTO);
 
                     // TODO: 这里需要对 curveDataDTO 中的任务（配方）相关的数据进行补充，包括 mission record

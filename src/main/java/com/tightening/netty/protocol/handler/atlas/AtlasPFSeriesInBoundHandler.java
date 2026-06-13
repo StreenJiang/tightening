@@ -6,8 +6,10 @@ import com.tightening.device.handler.ToolHandler;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
 import com.tightening.entity.TighteningData;
 import com.tightening.netty.protocol.codec.atlas.AtlasFrame;
-import com.tightening.netty.protocol.util.AtlasDataUtils;
-import com.tightening.netty.protocol.util.AtlasTighteningDataParser;
+import com.tightening.netty.protocol.util.atlas.AtlasDataUtils;
+import com.tightening.netty.protocol.util.atlas.AtlasTighteningDataParser;
+import com.tightening.dto.TighteningDataDTO;
+import com.tightening.util.Converter;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import lombok.extern.slf4j.Slf4j;
@@ -57,8 +59,9 @@ public class AtlasPFSeriesInBoundHandler extends SimpleChannelInboundHandler<Atl
                     handlePositiveOrNegativeResult(data, deviceId, true);
                     break;
                 case TIGHTEN_DATA:
-                    TighteningData tighteningData = AtlasTighteningDataParser.parse(
+                    TighteningDataDTO dto = AtlasTighteningDataParser.parse(
                             msg.getData(), msg.getRevision());
+                    TighteningData tighteningData = Converter.dto2Entity(dto, TighteningData::new);
                     TCPDeviceHandler.applyToolTypeName(ctx.channel(), tighteningData);
                     log.debug("Parsed tightening data: tighteningId={}, torque={}, revision={}",
                             tighteningData.getTighteningId(), tighteningData.getTorque(),

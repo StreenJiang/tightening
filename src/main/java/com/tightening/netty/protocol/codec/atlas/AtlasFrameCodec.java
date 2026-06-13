@@ -12,10 +12,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-import static com.tightening.netty.protocol.util.AtlasDataUtils.decodeCurveData;
-import static com.tightening.netty.protocol.util.AtlasDataUtils.decodeData;
-import static com.tightening.netty.protocol.util.AtlasDataUtils.formatAscii;
-import static com.tightening.netty.protocol.util.AtlasDataUtils.parseAsciiInt;
+import static com.tightening.netty.protocol.util.atlas.AtlasDataUtils.decodeCurveData;
+import static com.tightening.netty.protocol.util.atlas.AtlasDataUtils.decodeData;
+import static com.tightening.netty.protocol.util.atlas.AtlasDataUtils.formatAscii;
+import static com.tightening.netty.protocol.util.atlas.AtlasDataUtils.parseAsciiInt;
 
 @Slf4j
 public class AtlasFrameCodec extends MessageToMessageCodec<ByteBuf, AtlasFrame> {

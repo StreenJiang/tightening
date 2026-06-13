@@ -1,9 +1,9 @@
-package com.tightening.netty.protocol.util;
+package com.tightening.netty.protocol.util.atlas;
 
 import com.tightening.constant.AtlasAngleStatus;
 import com.tightening.constant.AtlasTorqueStatus;
 import com.tightening.constant.atlas.AtlasExtraDataKeys;
-import com.tightening.entity.TighteningData;
+import com.tightening.dto.TighteningDataDTO;
 import com.tightening.util.JsonUtils;
 import lombok.extern.slf4j.Slf4j;
 
@@ -18,8 +18,8 @@ public final class AtlasTighteningDataParser {
 
     private AtlasTighteningDataParser() {}
 
-    public static TighteningData parse(byte[] data, int revision) {
-        TighteningData result = switch (revision) {
+    public static TighteningDataDTO parse(byte[] data, int revision) {
+        TighteningDataDTO result = switch (revision) {
             case 1 -> parseRev1(data);
             case 2 -> parseRev2(data);
             case 3 -> parseRev3(data);
@@ -37,8 +37,8 @@ public final class AtlasTighteningDataParser {
 
     // ==================== Rev 1 ====================
 
-    private static TighteningData parseRev1(byte[] data) {
-        var d = new TighteningData();
+    private static TighteningDataDTO parseRev1(byte[] data) {
+        var d = new TighteningDataDTO();
         d.setCellId(parseInt(data, 23, 4));
         d.setChannelId(parseInt(data, 29, 2));
         d.setControllerName(parseString(data, 33, 25));
@@ -66,7 +66,7 @@ public final class AtlasTighteningDataParser {
 
     // ==================== Rev 2+ shared helpers ====================
 
-    private static void fillRev2Structured(TighteningData d, byte[] data) {
+    private static void fillRev2Structured(TighteningDataDTO d, byte[] data) {
         d.setCellId(parseInt(data, 23, 4));
         d.setChannelId(parseInt(data, 29, 2));
         d.setControllerName(parseString(data, 33, 25));
@@ -121,15 +121,15 @@ public final class AtlasTighteningDataParser {
 
     // ==================== Rev 2-7 ====================
 
-    private static TighteningData parseRev2(byte[] data) {
-        var d = new TighteningData();
+    private static TighteningDataDTO parseRev2(byte[] data) {
+        var d = new TighteningDataDTO();
         fillRev2Structured(d, data);
         d.setExtraData(toJson(buildRev2Extra(data)));
         return d;
     }
 
-    private static TighteningData parseRev3(byte[] data) {
-        var d = new TighteningData();
+    private static TighteningDataDTO parseRev3(byte[] data) {
+        var d = new TighteningDataDTO();
         fillRev2Structured(d, data);
         Map<String, Object> extra = buildRev2Extra(data);
         d.setParameterSetName(parseString(data, 388, 25));
@@ -139,7 +139,7 @@ public final class AtlasTighteningDataParser {
         return d;
     }
 
-    private static TighteningData parseRev4(byte[] data) {
+    private static TighteningDataDTO parseRev4(byte[] data) {
         var d = parseRev3(data);
         Map<String, Object> extra = fromJson(d.getExtraData());
         extra.put(AtlasExtraDataKeys.IDENTIFIER_RESULT_PART_2, parseString(data, 422, 25));
@@ -149,7 +149,7 @@ public final class AtlasTighteningDataParser {
         return d;
     }
 
-    private static TighteningData parseRev5(byte[] data) {
+    private static TighteningDataDTO parseRev5(byte[] data) {
         var d = parseRev4(data);
         Map<String, Object> extra = fromJson(d.getExtraData());
         extra.put(AtlasExtraDataKeys.CUSTOMER_TIGHTENING_ERROR_CODE, parseString(data, 503, 4));
@@ -157,7 +157,7 @@ public final class AtlasTighteningDataParser {
         return d;
     }
 
-    private static TighteningData parseRev6(byte[] data) {
+    private static TighteningDataDTO parseRev6(byte[] data) {
         var d = parseRev5(data);
         Map<String, Object> extra = fromJson(d.getExtraData());
         extra.put(AtlasExtraDataKeys.PV_COMPENSATE_VALUE, parseTorque(data, 509));
@@ -166,7 +166,7 @@ public final class AtlasTighteningDataParser {
         return d;
     }
 
-    private static TighteningData parseRev7(byte[] data) {
+    private static TighteningDataDTO parseRev7(byte[] data) {
         var d = parseRev6(data);
         Map<String, Object> extra = fromJson(d.getExtraData());
         extra.put(AtlasExtraDataKeys.COMPENSATED_ANGLE, parseInt(data, 529, 7));
@@ -177,7 +177,7 @@ public final class AtlasTighteningDataParser {
 
     // ==================== Rev 998 / 999 ====================
 
-    private static TighteningData parseRev998(byte[] data) {
+    private static TighteningDataDTO parseRev998(byte[] data) {
         var d = parseRev6(data);
         Map<String, Object> extra = fromJson(d.getExtraData());
         int totalStages = parseInt(data, 529, 2);
@@ -199,8 +199,8 @@ public final class AtlasTighteningDataParser {
         return d;
     }
 
-    private static TighteningData parseRev999(byte[] data) {
-        var d = new TighteningData();
+    private static TighteningDataDTO parseRev999(byte[] data) {
+        var d = new TighteningDataDTO();
         d.setVin(parseString(data, 21, 25));
         d.setJobId(parseInt(data, 46, 2));
         d.setParameterSet(parseInt(data, 48, 3));

@@ -2,7 +2,7 @@ package com.tightening.netty.protocol.codec.atlas;
 
 import com.tightening.constant.atlas.AtlasCommandType;
 import com.tightening.constant.atlas.AtlasConstants;
-import com.tightening.netty.protocol.util.AtlasDataUtils;
+import com.tightening.netty.protocol.util.atlas.AtlasDataUtils;
 import io.netty.buffer.ByteBufUtil;
 import lombok.Data;
 import lombok.experimental.Accessors;

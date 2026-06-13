@@ -1,9 +1,9 @@
-package com.tightening.netty.protocol.util;
+package com.tightening.netty.protocol.util.atlas;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tightening.constant.atlas.AtlasExtraDataKeys;
-import com.tightening.entity.TighteningData;
+import com.tightening.dto.TighteningDataDTO;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -55,7 +55,7 @@ class AtlasTighteningDataParserTest {
         writeAt(data, 219, "1");
         writeAt(data, 222, "1234567890");
 
-        TighteningData d = AtlasTighteningDataParser.parse(data, 1);
+        TighteningDataDTO d = AtlasTighteningDataParser.parse(data, 1);
 
         assertThat(d.getRevision()).isEqualTo(1);
         assertThat(d.getCellId()).isEqualTo(1);
@@ -102,7 +102,7 @@ class AtlasTighteningDataParserTest {
     @Test
     void parse_dataTooShort_shouldNotThrow() {
         byte[] data = new byte[10];
-        TighteningData d = AtlasTighteningDataParser.parse(data, 1);
+        TighteningDataDTO d = AtlasTighteningDataParser.parse(data, 1);
         assertThat(d).isNotNull();
         assertThat(d.getCellId()).isZero();
         assertThat(d.getRevision()).isEqualTo(1);
@@ -164,7 +164,7 @@ class AtlasTighteningDataParserTest {
         writeAt(data, 323, "00001");
         writeAt(data, 330, "SN-ATLAS-001");
 
-        TighteningData d = AtlasTighteningDataParser.parse(data, 2);
+        TighteningDataDTO d = AtlasTighteningDataParser.parse(data, 2);
 
         // Verify structured fields
         assertThat(d.getCellId()).isEqualTo(2);
@@ -272,7 +272,7 @@ class AtlasTighteningDataParserTest {
         writeAt(data, 415, "1");
         writeAt(data, 418, "01");
 
-        TighteningData d = AtlasTighteningDataParser.parse(data, 3);
+        TighteningDataDTO d = AtlasTighteningDataParser.parse(data, 3);
 
         assertThat(d.getParameterSetName()).isEqualTo("PARAM-SET-005");
         assertThat(d.getTorqueValuesUnit()).isEqualTo(1);
@@ -361,7 +361,7 @@ class AtlasTighteningDataParserTest {
         writeAt(data, 529, "0000123");
         writeAt(data, 538, "0000456");
 
-        TighteningData d = AtlasTighteningDataParser.parse(data, 7);
+        TighteningDataDTO d = AtlasTighteningDataParser.parse(data, 7);
 
         assertThat(d.getRevision()).isEqualTo(7);
 
@@ -458,7 +458,7 @@ class AtlasTighteningDataParserTest {
         writeAt(data, 548, "001500"); // torque = 15.0
         writeAt(data, 554, "00090");  // angle = 90
 
-        TighteningData d = AtlasTighteningDataParser.parse(data, 998);
+        TighteningDataDTO d = AtlasTighteningDataParser.parse(data, 998);
 
         assertThat(d.getRevision()).isEqualTo(998);
 
@@ -497,7 +497,7 @@ class AtlasTighteningDataParserTest {
         writeAt(data, 74, "2025-12-01:08:15:30");
         writeAt(data, 112, "5555555555");
 
-        TighteningData d = AtlasTighteningDataParser.parse(data, 999);
+        TighteningDataDTO d = AtlasTighteningDataParser.parse(data, 999);
 
         assertThat(d.getRevision()).isEqualTo(999);
         assertThat(d.getVin()).isEqualTo("VIN-REV999-001");

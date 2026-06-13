@@ -1,4 +1,4 @@
-package com.tightening.netty.protocol.util;
+package com.tightening.netty.protocol.util.atlas;
 
 import io.netty.buffer.ByteBuf;
 import lombok.extern.slf4j.Slf4j;

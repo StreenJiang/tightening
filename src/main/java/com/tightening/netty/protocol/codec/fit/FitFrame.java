@@ -2,7 +2,7 @@ package com.tightening.netty.protocol.codec.fit;
 
 import com.tightening.constant.fit.FitCommandType;
 import com.tightening.constant.fit.FitConstants;
-import com.tightening.netty.protocol.util.FitDataUtils;
+import com.tightening.netty.protocol.util.fit.FitDataUtils;
 import lombok.Data;
 
 import java.util.Arrays;

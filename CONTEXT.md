@@ -118,6 +118,18 @@ _Avoid_: 配方下发、参数切换
 保持 TCP 连接存活的机制。FIT 协议使用显式心跳（IdleStateHandler WRITER_IDLE 触发，最多重试 3 次后断开）；Atlas 协议依赖服务端被动推送。
 _Avoid_: 保活、ping
 
+**Atlas Protocol（Atlas 协议）**:
+Atlas Copco Power Focus 系列拧紧控制器的 TCP 通信协议。帧以长度字段开头（LengthFieldBasedFrameDecoder），以空字符（`\0`）结尾。数据字段为定长 ASCII 编码，每个字段由协议字节偏移量（Protocol Byte）定位。支持多种数据 Revision（Rev 1-7、998、999），每个 Revision 定义不同的字段布局和额外数据。
+_Avoid_: PF 协议、Open Protocol
+
+**FIT Protocol（FIT 协议）**:
+FIT FTC6 拧紧控制器的 TCP 通信协议。帧定界符为 HEAD（0xAA55）和 TAIL（0x55AA），数据载荷为小端序二进制（Little Endian）。支持显式心跳（HeartbeatReq/HeartbeatRsp）、报警数据上报和曲线数据分片传输。曲线数据通过 FitCurveDataReassembler 将分片包拼装为完整 CurvePoint 列表。
+_Avoid_: FTC6 协议
+
 **MID（Message Identifier）**:
 Atlas 协议的消息类型标识符。每个 MID 对应一种命令或数据类型（如 MID 0061 为拧紧数据）。
 _Avoid_: 命令码、消息类型
+
+**Frame（帧）**:
+一次完整的协议消息单元。Atlas 帧 = head 长度字段 + MID + Revision + 定长 ASCII 数据 + `\0`。FIT 帧 = HEAD + cmdType + dataLength + data + TAIL。
+_Avoid_: 数据包、报文

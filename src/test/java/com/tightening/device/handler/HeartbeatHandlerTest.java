@@ -8,11 +8,12 @@ import io.netty.util.AttributeKey;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.concurrent.CompletableFuture;
 
-@SpringBootTest  // 加载 Spring 上下文（如需 @Autowired 等）
+@ExtendWith(MockitoExtension.class)
 @DisplayName("HeartbeatHandler 简化测试")
 class HeartbeatHandlerTest {
 

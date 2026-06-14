@@ -5,7 +5,6 @@ import com.tightening.device.handler.impl.TCPDeviceHandler;
 import com.tightening.netty.protocol.handler.fit.FitSeriesInBoundHandler;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
@@ -13,20 +12,17 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
-@SpringBootTest
+@ExtendWith(MockitoExtension.class)
 class FitFrameCodecTest {
     private FitFrameCodec codec;
     private EmbeddedChannel channel;
-    @Mock
-    private ChannelHandlerContext ctx;
-    @Mock
-    private ByteBufAllocator alloc;
     @Mock
     private FitSeriesHandler fitSeriesHandler;
 
@@ -40,7 +36,6 @@ class FitFrameCodecTest {
                 new FitSeriesInBoundHandler(fitSeriesHandler)
         );
 
-        when(ctx.alloc()).thenReturn(alloc);
     }
 
     @AfterEach
@@ -80,7 +75,6 @@ class FitFrameCodecTest {
         // 写入到入站
         ByteBuf buf = ByteBufAllocator.DEFAULT.buffer();
         buf.writeBytes(hexToBytes(hexData));
-        when(alloc.buffer()).thenReturn(buf);
 
         channel.attr(TCPDeviceHandler.DEVICE_ID).set(100L);
         channel.writeInbound(buf);

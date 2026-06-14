@@ -514,4 +514,40 @@ class AtlasTighteningDataParserTest {
         assertThat(d.getTimestamp()).isEqualTo("2025-12-01:08:15:30");
         assertThat(d.getTighteningId()).isEqualTo(5555555555L);
     }
+
+    // ==================== Status code fallback ====================
+
+    @Test
+    void parse_invalidTorqueAndAngleStatusCode_shouldFallbackToLow() {
+        byte[] data = new byte[250];
+        java.util.Arrays.fill(data, (byte) ' ');
+
+        writeAt(data, 23, "1");       // rev 1
+        writeAt(data, 29, "1");       // channelId
+        writeAt(data, 33, "CTRL");
+        writeAt(data, 60, "VIN");
+        writeAt(data, 87, "1");       // jobId
+        writeAt(data, 91, "5");       // parameterSet
+        writeAt(data, 96, "10");
+        writeAt(data, 102, "3");
+        writeAt(data, 108, "1");
+        writeAt(data, 111, "9");      // torque status = 9 (invalid, falls back to LOW=0)
+        writeAt(data, 114, "9");      // angle status = 9 (invalid, falls back to LOW=0)
+        writeAt(data, 117, "001000");
+        writeAt(data, 125, "002000");
+        writeAt(data, 133, "001500");
+        writeAt(data, 141, "001234");
+        writeAt(data, 149, "00010");
+        writeAt(data, 156, "00100");
+        writeAt(data, 163, "00050");
+        writeAt(data, 170, "00045");
+        writeAt(data, 177, "2024-01-15:10:30:00");
+        writeAt(data, 219, "1");
+        writeAt(data, 222, "1234567890");
+
+        TighteningDataDTO d = AtlasTighteningDataParser.parse(data, 1);
+        // Both fallback to LOW (0)
+        assertThat(d.getTorqueStatus()).isZero();
+        assertThat(d.getAngleStatus()).isZero();
+    }
 }

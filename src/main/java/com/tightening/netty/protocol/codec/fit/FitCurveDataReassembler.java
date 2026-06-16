@@ -63,9 +63,13 @@ public class FitCurveDataReassembler extends MessageToMessageDecoder<FitFrame> {
         byte[] curvePointsData = Arrays.copyOfRange(data, 8, data.length);
 
         // 获取或创建重组状态
+        boolean[] isNew = {false};
         CurveReassemblyState state = reassemblyCache.computeIfAbsent(
                 tighteningId,
-                id -> new CurveReassemblyState(tighteningId, totalPackets)
+                id -> {
+                    isNew[0] = true;
+                    return new CurveReassemblyState(tighteningId, totalPackets);
+                }
         );
 
         // 添加当前包的曲线点数据
@@ -87,8 +91,7 @@ public class FitCurveDataReassembler extends MessageToMessageDecoder<FitFrame> {
             // 完整数据结构：tighteningId(4) + allCurvePointsData
             return new FitFrame(FitCommandType.CURVE.getCode(), completeData);
         } else {
-            // 启动超时检查（如果是第一个包）
-            if (currentPacket == 1) {
+            if (isNew[0]) {
                 scheduleTimeoutCheck(ctx, tighteningId);
             }
             return null; // 等待更多包

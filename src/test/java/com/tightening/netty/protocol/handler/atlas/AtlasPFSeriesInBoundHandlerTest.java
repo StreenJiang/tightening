@@ -4,9 +4,8 @@ import com.tightening.constant.atlas.AtlasCommandType;
 import com.tightening.constant.atlas.AtlasErrorCode;
 import com.tightening.device.handler.ToolHandler;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
-import com.tightening.entity.TighteningData;
+import com.tightening.dto.TighteningDataDTO;
 import com.tightening.netty.protocol.codec.atlas.AtlasFrame;
-import com.tightening.service.TighteningDataService;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,7 +26,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -40,8 +38,6 @@ class AtlasPFSeriesInBoundHandlerTest {
 
     @Mock
     private ToolHandler deviceHandler;
-    @Mock
-    private TighteningDataService tighteningDataService;
 
     private EmbeddedChannel channel;
 
@@ -49,7 +45,6 @@ class AtlasPFSeriesInBoundHandlerTest {
     void setUp() {
         lenient().when(deviceHandler.generateKey(any(), anyLong()))
                 .thenAnswer(invocation -> invocation.getArgument(0) + ":" + invocation.getArgument(1));
-        lenient().when(deviceHandler.getTighteningDataService()).thenReturn(tighteningDataService);
 
         channel = new EmbeddedChannel(new AtlasPFSeriesInBoundHandler(deviceHandler));
         channel.attr(TCPDeviceHandler.DEVICE_ID).set(TEST_DEVICE_ID);
@@ -147,7 +142,7 @@ class AtlasPFSeriesInBoundHandlerTest {
     }
 
     @Test
-    @DisplayName("TIGHTEN_DATA frame: parse and save tightening data")
+    @DisplayName("TIGHTEN_DATA frame: parse and delegate to handleTighteningData")
     void testTighteningData() {
         // Rev 1 tightening data (250 bytes, same layout as parser test)
         byte[] data = new byte[250];
@@ -179,16 +174,16 @@ class AtlasPFSeriesInBoundHandlerTest {
         AtlasFrame frame = new AtlasFrame(AtlasCommandType.TIGHTEN_DATA.getMid(), 1, data);
         channel.writeInbound(frame);
 
-        ArgumentCaptor<TighteningData> captor = ArgumentCaptor.forClass(TighteningData.class);
-        verify(tighteningDataService).save(captor.capture());
+        ArgumentCaptor<TighteningDataDTO> captor = ArgumentCaptor.forClass(TighteningDataDTO.class);
+        verify(deviceHandler).handleTighteningData(captor.capture(), any());
 
-        TighteningData saved = captor.getValue();
-        assertThat(saved.getRevision()).isEqualTo(1);
-        assertThat(saved.getTighteningId()).isEqualTo(1234567890L);
-        assertThat(saved.getTorque()).isCloseTo(12.34, within(0.01));
-        assertThat(saved.getAngle()).isCloseTo(45.0, within(0.01));
-        assertThat(saved.getControllerName()).isEqualTo("CONTROLLER-01");
-        assertThat(saved.getTimestamp()).isEqualTo("2024-01-15:10:30:00");
+        TighteningDataDTO dto = captor.getValue();
+        assertThat(dto.getRevision()).isEqualTo(1);
+        assertThat(dto.getTighteningId()).isEqualTo(1234567890L);
+        assertThat(dto.getTorque()).isCloseTo(12.34, within(0.01));
+        assertThat(dto.getAngle()).isCloseTo(45.0, within(0.01));
+        assertThat(dto.getControllerName()).isEqualTo("CONTROLLER-01");
+        assertThat(dto.getTimestamp()).isEqualTo("2024-01-15:10:30:00");
     }
 
     // ============== helper ==============

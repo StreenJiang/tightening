@@ -21,7 +21,6 @@ import io.netty.util.AttributeKey;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -33,7 +32,7 @@ import java.util.function.Supplier;
 public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
 
     protected final TCPDeviceHandler self;
-    protected final Bootstrap bootstrap; // TODO: 后续再看定义的位置是否可以再往上层提
+    protected final Bootstrap bootstrap;
     protected final NioEventLoopGroup group;
     protected final DeviceService deviceService;
     protected final Map<Long, DeviceHolder> devices;
@@ -51,9 +50,9 @@ public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
         }
     }
 
-    public TCPDeviceHandler(DeviceService deviceService) {
+    public TCPDeviceHandler(NioEventLoopGroup group, DeviceService deviceService) {
         self = this;
-        group = new NioEventLoopGroup();
+        this.group = group;
         this.deviceService = deviceService;
 
         devices = new ConcurrentHashMap<>();
@@ -121,20 +120,19 @@ public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
 
     @Override
     public void disconnect(long deviceId) {
-        if (devices.containsKey(deviceId)) {
-            DeviceHolder deviceHolder = devices.remove(deviceId);
-            Channel channel = deviceHolder.getChannel();
-            channel.attr(MANUALLY_CLOSE).set(true);
-            try {
-                channel.close().sync().addListener(new ChannelFutureListener() {
-                    @Override
-                    public void operationComplete(ChannelFuture future) throws Exception {
-                        // TODO: 这里添加清理资源的逻辑
-                    }
-                });
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+        DeviceHolder deviceHolder = devices.remove(deviceId);
+        if (deviceHolder == null) {
+            return;
+        }
+        Channel channel = deviceHolder.getChannel();
+        if (channel == null) {
+            return;
+        }
+        channel.attr(MANUALLY_CLOSE).set(true);
+        try {
+            channel.close().sync();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -281,7 +279,7 @@ public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
     }
 
     @Override
-    public void close() throws IOException {
-        group.shutdownGracefully();
+    public void close() {
+        // shared NioEventLoopGroup managed by NettyConfig
     }
 }

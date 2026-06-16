@@ -2,15 +2,11 @@ package com.tightening.netty.protocol.handler.fit;
 
 import com.tightening.constant.fit.FitCommandType;
 import com.tightening.device.handler.ToolHandler;
-import com.tightening.device.handler.impl.TCPDeviceHandler;
 import com.tightening.dto.CurveDataDTO;
 import com.tightening.dto.TighteningDataDTO;
-import com.tightening.entity.TighteningData;
 import com.tightening.netty.protocol.util.fit.FitDataUtils;
 import com.tightening.netty.protocol.util.fit.FitCurveDataParser;
 import com.tightening.netty.protocol.util.fit.FitTighteningDataParser;
-import com.tightening.service.TighteningDataService;
-import com.tightening.util.Converter;
 import com.tightening.netty.protocol.codec.fit.FitFrame;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -50,31 +46,18 @@ public class FitSeriesInBoundHandler extends SimpleChannelInboundHandler<FitFram
                     break;
                 case TIGHTEN_FINAL:
                     TighteningDataDTO tighteningDataDTO = FitTighteningDataParser.parse(data);
-                    log.debug("Read from tool: tighteningDataDTO={}", tighteningDataDTO);
-
                     // TODO: 这里需要对 tighteningDataDTO 中的任务（配方）相关的数据进行补充，包括 mission record
-
-                    TighteningData tighteningData = Converter.dto2Entity(tighteningDataDTO, TighteningData::new);
-                    TCPDeviceHandler.applyToolTypeName(ctx.channel(), tighteningData);
-
-                    TighteningDataService tighteningDataService = deviceHandler.getTighteningDataService();
-                    tighteningDataService.save(tighteningData);
-
+                    deviceHandler.handleTighteningData(tighteningDataDTO, ctx.channel());
                     // TODO: 这里需要 SSE 给前端发送拧紧数据，必须包含结果
                     break;
                 case CURVE:
                     CurveDataDTO curveDataDTO = FitCurveDataParser.parse(data);
-                    log.debug("Read from tool: curveDataDTO={}", curveDataDTO);
-
                     // TODO: 这里需要对 curveDataDTO 中的任务（配方）相关的数据进行补充，包括 mission record
-
-                    // ToolHandler toolHandler2 = (ToolHandler) deviceHandler;
-
+                    deviceHandler.handleCurveData(curveDataDTO, ctx.channel());
                     // TODO: 这里需要 SSE 给前端发送拧紧数据，必须包含结果
                     break;
                 case ALARM:
-                    String alarmMsg = FitDataUtils.parseAlarmData(data);
-                    log.warn("Alarm message: {}", alarmMsg);
+                    deviceHandler.handleAlarm(FitDataUtils.parseAlarmData(data), deviceId);
                     break;
                 default:
                     break;

@@ -26,6 +26,7 @@ public final class FitTighteningDataParser {
         ByteBuffer buffer = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
 
         int tighteningId = buffer.getInt(offset);
+        tighteningData.setTighteningId(Integer.toUnsignedLong(tighteningId));
         log.debug("tighteningId=" + tighteningId);
         offset += 4;
 

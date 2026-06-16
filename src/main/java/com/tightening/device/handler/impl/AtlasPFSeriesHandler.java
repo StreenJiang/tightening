@@ -1,6 +1,7 @@
 package com.tightening.device.handler.impl;
 
 import com.tightening.config.ToolCommonConfig;
+import com.tightening.constant.DeviceType;
 import com.tightening.constant.atlas.AtlasCommandType;
 import com.tightening.constant.atlas.AtlasConstants;
 import com.tightening.device.handler.ToolHandler;
@@ -12,18 +13,30 @@ import com.tightening.service.DeviceService;
 import com.tightening.service.TighteningDataService;
 
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import org.springframework.stereotype.Component;
+
 @Slf4j
+@Component
 public class AtlasPFSeriesHandler extends ToolHandler {
 
-    public AtlasPFSeriesHandler(DeviceService deviceService,
+    public AtlasPFSeriesHandler(NioEventLoopGroup group,
+                                DeviceService deviceService,
                                 TighteningDataService tighteningDataService,
                                 ToolCommonConfig toolCommonConfig) {
-        super(deviceService, tighteningDataService, toolCommonConfig);
+        super(group, deviceService, tighteningDataService, toolCommonConfig);
+    }
+
+    @Override
+    public Set<DeviceType> getSupportedTypes() {
+        return EnumSet.of(DeviceType.ATLAS_PF4000, DeviceType.ATLAS_PF6000_OP);
     }
 
     @Override

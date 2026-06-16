@@ -13,20 +13,17 @@ import java.util.List;
 public class CurveDataSamples implements Serializable {
 
     private int tighteningId;
-    private List<CurvePoint> points;
+    private List<CurvePoint> points = new ArrayList<>();
 
     public CurveDataSamples(int tighteningId) {
         this.tighteningId = tighteningId;
     }
 
     public int size() {
-        return points != null ? points.size() : 0;
+        return points.size();
     }
 
     public void addPoint(CurvePoint point) {
-        if (this.points == null) {
-            this.points = new ArrayList<>();
-        }
         this.points.add(point);
     }
 

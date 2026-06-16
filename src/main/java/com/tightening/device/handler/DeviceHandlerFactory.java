@@ -12,14 +12,11 @@ public class DeviceHandlerFactory {
 
     private final Map<DeviceType, DeviceHandler> handlerMap = new ConcurrentHashMap<>();
 
-    // Spring 自动注入所有 ADeviceHandler 实现
+    // Spring 自动注入所有 DeviceHandler 实现
     public DeviceHandlerFactory(List<DeviceHandler> handlers) {
         for (DeviceHandler handler : handlers) {
-            for (DeviceType type : DeviceType.values()) {
-                if (type.getHandlerClass().isInstance(handler)) {
-                    handlerMap.put(type, handler);
-                    break;
-                }
+            for (DeviceType type : handler.getSupportedTypes()) {
+                handlerMap.put(type, handler);
             }
         }
     }

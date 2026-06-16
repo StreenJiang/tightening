@@ -6,6 +6,7 @@ import com.tightening.entity.Device;
 import com.tightening.service.DeviceService;
 import com.tightening.service.TighteningDataService;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +28,9 @@ class ToolHandlerTest {
     private static final long DEVICE_ID = 1L;
 
     @Mock
+    private NioEventLoopGroup group;
+
+    @Mock
     private DeviceService deviceService;
 
     @Mock
@@ -42,8 +46,8 @@ class ToolHandlerTest {
      */
     static class TestToolHandler extends ToolHandler {
 
-        TestToolHandler(DeviceService ds, TighteningDataService tds, ToolCommonConfig cfg) {
-            super(ds, tds, cfg);
+        TestToolHandler(NioEventLoopGroup g, DeviceService ds, TighteningDataService tds, ToolCommonConfig cfg) {
+            super(g, ds, tds, cfg);
         }
 
         @Override
@@ -70,13 +74,18 @@ class ToolHandlerTest {
         public CompletableFuture<Boolean> sendPSetCmd(long deviceId, int pSet) {
             return CompletableFuture.completedFuture(true);
         }
+
+        @Override
+        public java.util.Set<com.tightening.constant.DeviceType> getSupportedTypes() {
+            return java.util.Set.of();
+        }
     }
 
     @BeforeEach
     void setUp() {
         config = new ToolCommonConfig();
         config.setEnableDisableCooldownMs(1000L);
-        handler = new TestToolHandler(deviceService, tighteningDataService, config);
+        handler = new TestToolHandler(group, deviceService, tighteningDataService, config);
         Device device = new Device();
         device.setId(DEVICE_ID);
         holder = handler.addDeviceInfo(device);

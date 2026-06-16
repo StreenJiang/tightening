@@ -4,15 +4,21 @@ import com.tightening.config.ToolCommonConfig;
 import com.tightening.constant.DeviceType;
 import com.tightening.service.DeviceService;
 import com.tightening.service.TighteningDataService;
+import io.netty.channel.nio.NioEventLoopGroup;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Set;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(MockitoExtension.class)
 class AtlasPFSeriesHandlerTest {
+
+    @Mock
+    private NioEventLoopGroup group;
 
     @Mock
     private DeviceService deviceService;
@@ -24,21 +30,14 @@ class AtlasPFSeriesHandlerTest {
 
     @Test
     void constructAtlasPFSeriesHandler_shouldBeNonNull() {
-        AtlasPFSeriesHandler handler = new AtlasPFSeriesHandler(deviceService, tighteningDataService, config);
+        AtlasPFSeriesHandler handler = new AtlasPFSeriesHandler(group, deviceService, tighteningDataService, config);
         assertThat(handler).isNotNull();
     }
 
     @Test
-    void atlasPF4000Handler_shouldBeAtlasPFSeriesHandlerWithCorrectDeviceType() {
-        AtlasPF4000Handler handler = new AtlasPF4000Handler(deviceService, tighteningDataService, config);
-        assertThat(handler).isInstanceOf(AtlasPFSeriesHandler.class);
-        assertThat(DeviceType.ATLAS_PF4000.getHandlerClass()).isEqualTo(AtlasPF4000Handler.class);
-    }
-
-    @Test
-    void atlasPF6000OPHandler_shouldBeAtlasPFSeriesHandlerWithCorrectDeviceType() {
-        AtlasPF6000OPHandler handler = new AtlasPF6000OPHandler(deviceService, tighteningDataService, config);
-        assertThat(handler).isInstanceOf(AtlasPFSeriesHandler.class);
-        assertThat(DeviceType.ATLAS_PF6000_OP.getHandlerClass()).isEqualTo(AtlasPF6000OPHandler.class);
+    void getSupportedTypes_shouldReturnAtlasTypes() {
+        AtlasPFSeriesHandler handler = new AtlasPFSeriesHandler(group, deviceService, tighteningDataService, config);
+        Set<DeviceType> types = handler.getSupportedTypes();
+        assertThat(types).containsExactlyInAnyOrder(DeviceType.ATLAS_PF4000, DeviceType.ATLAS_PF6000_OP);
     }
 }

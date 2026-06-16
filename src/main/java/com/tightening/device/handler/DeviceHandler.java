@@ -1,6 +1,9 @@
 package com.tightening.device.handler;
 
 import com.tightening.constant.DeviceStatus;
+import com.tightening.constant.DeviceType;
+
+import java.util.Set;
 
 public interface DeviceHandler {
 
@@ -9,4 +12,6 @@ public interface DeviceHandler {
     void disconnect(long deviceId);
 
     DeviceStatus getStatus(long deviceId);
+
+    Set<DeviceType> getSupportedTypes();
 }

@@ -3,20 +3,22 @@ package com.tightening.netty.protocol.handler.fit;
 import com.tightening.constant.fit.FitCommandType;
 import com.tightening.device.handler.ToolHandler;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
-import com.tightening.entity.TighteningData;
+import com.tightening.dto.CurveDataDTO;
+import com.tightening.dto.TighteningDataDTO;
 import com.tightening.netty.protocol.codec.fit.FitFrame;
-import com.tightening.service.TighteningDataService;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -27,15 +29,11 @@ class FitSeriesInBoundHandlerTest {
     @Mock
     private ToolHandler deviceHandler;
 
-    @Mock
-    private TighteningDataService tighteningDataService;
-
     private EmbeddedChannel channel;
 
     @BeforeEach
     void setUp() {
         lenient().when(deviceHandler.generateKey(any(), anyLong())).thenReturn("test:key");
-        lenient().when(deviceHandler.getTighteningDataService()).thenReturn(tighteningDataService);
 
         channel = new EmbeddedChannel(new FitSeriesInBoundHandler(deviceHandler));
         channel.attr(TCPDeviceHandler.DEVICE_ID).set(100L);
@@ -75,7 +73,7 @@ class FitSeriesInBoundHandlerTest {
     }
 
     @Test
-    void tightenFinal_shouldParseAndSaveData() {
+    void tightenFinal_shouldParseAndDelegateToHandler() {
         ByteBuffer buffer = ByteBuffer.allocate(23).order(ByteOrder.LITTLE_ENDIAN);
         buffer.putInt(12345);           // tighteningId
         buffer.put((byte) 1);           // status = OK
@@ -97,11 +95,11 @@ class FitSeriesInBoundHandlerTest {
 
         channel.writeInbound(frame);
 
-        verify(tighteningDataService).save(any(TighteningData.class));
+        verify(deviceHandler).handleTighteningData(any(TighteningDataDTO.class), any());
     }
 
     @Test
-    void curve_shouldNotThrow() {
+    void curve_shouldDelegateToHandler() {
         ByteBuffer buffer = ByteBuffer.allocate(16).order(ByteOrder.LITTLE_ENDIAN);
         buffer.putInt(12345);           // tighteningId
         buffer.putFloat(0.1f);          // time
@@ -111,10 +109,12 @@ class FitSeriesInBoundHandlerTest {
         FitFrame frame = new FitFrame(FitCommandType.CURVE.getCode(), buffer.array());
 
         assertDoesNotThrow(() -> channel.writeInbound(frame));
+
+        verify(deviceHandler).handleCurveData(any(CurveDataDTO.class), any());
     }
 
     @Test
-    void alarm_shouldNotThrow() {
+    void alarm_shouldDelegateToHandler() {
         byte[] data = new byte[11];
         data[0] = 0x00;
         data[1] = 0x01;   // alarmCode = 1
@@ -132,6 +132,8 @@ class FitSeriesInBoundHandlerTest {
         FitFrame frame = new FitFrame(FitCommandType.ALARM.getCode(), data);
 
         assertDoesNotThrow(() -> channel.writeInbound(frame));
+
+        verify(deviceHandler).handleAlarm(anyString(), anyLong());
     }
 
     @Test

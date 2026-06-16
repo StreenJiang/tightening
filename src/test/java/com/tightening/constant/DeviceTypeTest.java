@@ -1,11 +1,10 @@
 package com.tightening.constant;
 
 import com.tightening.device.handler.DeviceHandler;
-import com.tightening.device.handler.impl.AtlasPF4000Handler;
-import com.tightening.device.handler.impl.AtlasPF6000OPHandler;
-import com.tightening.device.handler.impl.FitFTC6Handler;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -45,13 +44,6 @@ class DeviceTypeTest {
     }
 
     @Test
-    void getHandlerClass() {
-        assertThat(DeviceType.ATLAS_PF4000.getHandlerClass()).isEqualTo(AtlasPF4000Handler.class);
-        assertThat(DeviceType.ATLAS_PF6000_OP.getHandlerClass()).isEqualTo(AtlasPF6000OPHandler.class);
-        assertThat(DeviceType.FIT_FTC6.getHandlerClass()).isEqualTo(FitFTC6Handler.class);
-    }
-
-    @Test
     void getHandler_providerNotInit() {
         assertThatThrownBy(() -> DeviceType.ATLAS_PF4000.getHandler())
                 .isInstanceOf(IllegalStateException.class)
@@ -61,18 +53,10 @@ class DeviceTypeTest {
     @Test
     void getHandler_providerInit() {
         DeviceHandler mockHandler = new DeviceHandler() {
-            @Override
-            public void connect(long deviceId) {
-            }
-
-            @Override
-            public void disconnect(long deviceId) {
-            }
-
-            @Override
-            public DeviceStatus getStatus(long deviceId) {
-                return null;
-            }
+            @Override public void connect(long deviceId) {}
+            @Override public void disconnect(long deviceId) {}
+            @Override public DeviceStatus getStatus(long deviceId) { return null; }
+            @Override public Set<DeviceType> getSupportedTypes() { return Set.of(); }
         };
         DeviceType.initProvider(type -> mockHandler);
         assertThat(DeviceType.ATLAS_PF4000.getHandler()).isSameAs(mockHandler);
@@ -81,18 +65,10 @@ class DeviceTypeTest {
     @Test
     void getHandlerByTypeId_valid() {
         DeviceHandler mockHandler = new DeviceHandler() {
-            @Override
-            public void connect(long deviceId) {
-            }
-
-            @Override
-            public void disconnect(long deviceId) {
-            }
-
-            @Override
-            public DeviceStatus getStatus(long deviceId) {
-                return null;
-            }
+            @Override public void connect(long deviceId) {}
+            @Override public void disconnect(long deviceId) {}
+            @Override public DeviceStatus getStatus(long deviceId) { return null; }
+            @Override public Set<DeviceType> getSupportedTypes() { return Set.of(); }
         };
         DeviceType.initProvider(type -> mockHandler);
         assertThat(DeviceType.getHandlerByTypeId(1)).isSameAs(mockHandler);

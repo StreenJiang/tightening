@@ -3,9 +3,16 @@ package com.tightening.device.handler;
 import com.tightening.config.ToolCommonConfig;
 import com.tightening.device.DeviceHolder;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
+import com.tightening.dto.CurveDataDTO;
+import com.tightening.dto.TighteningDataDTO;
+import com.tightening.entity.CurveData;
+import com.tightening.entity.TighteningData;
 import com.tightening.service.DeviceService;
 import com.tightening.service.TighteningDataService;
+import com.tightening.util.Converter;
 
+import io.netty.channel.Channel;
+import io.netty.channel.nio.NioEventLoopGroup;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -18,10 +25,11 @@ public abstract class ToolHandler extends TCPDeviceHandler {
     private final TighteningDataService tighteningDataService;
     private final ToolCommonConfig toolCommonConfig;
 
-    public ToolHandler(DeviceService deviceService,
+    public ToolHandler(NioEventLoopGroup group,
+                       DeviceService deviceService,
                        TighteningDataService tighteningDataService,
                        ToolCommonConfig toolCommonConfig) {
-        super(deviceService);
+        super(group, deviceService);
         this.tighteningDataService = tighteningDataService;
         this.toolCommonConfig = toolCommonConfig;
     }
@@ -91,6 +99,7 @@ public abstract class ToolHandler extends TCPDeviceHandler {
             } else {
                 log.debug("force{}Tool: deviceId={}, bypass cooldown", action, deviceId);
             }
+            setLastTime(holder, targetEnabled, now);
         } finally {
             holder.getStateLock().unlock();
         }
@@ -100,6 +109,7 @@ public abstract class ToolHandler extends TCPDeviceHandler {
         return operation.whenComplete((result, ex) -> {
             if (ex != null) {
                 log.error("{}Tool exception: deviceId={}", action, deviceId, ex);
+                setLastTime(holder, targetEnabled, 0);
                 return;
             }
             if (result != null && result) {
@@ -107,20 +117,47 @@ public abstract class ToolHandler extends TCPDeviceHandler {
                 try {
                     if (targetEnabled) {
                         holder.setToolEnabled(true);
-                        holder.setLastEnableTime(System.currentTimeMillis());
-                        log.info("{}Tool enable succeeded: deviceId={}", action, deviceId);
                     } else {
                         holder.setToolEnabled(false);
-                        holder.setLastDisableTime(System.currentTimeMillis());
-                        log.info("{}Tool disable succeeded: deviceId={}", action, deviceId);
                     }
                 } finally {
                     holder.getStateLock().unlock();
                 }
+                log.info("{}Tool succeeded: deviceId={}", action, deviceId);
             } else {
                 log.debug("{}Tool failed: deviceId={}", action, deviceId);
+                setLastTime(holder, targetEnabled, 0);
             }
         });
+    }
+
+    private static void setLastTime(DeviceHolder holder, boolean targetEnabled, long time) {
+        holder.getStateLock().lock();
+        try {
+            if (targetEnabled) {
+                holder.setLastEnableTime(time);
+            } else {
+                holder.setLastDisableTime(time);
+            }
+        } finally {
+            holder.getStateLock().unlock();
+        }
+    }
+
+    // ============== 数据回调（InBoundHandler 解析后委托给这里） ==============
+
+    public void handleTighteningData(TighteningDataDTO dto, Channel channel) {
+        TighteningData data = Converter.dto2Entity(dto, TighteningData::new);
+        TCPDeviceHandler.applyToolTypeName(channel, data);
+        tighteningDataService.save(data);
+    }
+
+    public void handleCurveData(CurveDataDTO dto, Channel channel) {
+        // TODO: 补充持久化和 SSE 推送
+    }
+
+    public void handleAlarm(String alarmMsg, long deviceId) {
+        log.warn("Alarm from device {}: {}", deviceId, alarmMsg);
     }
 
     // ============== 抽象方法（子类必须实现，返回 CompletableFuture） ==============

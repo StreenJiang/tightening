@@ -56,7 +56,7 @@ public class AtlasFrame {
                 ", sequenceNumber=" + sequenceNumber +
                 ", numberOfMessageParts=" + numberOfMessageParts +
                 ", messagePartsEnd=" + messagePartsEnd +
-                ", data=" + new String(data, StandardCharsets.US_ASCII) +
+                ", data=" + (data != null ? new String(data, StandardCharsets.US_ASCII) : null) +
                 ", end=" + end +
                 ", attachedData=" + (attachedData != null ? ByteBufUtil.hexDump(attachedData) : null) +
                 '}';

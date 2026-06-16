@@ -7,6 +7,7 @@ import com.tightening.entity.TighteningData;
 import com.tightening.service.DeviceService;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +28,8 @@ import static org.mockito.Mockito.when;
 @DisplayName("TCPDeviceHandler 抽象层测试")
 class TCPDeviceHandlerTest {
 
+    private NioEventLoopGroup group;
+
     @Mock
     private DeviceService deviceService;
 
@@ -34,7 +37,13 @@ class TCPDeviceHandlerTest {
 
     @BeforeEach
     void setUp() {
-        handler = new TCPDeviceHandler(deviceService) {
+        group = new NioEventLoopGroup(1);
+        handler = new TCPDeviceHandler(group, deviceService) {
+            @Override
+            public java.util.Set<com.tightening.constant.DeviceType> getSupportedTypes() {
+                return java.util.Set.of();
+            }
+
             @Override
             protected ChannelInitializer<NioSocketChannel> setupChannelInitializer() {
                 return new ChannelInitializer<>() {
@@ -50,6 +59,7 @@ class TCPDeviceHandlerTest {
     @AfterEach
     void tearDown() throws Exception {
         handler.close();
+        group.shutdownGracefully();
     }
 
     // ======================== addDeviceInfo ========================

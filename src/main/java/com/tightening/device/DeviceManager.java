@@ -7,6 +7,7 @@ import com.tightening.device.event.DeviceChangeEvent;
 import com.tightening.device.handler.DeviceHandler;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
 import com.tightening.entity.Device;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -22,6 +23,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+@Slf4j
 @Component
 public class DeviceManager implements AutoCloseable {
 
@@ -89,8 +91,7 @@ public class DeviceManager implements AutoCloseable {
                     try {
                         handler.connect(deviceId);  // connect 内部会处理状态更新
                     } catch (Exception e) {
-                        // 日志记录，但不影响线程池
-                        // 可考虑设备级别的异常处理
+                        log.error("Connect failed for deviceId={}", deviceId, e);
                     }
                 });
             }

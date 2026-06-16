@@ -5,15 +5,21 @@ import com.tightening.config.ToolCommonConfig;
 import com.tightening.constant.DeviceType;
 import com.tightening.service.DeviceService;
 import com.tightening.service.TighteningDataService;
+import io.netty.channel.nio.NioEventLoopGroup;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Set;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(MockitoExtension.class)
 class FitSeriesHandlerTest {
+
+    @Mock
+    private NioEventLoopGroup group;
 
     @Mock
     private DeviceService deviceService;
@@ -26,14 +32,14 @@ class FitSeriesHandlerTest {
 
     @Test
     void constructFitSeriesHandler_shouldBeNonNull() {
-        FitSeriesHandler handler = new FitSeriesHandler(deviceService, fitConfig, tighteningDataService, toolCommonConfig);
+        FitSeriesHandler handler = new FitSeriesHandler(group, deviceService, fitConfig, tighteningDataService, toolCommonConfig);
         assertThat(handler).isNotNull();
     }
 
     @Test
-    void fitFTC6Handler_shouldBeFitSeriesHandlerWithCorrectDeviceType() {
-        FitFTC6Handler handler = new FitFTC6Handler(deviceService, fitConfig, tighteningDataService, toolCommonConfig);
-        assertThat(handler).isInstanceOf(FitSeriesHandler.class);
-        assertThat(DeviceType.FIT_FTC6.getHandlerClass()).isEqualTo(FitFTC6Handler.class);
+    void getSupportedTypes_shouldReturnFitType() {
+        FitSeriesHandler handler = new FitSeriesHandler(group, deviceService, fitConfig, tighteningDataService, toolCommonConfig);
+        Set<DeviceType> types = handler.getSupportedTypes();
+        assertThat(types).containsExactly(DeviceType.FIT_FTC6);
     }
 }

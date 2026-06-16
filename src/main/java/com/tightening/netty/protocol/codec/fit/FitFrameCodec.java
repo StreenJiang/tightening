@@ -14,7 +14,7 @@ public class FitFrameCodec extends MessageToMessageCodec<ByteBuf, FitFrame> {
 
     @Override
     protected void encode(ChannelHandlerContext ctx, FitFrame msg, List<Object> out) throws Exception {
-        log.info("Encoding sending msg: {}", msg);
+        log.debug("Encoding sending msg: {}", msg);
 
         ByteBuf buf = ctx.alloc().buffer();
         buf.writeShort(msg.getHead());
@@ -23,13 +23,13 @@ public class FitFrameCodec extends MessageToMessageCodec<ByteBuf, FitFrame> {
         buf.writeBytes(msg.getData());
         buf.writeShort(msg.getTail());
 
-        log.info("Encoding sending msg done, buffer: {}", ByteBufUtil.hexDump(buf));
+        log.debug("Encoding sending msg done, buffer: {}", ByteBufUtil.hexDump(buf));
         out.add(buf);
     }
 
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) throws Exception {
-        log.info("Decoding receiving msg buffer: {}", ByteBufUtil.hexDump(msg));
+        log.debug("Decoding receiving msg buffer: {}", ByteBufUtil.hexDump(msg));
 
         short head = msg.readShort();
         if (head == FitConstants.HEAD) {
@@ -37,15 +37,14 @@ public class FitFrameCodec extends MessageToMessageCodec<ByteBuf, FitFrame> {
             short dataLength = msg.readShortLE();
             byte[] data = new byte[dataLength];
 
-            short tail = -1;
-            if (dataLength > 0 && msg.readableBytes() >= dataLength + 2) {
+            if (dataLength > 0) {
                 msg.readBytes(data);
-                tail = msg.readShort();
             }
+            short tail = msg.readShort();
 
             if (tail == FitConstants.TAIL) {
                 FitFrame fitFrame = new FitFrame(cmdType, data);
-                log.info("Decoding receiving done for msg: {}", fitFrame);
+                log.debug("Decoding receiving done for msg: {}", fitFrame);
 
                 out.add(fitFrame);
             } else {

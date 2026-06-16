@@ -22,7 +22,7 @@ public class AtlasFrameCodec extends MessageToMessageCodec<ByteBuf, AtlasFrame> 
 
     @Override
     protected void encode(ChannelHandlerContext ctx, AtlasFrame msg, List<Object> out) throws Exception {
-        log.info("Encoding sending msg: {}", msg);
+        log.debug("Encoding sending msg: {}", msg);
 
         ByteBuf buf = ctx.alloc().buffer();
         buf.writeBytes(formatAscii(msg.getLength(), 4))                     // 1-4: length
@@ -40,13 +40,13 @@ public class AtlasFrameCodec extends MessageToMessageCodec<ByteBuf, AtlasFrame> 
         }
         buf.writeByte(0);                                                     // end: '\0'
 
-        log.info("Encoding sending msg done, buf: {}", buf.toString(buf.readerIndex(), buf.readableBytes(), StandardCharsets.US_ASCII));
+        log.debug("Encoding sending msg done, buf: {}", buf.toString(buf.readerIndex(), buf.readableBytes(), StandardCharsets.US_ASCII));
         out.add(buf);
     }
 
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) throws Exception {
-        log.info("Decoding received msg, buf: {}", msg.toString(msg.readerIndex(), msg.readableBytes(), StandardCharsets.US_ASCII));
+        log.debug("Decoding received msg, buf: {}", msg.toString(msg.readerIndex(), msg.readableBytes(), StandardCharsets.US_ASCII));
 
         if (msg.readableBytes() < AtlasConstants.HEADER_LENGTH) {
             return;
@@ -113,7 +113,7 @@ public class AtlasFrameCodec extends MessageToMessageCodec<ByteBuf, AtlasFrame> 
             frame.setAttachedData(attachedData);
         }
 
-        log.info("Decoded AtlasFrame: {}", frame);
+        log.debug("Decoded AtlasFrame: {}", frame);
         out.add(frame);
     }
 

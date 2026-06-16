@@ -2,6 +2,7 @@ package com.tightening.device.handler.impl;
 
 import com.tightening.config.FitConfig;
 import com.tightening.config.ToolCommonConfig;
+import com.tightening.constant.DeviceType;
 import com.tightening.constant.fit.FitCommandType;
 import com.tightening.constant.fit.FitConstants;
 import com.tightening.device.handler.HeartbeatHandler;
@@ -15,26 +16,38 @@ import com.tightening.service.DeviceService;
 import com.tightening.service.TighteningDataService;
 
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.timeout.IdleStateHandler;
 import lombok.extern.slf4j.Slf4j;
 
 import java.nio.ByteOrder;
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import org.springframework.stereotype.Component;
+
 @Slf4j
+@Component
 public class FitSeriesHandler extends ToolHandler {
 
     private final FitConfig fitConfig;
 
-    public FitSeriesHandler(DeviceService deviceService,
+    public FitSeriesHandler(NioEventLoopGroup group,
+                            DeviceService deviceService,
                             FitConfig fitConfig,
                             TighteningDataService tighteningDataService,
                             ToolCommonConfig toolCommonConfig) {
-        super(deviceService, tighteningDataService, toolCommonConfig);
+        super(group, deviceService, tighteningDataService, toolCommonConfig);
         this.fitConfig = fitConfig;
+    }
+
+    @Override
+    public Set<DeviceType> getSupportedTypes() {
+        return EnumSet.of(DeviceType.FIT_FTC6);
     }
 
     @Override

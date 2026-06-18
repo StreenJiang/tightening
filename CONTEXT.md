@@ -38,6 +38,14 @@ _Avoid_: 螺丝、紧固件
 ProductMission 被执行一次后生成的记录。一条 MissionRecord 包含 0 条或多条 TighteningData，记录该任务下所有拧紧操作的结果。是历史快照，不通过外键与 ProductMission 强关联。
 _Avoid_: 任务记录、执行日志
 
+**ProductCode（产品码/追溯码）**:
+产品的唯一标识字符串，由上层系统下发，贯穿整个任务生命周期。作为服务级追溯码，独立于 Atlas 协议层的 VIN 字段。
+_Avoid_: 条码、VIN、序列号
+
+**Rework（返工）**:
+对已完成任务的重新执行。MissionRecord.isRework 标记该记录是否为返工任务（0=正常首次执行，1=返工）。默认创建为 NORMAL(0)。
+_Avoid_: 重做、重试
+
 **ParameterSet / PSet（参数集/配方）**:
 拧紧工具端预设的一组拧紧参数（扭矩上下限、目标值、角度上下限、目标值等）。存储在工具端，`sendPSet` 命令仅切换工具当前使用的 PSet 编号，不下发参数内容。
 _Avoid_: 配方参数、工艺参数、配置集
@@ -51,6 +59,10 @@ _Avoid_: 拧紧结果、拧紧记录（易与 MissionRecord 混淆）
 **TighteningStatus（拧紧状态）**:
 单次拧紧操作是否合格。OK(1) 表示拧紧达标，NG(0) 表示不合格。
 _Avoid_: 通过/失败
+
+**MissionResult（任务结果）**:
+一次 MissionRecord 的整体判定。NG(0) 表示不合格，OK(1) 表示合格。编码与 TighteningStatus 对齐。
+_Avoid_: 任务状态、完成状态
 
 **TighteningResultType（拧紧结果类型）**:
 区分操作是拧紧 TIGHTENING(1) 还是松开 LOOSENING(2)。

@@ -36,9 +36,9 @@ public class AtlasFrameCodec extends MessageToMessageCodec<ByteBuf, AtlasFrame> 
                 .writeBytes(formatAscii(msg.getMessagePartsEnd(), 1));      // 20: messagePartsEnd
 
         if (msg.getData() != null) {
-            buf.writeBytes(msg.getData());                                          // 21-length: data
+            buf.writeBytes(msg.getData());                                         // 21-length: data
         }
-        buf.writeByte(0);                                                     // end: '\0'
+        buf.writeByte(msg.getEnd());                                               // end: '\0'
 
         log.debug("Encoding sending msg done, buf: {}", buf.toString(buf.readerIndex(), buf.readableBytes(), StandardCharsets.US_ASCII));
         out.add(buf);

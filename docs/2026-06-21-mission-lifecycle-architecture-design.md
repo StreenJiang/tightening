@@ -687,10 +687,12 @@ lockMsgs 的写入者（OPERATION 阶段内活跃，详见《mission-lifecycle-a
 
 | 策略 | 匹配方式 | 适用协议 |
 |---|---|---|
-| `SlotBasedCurveMatching` | 双槽位匹配：先查 `previousOperationData` → 再查 `currentOperationData` → 入 `pendingCurveData` | Atlas（拧紧数据与曲线无可关联字段） |
+| `HybridCurveMatching` | 字段精确匹配优先 + 双槽位兜底：先用曲线中的 `result_data_identifier` 匹配对应拧紧数据的 `tighteningId`，未命中则走双槽位匹配 | Atlas（`result_data_identifier` 等同于 `tighteningId`，待验证） |
 | `FieldBasedCurveMatching` | 字段精确匹配：读曲线中的关联字段直接匹配对应拧紧数据 | FIT（有可匹配字段） |
 
-双槽位机制：Context 维护 `previousOperationData`（上一螺栓）和 `currentOperationData`（当前螺栓）。每次新拧紧数据到达时降级：`previous = current → current = new`。曲线数据优先匹配 `previous`（最常见场景：曲线天然晚于拧紧数据），每螺栓有两个拧紧周期的窗口时间。`FieldBasedCurveMatching` 不依赖双槽位——直接精准命中，但仍以双槽位为兜底。
+双槽位机制：Context 维护 `previousOperationData`（上一螺栓）和 `currentOperationData`（当前螺栓）。每次新拧紧数据到达时降级：`previous = current → current = new`。曲线数据优先匹配 `previous`（最常见场景：曲线天然晚于拧紧数据），每螺栓有两个拧紧周期的窗口时间。
+
+Atlas `HybridCurveMatching`：先尝试用曲线数据中的 `result_data_identifier` 精确匹配 `tighteningId`；若未命中则回退到双槽位匹配（先查 `previousOperationData` → 再查 `currentOperationData` → 入 `pendingCurveData`）。FIT `FieldBasedCurveMatching` 不依赖双槽位——直接精准命中，但仍以双槽位为兜底。
 
 #### FINALIZATION Pipeline
 
@@ -981,10 +983,12 @@ onMessage(msg, context):
 // === onMessage 内部辅助函数 ===
 
 matchAndStoreCurveData(data, context):
-    // 曲线数据到达时，Actor 线程内同步执行双槽位匹配
-    // 策略注册表按设备类型分发：SlotBasedCurveMatching / FieldBasedCurveMatching
+    // 曲线数据到达时，Actor 线程内同步执行匹配
+    // 策略注册表按设备类型分发：HybridCurveMatching(Atlas) / FieldBasedCurveMatching(FIT)
     strategy = curveMatchingRegistry.get(context.currentOperationData.deviceType)
     matched = strategy.tryMatch(data, context)
+    // HybridCurveMatching: result_data_identifier 精确匹配 → 双槽位 → pendingCurveData
+    // FieldBasedCurveMatching: tightening_id 精确匹配 → 双槽位兜底 → pendingCurveData
     if matched != null:
         storeCurveData(matched)                 // 直接存储
     else:

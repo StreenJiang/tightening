@@ -5,8 +5,9 @@ import com.tightening.device.handler.DeviceHandler;
 import com.tightening.device.handler.ToolHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.request.async.DeferredResult;
@@ -22,21 +23,15 @@ public class DeviceController {
     @Autowired
     private DeviceManager deviceManager;
 
-    @PostMapping("/{id}/{enable}")
-    public DeferredResult<ResponseEntity<Boolean>> sendTargetEnabled(@PathVariable("id") long deviceId,
-                                                                     @PathVariable boolean enable) {
+    @PutMapping("/{id}/enable")
+    public DeferredResult<ResponseEntity<Boolean>> enableTool(@PathVariable("id") long deviceId) {
         DeviceHandler handler = deviceManager.getHandler(deviceId);
         DeferredResult<ResponseEntity<Boolean>> deferredResult = new DeferredResult<>(CMD_TIMEOUT_MS);
         deferredResult.onTimeout(() -> deferredResult.setResult(ResponseEntity.status(408).body(false)));
 
         if (handler instanceof ToolHandler toolHandler) {
-            CompletableFuture<Boolean> resultFuture;
-            if (enable) {
-                resultFuture = toolHandler.enableToolOp(deviceId);
-            } else {
-                resultFuture = toolHandler.disableToolOp(deviceId);
-            }
-            resultFuture.thenApply(ResponseEntity::ok)
+            toolHandler.enableToolOp(deviceId)
+                    .thenApply(ResponseEntity::ok)
                     .exceptionally(ex -> ResponseEntity.status(500).body(false))
                     .thenAccept(deferredResult::setResult);
             return deferredResult;
@@ -46,7 +41,25 @@ public class DeviceController {
         return deferredResult;
     }
 
-    @PostMapping("enabled/{id}")
+    @PutMapping("/{id}/disable")
+    public DeferredResult<ResponseEntity<Boolean>> disableTool(@PathVariable("id") long deviceId) {
+        DeviceHandler handler = deviceManager.getHandler(deviceId);
+        DeferredResult<ResponseEntity<Boolean>> deferredResult = new DeferredResult<>(CMD_TIMEOUT_MS);
+        deferredResult.onTimeout(() -> deferredResult.setResult(ResponseEntity.status(408).body(false)));
+
+        if (handler instanceof ToolHandler toolHandler) {
+            toolHandler.disableToolOp(deviceId)
+                    .thenApply(ResponseEntity::ok)
+                    .exceptionally(ex -> ResponseEntity.status(500).body(false))
+                    .thenAccept(deferredResult::setResult);
+            return deferredResult;
+        }
+
+        deferredResult.setResult(ResponseEntity.ok(false));
+        return deferredResult;
+    }
+
+    @GetMapping("/{id}/enabled")
     public ResponseEntity<Boolean> getEnabled(@PathVariable("id") long deviceId) {
         DeviceHandler handler = deviceManager.getHandler(deviceId);
         boolean result = false;
@@ -56,7 +69,7 @@ public class DeviceController {
         return ResponseEntity.ok(result);
     }
 
-    @PostMapping("parameter-set/{id}/{pSet}")
+    @PutMapping("/{id}/parameter-set/{pSet}")
     public DeferredResult<ResponseEntity<Boolean>> sendPSet(@PathVariable("id") long deviceId,
                                                             @PathVariable int pSet) {
         DeviceHandler handler = deviceManager.getHandler(deviceId);

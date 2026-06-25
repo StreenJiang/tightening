@@ -35,6 +35,11 @@ spring:
   web:
     resources:
       add-mappings: false
+  # 文件上传
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
   # 任务调度
   task:
     execution:

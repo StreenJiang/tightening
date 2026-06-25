@@ -170,7 +170,7 @@ _Avoid_: 螺丝状态、点位状态
 
 
 **Inspection / Challenge Task（点检/挑战任务）**:
-正式任务前的强制检验任务。使用与常规 Mission 相同的生命周期引擎。两种类型：ALL（一次性，解锁当日全部 Mission）和 MULTIPLE（绑定 N 个具体 Mission）。
+正式任务前的强制检验任务。使用与常规 Mission 相同的生命周期引擎。两种类型：ALL（一次性，解锁当日全部 Mission）和 CHOSEN（绑定指定 Mission）。
 _Avoid_: 检验任务、校准任务
 
 **SkipScrew（快速完成）**:

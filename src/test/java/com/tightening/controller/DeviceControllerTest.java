@@ -32,14 +32,14 @@ class DeviceControllerTest {
     @InjectMocks
     private DeviceController controller;
 
-    // ============ sendTargetEnabled ============
+    // ============ enableTool ============
 
     @Test
-    void sendTargetEnabled_withToolHandlerAndEnable_shouldCallEnableToolOpAndReturn200() {
+    void enableTool_withToolHandler_shouldCallEnableToolOpAndReturn200() {
         when(deviceManager.getHandler(1L)).thenReturn(toolHandler);
         when(toolHandler.enableToolOp(1L)).thenReturn(CompletableFuture.completedFuture(true));
 
-        DeferredResult<ResponseEntity<Boolean>> result = controller.sendTargetEnabled(1L, true);
+        DeferredResult<ResponseEntity<Boolean>> result = controller.enableTool(1L);
 
         assertThat(result.getResult()).isNotNull();
         ResponseEntity<Boolean> response = (ResponseEntity<Boolean>) result.getResult();
@@ -49,11 +49,38 @@ class DeviceControllerTest {
     }
 
     @Test
-    void sendTargetEnabled_withToolHandlerAndDisable_shouldCallDisableToolOpAndReturn200() {
+    void enableTool_withToolHandlerAndException_shouldReturn500() {
+        when(deviceManager.getHandler(1L)).thenReturn(toolHandler);
+        when(toolHandler.enableToolOp(1L)).thenReturn(CompletableFuture.failedFuture(new RuntimeException("fail")));
+
+        DeferredResult<ResponseEntity<Boolean>> result = controller.enableTool(1L);
+
+        assertThat(result.getResult()).isNotNull();
+        ResponseEntity<Boolean> response = (ResponseEntity<Boolean>) result.getResult();
+        assertThat(response.getStatusCode().value()).isEqualTo(500);
+        assertThat(response.getBody()).isFalse();
+    }
+
+    @Test
+    void enableTool_withNonToolHandler_shouldReturnOkFalse() {
+        when(deviceManager.getHandler(1L)).thenReturn(deviceHandler);
+
+        DeferredResult<ResponseEntity<Boolean>> result = controller.enableTool(1L);
+
+        assertThat(result.getResult()).isNotNull();
+        ResponseEntity<Boolean> response = (ResponseEntity<Boolean>) result.getResult();
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).isFalse();
+    }
+
+    // ============ disableTool ============
+
+    @Test
+    void disableTool_withToolHandler_shouldCallDisableToolOpAndReturn200() {
         when(deviceManager.getHandler(1L)).thenReturn(toolHandler);
         when(toolHandler.disableToolOp(1L)).thenReturn(CompletableFuture.completedFuture(true));
 
-        DeferredResult<ResponseEntity<Boolean>> result = controller.sendTargetEnabled(1L, false);
+        DeferredResult<ResponseEntity<Boolean>> result = controller.disableTool(1L);
 
         assertThat(result.getResult()).isNotNull();
         ResponseEntity<Boolean> response = (ResponseEntity<Boolean>) result.getResult();
@@ -63,23 +90,10 @@ class DeviceControllerTest {
     }
 
     @Test
-    void sendTargetEnabled_withToolHandlerAndException_shouldReturn500() {
-        when(deviceManager.getHandler(1L)).thenReturn(toolHandler);
-        when(toolHandler.enableToolOp(1L)).thenReturn(CompletableFuture.failedFuture(new RuntimeException("fail")));
-
-        DeferredResult<ResponseEntity<Boolean>> result = controller.sendTargetEnabled(1L, true);
-
-        assertThat(result.getResult()).isNotNull();
-        ResponseEntity<Boolean> response = (ResponseEntity<Boolean>) result.getResult();
-        assertThat(response.getStatusCode().value()).isEqualTo(500);
-        assertThat(response.getBody()).isFalse();
-    }
-
-    @Test
-    void sendTargetEnabled_withNonToolHandler_shouldReturnOkFalse() {
+    void disableTool_withNonToolHandler_shouldReturnOkFalse() {
         when(deviceManager.getHandler(1L)).thenReturn(deviceHandler);
 
-        DeferredResult<ResponseEntity<Boolean>> result = controller.sendTargetEnabled(1L, true);
+        DeferredResult<ResponseEntity<Boolean>> result = controller.disableTool(1L);
 
         assertThat(result.getResult()).isNotNull();
         ResponseEntity<Boolean> response = (ResponseEntity<Boolean>) result.getResult();

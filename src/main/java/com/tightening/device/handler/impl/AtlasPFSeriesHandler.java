@@ -9,6 +9,7 @@ import com.tightening.netty.protocol.codec.atlas.AtlasFrame;
 import com.tightening.netty.protocol.codec.atlas.AtlasLengthDecoder;
 import com.tightening.netty.protocol.handler.atlas.AtlasPFSeriesInBoundHandler;
 import com.tightening.netty.protocol.handler.atlas.AtlasPFSeriesInitHandler;
+import com.tightening.service.CurveDataService;
 import com.tightening.service.DeviceService;
 import com.tightening.service.TighteningDataService;
 
@@ -30,8 +31,9 @@ public class AtlasPFSeriesHandler extends ToolHandler {
     public AtlasPFSeriesHandler(NioEventLoopGroup group,
                                 DeviceService deviceService,
                                 TighteningDataService tighteningDataService,
+                                CurveDataService curveDataService,
                                 ToolCommonConfig toolCommonConfig) {
-        super(group, deviceService, tighteningDataService, toolCommonConfig);
+        super(group, deviceService, tighteningDataService, curveDataService, toolCommonConfig);
     }
 
     @Override

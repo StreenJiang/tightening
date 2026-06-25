@@ -6,7 +6,9 @@ import com.tightening.device.handler.ToolHandler;
 import com.tightening.netty.protocol.codec.atlas.AtlasFrame;
 import com.tightening.netty.protocol.util.atlas.AtlasDataUtils;
 import com.tightening.netty.protocol.util.atlas.AtlasTighteningDataParser;
+import com.tightening.dto.CurveDataDTO;
 import com.tightening.dto.TighteningDataDTO;
+import com.tightening.netty.protocol.util.atlas.AtlasCurveDataParser;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import lombok.extern.slf4j.Slf4j;
@@ -61,7 +63,9 @@ public class AtlasPFSeriesInBoundHandler extends SimpleChannelInboundHandler<Atl
                     deviceHandler.handleTighteningData(dto, ctx.channel());
                     break;
                 case CURVE_DATA:
-                    // TODO: 补充持久化和 SSE 推送
+                    CurveDataDTO curveDto = AtlasCurveDataParser.parse(
+                            msg.getData(), msg.getAttachedData(), msg.getRevision());
+                    deviceHandler.handleCurveData(curveDto, ctx.channel());
                     break;
                 default:
                     break;

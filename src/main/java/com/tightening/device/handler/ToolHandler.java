@@ -7,6 +7,7 @@ import com.tightening.dto.CurveDataDTO;
 import com.tightening.dto.TighteningDataDTO;
 import com.tightening.entity.CurveData;
 import com.tightening.entity.TighteningData;
+import com.tightening.service.CurveDataService;
 import com.tightening.service.DeviceService;
 import com.tightening.service.TighteningDataService;
 import com.tightening.util.Converter;
@@ -23,14 +24,18 @@ public abstract class ToolHandler extends TCPDeviceHandler {
 
     @Getter
     private final TighteningDataService tighteningDataService;
+    @Getter
+    private final CurveDataService curveDataService;
     private final ToolCommonConfig toolCommonConfig;
 
     public ToolHandler(NioEventLoopGroup group,
                        DeviceService deviceService,
                        TighteningDataService tighteningDataService,
+                       CurveDataService curveDataService,
                        ToolCommonConfig toolCommonConfig) {
         super(group, deviceService);
         this.tighteningDataService = tighteningDataService;
+        this.curveDataService = curveDataService;
         this.toolCommonConfig = toolCommonConfig;
     }
 
@@ -153,7 +158,8 @@ public abstract class ToolHandler extends TCPDeviceHandler {
     }
 
     public void handleCurveData(CurveDataDTO dto, Channel channel) {
-        // TODO: 补充持久化和 SSE 推送
+        CurveData data = Converter.dto2Entity(dto, CurveData::new);
+        curveDataService.save(data);
     }
 
     public void handleAlarm(String alarmMsg, long deviceId) {

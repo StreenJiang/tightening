@@ -141,4 +141,34 @@ public class AtlasDataUtils {
         String str = new String(data, StandardCharsets.US_ASCII).trim();
         return str.isEmpty() ? 0 : Integer.parseInt(str);
     }
+
+    public static int parseIntAtProtocolByte(byte[] data, int protocolByte, int length) {
+        return parseIntAtOffset(data, protocolByte - 21, length);
+    }
+
+    public static String parseStringAtProtocolByte(byte[] data, int protocolByte, int length) {
+        return parseStringAtOffset(data, protocolByte - 21, length);
+    }
+
+    public static int parseIntAtOffset(byte[] data, int offset, int length) {
+        if (offset + length > data.length) return 0;
+        String raw = new String(data, offset, length, StandardCharsets.US_ASCII).trim();
+        if (raw.isEmpty()) return 0;
+        try { return Integer.parseInt(raw); }
+        catch (NumberFormatException e) { return 0; }
+    }
+
+    public static String parseStringAtOffset(byte[] data, int offset, int length) {
+        if (offset + length > data.length) return "";
+        return new String(data, offset, length, StandardCharsets.US_ASCII).trim();
+    }
+
+    public static long parseLongAtProtocolByte(byte[] data, int protocolByte, int length) {
+        int offset = protocolByte - 21;
+        if (offset + length > data.length) return 0L;
+        String raw = new String(data, offset, length, StandardCharsets.US_ASCII).trim();
+        if (raw.isEmpty()) return 0L;
+        try { return Long.parseLong(raw); }
+        catch (NumberFormatException e) { return 0L; }
+    }
 }

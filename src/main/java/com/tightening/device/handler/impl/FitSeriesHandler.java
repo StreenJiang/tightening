@@ -12,6 +12,7 @@ import com.tightening.netty.protocol.handler.fit.FitSeriesInBoundHandler;
 import com.tightening.netty.protocol.handler.fit.FitSeriesInitHandler;
 import com.tightening.netty.protocol.codec.fit.FitFrameCodec;
 import com.tightening.netty.protocol.codec.fit.FitFrame;
+import com.tightening.service.CurveDataService;
 import com.tightening.service.DeviceService;
 import com.tightening.service.TighteningDataService;
 
@@ -40,8 +41,9 @@ public class FitSeriesHandler extends ToolHandler {
                             DeviceService deviceService,
                             FitConfig fitConfig,
                             TighteningDataService tighteningDataService,
+                            CurveDataService curveDataService,
                             ToolCommonConfig toolCommonConfig) {
-        super(group, deviceService, tighteningDataService, toolCommonConfig);
+        super(group, deviceService, tighteningDataService, curveDataService, toolCommonConfig);
         this.fitConfig = fitConfig;
     }
 

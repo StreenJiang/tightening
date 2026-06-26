@@ -80,4 +80,13 @@ public class ProductBoltService extends ServiceImpl<ProductBoltMapper, ProductBo
                 .remove();
         removeById(boltId);
     }
+
+    public List<ProductBolt> listByMissionId(Long missionId) {
+        Set<Long> sideIds = new java.util.HashSet<>(sideService.listSideIdsByMissionId(missionId));
+        if (sideIds.isEmpty()) return List.of();
+        return lambdaQuery()
+                .in(ProductBolt::getProductSideId, sideIds)
+                .orderByAsc(ProductBolt::getBoltSerialNum)
+                .list();
+    }
 }

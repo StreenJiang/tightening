@@ -3,6 +3,7 @@ package com.tightening.device.handler.impl;
 import com.tightening.config.FitConfig;
 import com.tightening.config.ToolCommonConfig;
 import com.tightening.constant.DeviceType;
+import com.tightening.service.CurveDataService;
 import com.tightening.service.DeviceService;
 import com.tightening.service.TighteningDataService;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -27,18 +28,21 @@ class FitSeriesHandlerTest {
     @Mock
     private TighteningDataService tighteningDataService;
 
+    @Mock
+    private CurveDataService curveDataService;
+
     private final ToolCommonConfig toolCommonConfig = new ToolCommonConfig();
     private final FitConfig fitConfig = new FitConfig();
 
     @Test
     void constructFitSeriesHandler_shouldBeNonNull() {
-        FitSeriesHandler handler = new FitSeriesHandler(group, deviceService, fitConfig, tighteningDataService, toolCommonConfig);
+        FitSeriesHandler handler = new FitSeriesHandler(group, deviceService, fitConfig, tighteningDataService, curveDataService, toolCommonConfig);
         assertThat(handler).isNotNull();
     }
 
     @Test
     void getSupportedTypes_shouldReturnFitType() {
-        FitSeriesHandler handler = new FitSeriesHandler(group, deviceService, fitConfig, tighteningDataService, toolCommonConfig);
+        FitSeriesHandler handler = new FitSeriesHandler(group, deviceService, fitConfig, tighteningDataService, curveDataService, toolCommonConfig);
         Set<DeviceType> types = handler.getSupportedTypes();
         assertThat(types).containsExactly(DeviceType.FIT_FTC6);
     }

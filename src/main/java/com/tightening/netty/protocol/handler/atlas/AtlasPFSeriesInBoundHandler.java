@@ -1,5 +1,7 @@
 package com.tightening.netty.protocol.handler.atlas;
 
+import java.util.Objects;
+
 import com.tightening.constant.atlas.AtlasCommandType;
 import com.tightening.constant.atlas.AtlasErrorCode;
 import com.tightening.device.handler.ToolHandler;
@@ -59,12 +61,12 @@ public class AtlasPFSeriesInBoundHandler extends SimpleChannelInboundHandler<Atl
                     break;
                 case TIGHTEN_DATA:
                     TighteningDataDTO dto = AtlasTighteningDataParser.parse(
-                            msg.getData(), msg.getRevision());
+                            msg.getData(), Objects.requireNonNullElse(msg.getRevision(), 0));
                     deviceHandler.handleTighteningData(dto, ctx.channel());
                     break;
                 case CURVE_DATA:
                     CurveDataDTO curveDto = AtlasCurveDataParser.parse(
-                            msg.getData(), msg.getAttachedData(), msg.getRevision());
+                            msg.getData(), msg.getAttachedData(), Objects.requireNonNullElse(msg.getRevision(), 0));
                     deviceHandler.handleCurveData(curveDto, ctx.channel());
                     break;
                 default:

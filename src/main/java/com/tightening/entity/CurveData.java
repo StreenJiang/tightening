@@ -15,7 +15,7 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 @TableName("curve_data")
 public class CurveData extends BaseEntity {
-    private long missionRecordId;
+    private Long missionRecordId;
     private String workstationName;
     private String productSideName;
     private int boltSerialNum;

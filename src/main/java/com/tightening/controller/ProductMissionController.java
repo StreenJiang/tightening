@@ -1,5 +1,6 @@
 package com.tightening.controller;
 
+import com.tightening.dto.ApiResponse;
 import com.tightening.dto.BarCodeMatchingRuleDTO;
 import com.tightening.dto.InspectionMissionBindingDTO;
 import com.tightening.dto.MissionPrerequisiteDTO;
@@ -43,116 +44,101 @@ public class ProductMissionController {
     record InspectionBindingRequest(Long boundMissionId) {}
 
     @GetMapping
-    public ResponseEntity<List<ProductMissionDTO>> list(@RequestParam(defaultValue = "1") int page,
+    public ResponseEntity<ApiResponse<List<ProductMissionDTO>>> list(@RequestParam(defaultValue = "1") int page,
                                                         @RequestParam(defaultValue = "100") int size) {
-        int safePage = Math.min(Math.max(1, page), 1000);
-        int safeSize = Math.min(Math.max(1, size), 500);
-        List<ProductMission> missions = missionService.lambdaQuery()
-                .eq(ProductMission::getDeleted, 0)
-                .orderByDesc(ProductMission::getId)
-                .last("LIMIT " + safeSize + " OFFSET " + ((safePage - 1) * safeSize))
-                .list();
-        return ResponseEntity.ok(Converter.entity2Dto(missions, ProductMissionDTO::new));
+        var resultPage = missionService.listByPage(page, size);
+        return ResponseEntity.ok(ApiResponse.ok(Converter.entity2Dto(resultPage.getRecords(), ProductMissionDTO::new)));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ProductMissionDTO> get(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<ProductMissionDTO>> get(@PathVariable Long id) {
         ProductMission mission = missionService.getById(id);
-        if (mission == null) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(Converter.entity2Dto(mission, ProductMissionDTO::new));
+        if (mission == null) return ResponseEntity.ok(ApiResponse.fail("not found"));
+        return ResponseEntity.ok(ApiResponse.ok(Converter.entity2Dto(mission, ProductMissionDTO::new)));
     }
 
     @PostMapping
-    public ResponseEntity<String> create(@RequestBody ProductMissionDTO dto) {
+    public ResponseEntity<ApiResponse<String>> create(@RequestBody ProductMissionDTO dto) {
         ProductMission entity = Converter.dto2Entity(dto, ProductMission::new);
         missionService.saveOrUpdate(entity);
-        return ResponseEntity.ok(String.valueOf(entity.getId()));
+        return ResponseEntity.ok(ApiResponse.ok(String.valueOf(entity.getId())));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<String> update(@PathVariable Long id, @RequestBody ProductMissionDTO dto) {
+    public ResponseEntity<ApiResponse<String>> update(@PathVariable Long id, @RequestBody ProductMissionDTO dto) {
         try {
             ProductMission entity = Converter.dto2Entity(dto, ProductMission::new);
             entity.setId(id);
             missionService.saveOrUpdate(entity);
-            return ResponseEntity.ok(String.valueOf(entity.getId()));
+            return ResponseEntity.ok(ApiResponse.ok(String.valueOf(entity.getId())));
         } catch (Exception e) {
             log.error("Update mission failed: id={}", id, e);
-            return ResponseEntity.internalServerError().body("更新失败");
+            return ResponseEntity.ok(ApiResponse.fail("更新失败"));
         }
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> delete(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<String>> delete(@PathVariable Long id) {
         missionService.cascadeDelete(id);
-        return ResponseEntity.ok("ok");
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 
     @PostMapping("/{missionId}/prerequisites")
-    public ResponseEntity<String> addPrerequisite(@PathVariable Long missionId,
+    public ResponseEntity<ApiResponse<String>> addPrerequisite(@PathVariable Long missionId,
                                                    @RequestBody PrerequisiteRequest request) {
         missionService.addPrerequisite(missionId, request.prerequisiteMissionId(), request.prerequisiteType());
-        return ResponseEntity.ok("ok");
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 
     @GetMapping("/{missionId}/prerequisites")
-    public ResponseEntity<List<MissionPrerequisiteDTO>> listPrerequisites(@PathVariable Long missionId) {
-        List<MissionPrerequisite> prerequisites = prerequisiteService.lambdaQuery()
-                .eq(MissionPrerequisite::getMissionId, missionId)
-                .eq(MissionPrerequisite::getDeleted, 0)
-                .list();
-        return ResponseEntity.ok(Converter.entity2Dto(prerequisites, MissionPrerequisiteDTO::new));
+    public ResponseEntity<ApiResponse<List<MissionPrerequisiteDTO>>> listPrerequisites(@PathVariable Long missionId) {
+        List<MissionPrerequisite> prerequisites = prerequisiteService.listByMissionId(missionId);
+        return ResponseEntity.ok(ApiResponse.ok(Converter.entity2Dto(prerequisites, MissionPrerequisiteDTO::new)));
     }
 
     @DeleteMapping("/{missionId}/prerequisites/{id}")
-    public ResponseEntity<String> deletePrerequisite(@PathVariable Long missionId, @PathVariable Long id) {
+    public ResponseEntity<ApiResponse<String>> deletePrerequisite(@PathVariable Long missionId, @PathVariable Long id) {
         prerequisiteService.removeById(id);
-        return ResponseEntity.ok("ok");
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 
     @PostMapping("/{inspectionMissionId}/inspection-bindings")
-    public ResponseEntity<String> addInspectionBinding(@PathVariable Long inspectionMissionId,
+    public ResponseEntity<ApiResponse<String>> addInspectionBinding(@PathVariable Long inspectionMissionId,
                                                         @RequestBody InspectionBindingRequest request) {
         missionService.addInspectionBinding(inspectionMissionId, request.boundMissionId());
-        return ResponseEntity.ok("ok");
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 
     @GetMapping("/{missionId}/inspection-bindings")
-    public ResponseEntity<List<InspectionMissionBindingDTO>> listInspectionBindings(@PathVariable Long missionId) {
-        List<InspectionMissionBinding> bindings = bindingService.lambdaQuery()
-                .eq(InspectionMissionBinding::getInspectionMissionId, missionId)
-                .eq(InspectionMissionBinding::getDeleted, 0)
-                .list();
-        return ResponseEntity.ok(Converter.entity2Dto(bindings, InspectionMissionBindingDTO::new));
+    public ResponseEntity<ApiResponse<List<InspectionMissionBindingDTO>>> listInspectionBindings(@PathVariable Long missionId) {
+        List<InspectionMissionBinding> bindings = bindingService.listByInspectionMissionId(missionId);
+        return ResponseEntity.ok(ApiResponse.ok(Converter.entity2Dto(bindings, InspectionMissionBindingDTO::new)));
     }
 
     @DeleteMapping("/{missionId}/inspection-bindings/{id}")
-    public ResponseEntity<String> deleteInspectionBinding(@PathVariable Long missionId, @PathVariable Long id) {
+    public ResponseEntity<ApiResponse<String>> deleteInspectionBinding(@PathVariable Long missionId, @PathVariable Long id) {
         bindingService.removeById(id);
-        return ResponseEntity.ok("ok");
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 
     @PostMapping("/{missionId}/barcode-rules")
-    public ResponseEntity<String> addBarcodeRule(@PathVariable Long missionId,
+    public ResponseEntity<ApiResponse<String>> addBarcodeRule(@PathVariable Long missionId,
                                                   @RequestBody BarCodeMatchingRuleDTO dto) {
         BarCodeMatchingRule entity = Converter.dto2Entity(dto, BarCodeMatchingRule::new);
         entity.setProductMissionId(missionId);  // Use path variable, not dto
         missionService.addBarcodeRule(entity);
-        return ResponseEntity.ok(String.valueOf(entity.getId()));
+        return ResponseEntity.ok(ApiResponse.ok(String.valueOf(entity.getId())));
     }
 
     @GetMapping("/{missionId}/barcode-rules")
-    public ResponseEntity<List<BarCodeMatchingRuleDTO>> listBarcodeRules(@PathVariable Long missionId) {
-        List<BarCodeMatchingRule> rules = barcodeRuleService.lambdaQuery()
-                .eq(BarCodeMatchingRule::getProductMissionId, missionId)
-                .eq(BarCodeMatchingRule::getDeleted, 0)
-                .list();
-        return ResponseEntity.ok(Converter.entity2Dto(rules, BarCodeMatchingRuleDTO::new));
+    public ResponseEntity<ApiResponse<List<BarCodeMatchingRuleDTO>>> listBarcodeRules(@PathVariable Long missionId) {
+        List<BarCodeMatchingRule> rules = barcodeRuleService.listByMissionId(missionId);
+        return ResponseEntity.ok(ApiResponse.ok(Converter.entity2Dto(rules, BarCodeMatchingRuleDTO::new)));
     }
 
     @DeleteMapping("/{missionId}/barcode-rules/{id}")
-    public ResponseEntity<String> deleteBarcodeRule(@PathVariable Long missionId, @PathVariable Long id) {
+    public ResponseEntity<ApiResponse<String>> deleteBarcodeRule(@PathVariable Long missionId, @PathVariable Long id) {
         barcodeRuleService.removeById(id);
-        return ResponseEntity.ok("ok");
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 }

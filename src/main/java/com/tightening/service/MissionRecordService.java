@@ -8,6 +8,25 @@ import com.tightening.mapper.MissionRecordMapper;
 
 import lombok.extern.slf4j.Slf4j;
 
+import com.tightening.constant.MissionResult;
+
 @Slf4j
 @Service
-public class MissionRecordService extends ServiceImpl<MissionRecordMapper, MissionRecord> {}
+public class MissionRecordService extends ServiceImpl<MissionRecordMapper, MissionRecord> {
+
+    public MissionRecord createRecord(Long productMissionId, String productCode, Integer isRework) {
+        MissionRecord record = new MissionRecord()
+                .setProductMissionId(productMissionId)
+                .setProductCode(productCode)
+                .setIsRework(isRework)
+                .setMissionResult(MissionResult.NG.getCode());
+        save(record);
+        return record;
+    }
+
+    public void markAsOk(Long recordId) {
+        lambdaUpdate().eq(MissionRecord::getId, recordId)
+                .set(MissionRecord::getMissionResult, MissionResult.OK.getCode())
+                .update();
+    }
+}

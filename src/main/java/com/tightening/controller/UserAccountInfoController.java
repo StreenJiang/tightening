@@ -1,5 +1,6 @@
 package com.tightening.controller;
 
+import com.tightening.dto.ApiResponse;
 import com.tightening.dto.UserAccountInfoDTO;
 import com.tightening.service.UserAccountInfoService;
 import org.springframework.http.ResponseEntity;
@@ -21,17 +22,17 @@ public class UserAccountInfoController {
     }
 
     @GetMapping
-    public ResponseEntity<List<UserAccountInfoDTO>> getUsers() {
-        return ResponseEntity.ok(userAccountInfoService.getUserList());
+    public ResponseEntity<ApiResponse<List<UserAccountInfoDTO>>> getUsers() {
+        return ResponseEntity.ok(ApiResponse.ok(userAccountInfoService.getUserList()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<UserAccountInfoDTO> getUserById(@PathVariable Long id) {
-        return ResponseEntity.ok(userAccountInfoService.getUserById(id));
+    public ResponseEntity<ApiResponse<UserAccountInfoDTO>> getUserById(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(userAccountInfoService.getUserById(id)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Boolean> deleteUserById(@PathVariable Long id) {
-        return ResponseEntity.ok(userAccountInfoService.removeById(id));
+    public ResponseEntity<ApiResponse<Boolean>> deleteUserById(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(userAccountInfoService.removeById(id)));
     }
 }

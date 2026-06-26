@@ -2,6 +2,7 @@ package com.tightening.device.handler.impl;
 
 import com.tightening.config.ToolCommonConfig;
 import com.tightening.constant.DeviceType;
+import com.tightening.service.CurveDataService;
 import com.tightening.service.DeviceService;
 import com.tightening.service.TighteningDataService;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -26,17 +27,20 @@ class AtlasPFSeriesHandlerTest {
     @Mock
     private TighteningDataService tighteningDataService;
 
+    @Mock
+    private CurveDataService curveDataService;
+
     private final ToolCommonConfig config = new ToolCommonConfig();
 
     @Test
     void constructAtlasPFSeriesHandler_shouldBeNonNull() {
-        AtlasPFSeriesHandler handler = new AtlasPFSeriesHandler(group, deviceService, tighteningDataService, config);
+        AtlasPFSeriesHandler handler = new AtlasPFSeriesHandler(group, deviceService, tighteningDataService, curveDataService, config);
         assertThat(handler).isNotNull();
     }
 
     @Test
     void getSupportedTypes_shouldReturnAtlasTypes() {
-        AtlasPFSeriesHandler handler = new AtlasPFSeriesHandler(group, deviceService, tighteningDataService, config);
+        AtlasPFSeriesHandler handler = new AtlasPFSeriesHandler(group, deviceService, tighteningDataService, curveDataService, config);
         Set<DeviceType> types = handler.getSupportedTypes();
         assertThat(types).containsExactlyInAnyOrder(DeviceType.ATLAS_PF4000, DeviceType.ATLAS_PF6000_OP);
     }

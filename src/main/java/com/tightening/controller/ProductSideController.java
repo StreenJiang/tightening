@@ -1,6 +1,7 @@
 package com.tightening.controller;
 
 import com.tightening.constant.ImageType;
+import com.tightening.dto.ApiResponse;
 import com.tightening.dto.ProductSideDTO;
 import com.tightening.entity.ProductSide;
 import com.tightening.service.ProductSideService;
@@ -36,37 +37,37 @@ public class ProductSideController {
     private final ProductSideService sideService;
 
     @GetMapping
-    public ResponseEntity<List<ProductSideDTO>> list(@RequestParam Long missionId) {
+    public ResponseEntity<ApiResponse<List<ProductSideDTO>>> list(@RequestParam Long missionId) {
         List<ProductSide> sides = sideService.listByMissionId(missionId);
-        return ResponseEntity.ok(Converter.entity2Dto(sides, ProductSideDTO::new));
+        return ResponseEntity.ok(ApiResponse.ok(Converter.entity2Dto(sides, ProductSideDTO::new)));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ProductSideDTO> get(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<ProductSideDTO>> get(@PathVariable Long id) {
         ProductSide side = sideService.getByIdWithoutBlobs(id);
-        if (side == null) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(Converter.entity2Dto(side, ProductSideDTO::new));
+        if (side == null) return ResponseEntity.ok(ApiResponse.fail("not found"));
+        return ResponseEntity.ok(ApiResponse.ok(Converter.entity2Dto(side, ProductSideDTO::new)));
     }
 
     @PostMapping
-    public ResponseEntity<String> create(@RequestBody ProductSideDTO dto) {
+    public ResponseEntity<ApiResponse<String>> create(@RequestBody ProductSideDTO dto) {
         ProductSide entity = Converter.dto2Entity(dto, ProductSide::new);
         sideService.saveOrUpdate(entity);
-        return ResponseEntity.ok(String.valueOf(entity.getId()));
+        return ResponseEntity.ok(ApiResponse.ok(String.valueOf(entity.getId())));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<String> update(@PathVariable Long id, @RequestBody ProductSideDTO dto) {
+    public ResponseEntity<ApiResponse<String>> update(@PathVariable Long id, @RequestBody ProductSideDTO dto) {
         ProductSide entity = Converter.dto2Entity(dto, ProductSide::new);
         entity.setId(id);
         sideService.saveOrUpdate(entity);
-        return ResponseEntity.ok(String.valueOf(entity.getId()));
+        return ResponseEntity.ok(ApiResponse.ok(String.valueOf(entity.getId())));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> delete(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<String>> delete(@PathVariable Long id) {
         sideService.cascadeDelete(id);
-        return ResponseEntity.ok("ok");
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 
     @GetMapping("/{sideId}/image")

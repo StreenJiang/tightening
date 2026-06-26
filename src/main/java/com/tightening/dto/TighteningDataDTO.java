@@ -12,7 +12,7 @@ import lombok.experimental.Accessors;
 @EqualsAndHashCode(callSuper = true)
 @Accessors(chain = true)
 public class TighteningDataDTO extends BaseDTO {
-    private long missionRecordId;
+    private Long missionRecordId;
     private String workstationName;
     private String toolName;
     private String toolTypeName;

@@ -1,5 +1,6 @@
 package com.tightening.controller;
 
+import com.tightening.dto.ApiResponse;
 import com.tightening.dto.ProductBoltDTO;
 import com.tightening.entity.ProductBolt;
 import com.tightening.service.ProductBoltService;
@@ -28,31 +29,31 @@ public class ProductBoltController {
     private final ProductBoltService boltService;
 
     @GetMapping
-    public ResponseEntity<List<ProductBoltDTO>> list(@RequestParam Long sideId) {
+    public ResponseEntity<ApiResponse<List<ProductBoltDTO>>> list(@RequestParam Long sideId) {
         List<ProductBolt> bolts = boltService.listBySideId(sideId);
-        return ResponseEntity.ok(Converter.entity2Dto(bolts, ProductBoltDTO::new));
+        return ResponseEntity.ok(ApiResponse.ok(Converter.entity2Dto(bolts, ProductBoltDTO::new)));
     }
 
     @PostMapping
-    public ResponseEntity<String> create(@RequestBody ProductBoltDTO dto,
+    public ResponseEntity<ApiResponse<String>> create(@RequestBody ProductBoltDTO dto,
                                           @RequestParam Long missionId) {
         ProductBolt entity = Converter.dto2Entity(dto, ProductBolt::new);
         boltService.saveBolt(entity, missionId);
-        return ResponseEntity.ok(String.valueOf(entity.getId()));
+        return ResponseEntity.ok(ApiResponse.ok(String.valueOf(entity.getId())));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<String> update(@PathVariable Long id, @RequestBody ProductBoltDTO dto,
+    public ResponseEntity<ApiResponse<String>> update(@PathVariable Long id, @RequestBody ProductBoltDTO dto,
                                           @RequestParam Long missionId) {
         ProductBolt entity = Converter.dto2Entity(dto, ProductBolt::new);
         entity.setId(id);
         boltService.saveBolt(entity, missionId);
-        return ResponseEntity.ok(String.valueOf(entity.getId()));
+        return ResponseEntity.ok(ApiResponse.ok(String.valueOf(entity.getId())));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> delete(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<String>> delete(@PathVariable Long id) {
         boltService.cascadeDelete(id);
-        return ResponseEntity.ok("ok");
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 }

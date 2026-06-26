@@ -30,9 +30,10 @@ class ProductSideTest {
 
         assertThat(restored.getProductMissionId()).isEqualTo(100L);
         assertThat(restored.getName()).isEqualTo("Side A");
-        assertThat(restored.getImageData()).containsExactly(imageData);
-        assertThat(restored.getRenderedImageData()).containsExactly(renderedImageData);
-        assertThat(restored.getThumbnailData()).containsExactly(thumbnailData);
+        // @JsonIgnore on byte[] fields — they are excluded from JSON serialization
+        assertThat(restored.getImageData()).isNull();
+        assertThat(restored.getRenderedImageData()).isNull();
+        assertThat(restored.getThumbnailData()).isNull();
     }
 
     @Test

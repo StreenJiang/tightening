@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.tightening.dto.ApiResponse;
 import com.tightening.dto.UserAccountInfoDTO;
 import com.tightening.service.UserAccountInfoService;
 import java.util.List;
@@ -30,10 +31,11 @@ class UserAccountInfoControllerTest {
         List<UserAccountInfoDTO> mockList = List.of(user1, user2);
         when(userAccountInfoService.getUserList()).thenReturn(mockList);
 
-        ResponseEntity<List<UserAccountInfoDTO>> response = userAccountInfoController.getUsers();
+        ResponseEntity<ApiResponse<List<UserAccountInfoDTO>>> response = userAccountInfoController.getUsers();
 
         assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).isSameAs(mockList).hasSize(2);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().data()).isSameAs(mockList).hasSize(2);
         verify(userAccountInfoService).getUserList();
     }
 
@@ -42,10 +44,11 @@ class UserAccountInfoControllerTest {
         UserAccountInfoDTO mockUser = new UserAccountInfoDTO().setStaffId("001").setName("Alice");
         when(userAccountInfoService.getUserById(1L)).thenReturn(mockUser);
 
-        ResponseEntity<UserAccountInfoDTO> response = userAccountInfoController.getUserById(1L);
+        ResponseEntity<ApiResponse<UserAccountInfoDTO>> response = userAccountInfoController.getUserById(1L);
 
         assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).isSameAs(mockUser);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().data()).isSameAs(mockUser);
         verify(userAccountInfoService).getUserById(1L);
     }
 
@@ -53,10 +56,11 @@ class UserAccountInfoControllerTest {
     void shouldDeleteUserById() {
         when(userAccountInfoService.removeById(1L)).thenReturn(true);
 
-        ResponseEntity<Boolean> response = userAccountInfoController.deleteUserById(1L);
+        ResponseEntity<ApiResponse<Boolean>> response = userAccountInfoController.deleteUserById(1L);
 
         assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).isTrue();
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().data()).isTrue();
         verify(userAccountInfoService).removeById(1L);
     }
 }

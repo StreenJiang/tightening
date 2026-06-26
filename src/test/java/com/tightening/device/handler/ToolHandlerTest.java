@@ -3,6 +3,7 @@ package com.tightening.device.handler;
 import com.tightening.config.ToolCommonConfig;
 import com.tightening.device.DeviceHolder;
 import com.tightening.entity.Device;
+import com.tightening.service.CurveDataService;
 import com.tightening.service.DeviceService;
 import com.tightening.service.TighteningDataService;
 import io.netty.channel.ChannelInitializer;
@@ -36,6 +37,9 @@ class ToolHandlerTest {
     @Mock
     private TighteningDataService tighteningDataService;
 
+    @Mock
+    private CurveDataService curveDataService;
+
     private ToolCommonConfig config;
     private TestToolHandler handler;
     private DeviceHolder holder;
@@ -46,8 +50,8 @@ class ToolHandlerTest {
      */
     static class TestToolHandler extends ToolHandler {
 
-        TestToolHandler(NioEventLoopGroup g, DeviceService ds, TighteningDataService tds, ToolCommonConfig cfg) {
-            super(g, ds, tds, cfg);
+        TestToolHandler(NioEventLoopGroup g, DeviceService ds, TighteningDataService tds, CurveDataService cds, ToolCommonConfig cfg) {
+            super(g, ds, tds, cds, cfg);
         }
 
         @Override
@@ -85,7 +89,7 @@ class ToolHandlerTest {
     void setUp() {
         config = new ToolCommonConfig();
         config.setEnableDisableCooldownMs(1000L);
-        handler = new TestToolHandler(group, deviceService, tighteningDataService, config);
+        handler = new TestToolHandler(group, deviceService, tighteningDataService, curveDataService, config);
         Device device = new Device();
         device.setId(DEVICE_ID);
         holder = handler.addDeviceInfo(device);

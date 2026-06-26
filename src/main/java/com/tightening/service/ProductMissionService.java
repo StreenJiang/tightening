@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -51,6 +53,14 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
             validator.validateProductTraceUnique(rule.getProductMissionId(), rule.getId());
         }
         barcodeRuleService.saveOrUpdate(rule);
+    }
+
+    public Page<ProductMission> listByPage(int page, int size) {
+        int safePage = Math.min(Math.max(1, page), 1000);
+        int safeSize = Math.min(Math.max(1, size), 500);
+        return lambdaQuery()
+                .orderByDesc(ProductMission::getId)
+                .page(new Page<>(safePage, safeSize));
     }
 
     @Transactional

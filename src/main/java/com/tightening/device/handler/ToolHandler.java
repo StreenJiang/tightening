@@ -2,6 +2,7 @@ package com.tightening.device.handler;
 
 import com.tightening.config.ToolCommonConfig;
 import com.tightening.device.DeviceHolder;
+import com.tightening.device.contract.ToolAdapter;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
 import com.tightening.dto.CurveDataDTO;
 import com.tightening.dto.TighteningDataDTO;
@@ -28,6 +29,8 @@ public abstract class ToolHandler extends TCPDeviceHandler {
     private final CurveDataService curveDataService;
     private final ToolCommonConfig toolCommonConfig;
 
+    private volatile ToolAdapter toolAdapter;
+
     public ToolHandler(NioEventLoopGroup group,
                        DeviceService deviceService,
                        TighteningDataService tighteningDataService,
@@ -37,6 +40,10 @@ public abstract class ToolHandler extends TCPDeviceHandler {
         this.tighteningDataService = tighteningDataService;
         this.curveDataService = curveDataService;
         this.toolCommonConfig = toolCommonConfig;
+    }
+
+    public void setToolAdapter(ToolAdapter adapter) {
+        this.toolAdapter = adapter;
     }
 
     public CompletableFuture<Boolean> enableToolOp(long deviceId) {
@@ -152,12 +159,18 @@ public abstract class ToolHandler extends TCPDeviceHandler {
     // ============== 数据回调（InBoundHandler 解析后委托给这里） ==============
 
     public void handleTighteningData(TighteningDataDTO dto, Channel channel) {
+        if (toolAdapter != null) {
+            toolAdapter.fireTighteningData(dto);
+        }
         TighteningData data = Converter.dto2Entity(dto, TighteningData::new);
         TCPDeviceHandler.applyToolTypeName(channel, data);
         tighteningDataService.save(data);
     }
 
     public void handleCurveData(CurveDataDTO dto, Channel channel) {
+        if (toolAdapter != null) {
+            toolAdapter.fireCurveData(dto);
+        }
         CurveData data = Converter.dto2Entity(dto, CurveData::new);
         curveDataService.save(data);
     }

@@ -110,6 +110,10 @@ _Avoid_: 驱动、适配器
 设备 CRUD 操作后发布的事件（ADD / UPDATE / DELETE），在事务提交后由 DeviceManager 响应，确保内存状态与数据库一致。
 _Avoid_: 设备更新通知
 
+**DeviceRegistry（设备注册表）**:
+设备接口视图的查询入口。监听 DeviceChangeEvent 维护 Tool 实例注册表，与 DeviceManager 零耦合（事件驱动）。不管理连接，只提供查询。
+_Avoid_: 设备仓库、连接池
+
 ## 工具控制
 
 **enable / disable（启用/禁用）**:
@@ -216,7 +220,7 @@ SQLite 中的 `export_task` 表。FINALIZATION 阶段的 ExportData 等 Capabili
 _Avoid_: 导出队列表、异步任务表
 
 **JudgmentStrategy（判定策略）**:
-`ControllerStatusCheck` Capability 内部使用的策略接口。按 DeviceType 分发到具体实现（AtlasJudgment / FitJudgment / SudongJudgment），从拧紧数据中提取控制器的原始判定状态。设备新增 = 新增策略实现 + 注册到 StrategyRegistry。
+按 DeviceType 分发到具体实现（AtlasJudgment / FitJudgment / SudongJudgment）的策略接口，`ControllerStatusCheck` Capability 通过该接口获取拧紧数据的控制器原始判定。位于独立包 `com.tightening.judgment`，不依赖 Capability 基础设施。设备新增 = 新增策略实现 + 注册到 `JudgmentConfig`。
 _Avoid_: 判定器、结果解释器
 
 **Trigger Signal（触发信号）**:

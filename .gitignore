@@ -38,3 +38,5 @@ build/
 .zed/
 .codegraph/
 .claude/
+.agents/
+data/

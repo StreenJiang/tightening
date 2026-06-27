@@ -29,4 +29,17 @@ public class MissionRecordService extends ServiceImpl<MissionRecordMapper, Missi
                 .set(MissionRecord::getMissionResult, MissionResult.OK.getCode())
                 .update();
     }
+
+    public void markFaulted(Long recordId, String message) {
+        lambdaUpdate().eq(MissionRecord::getId, recordId)
+                .set(MissionRecord::getMissionResult, MissionResult.NG.getCode())
+                .set(MissionRecord::getFaultMessage, message)
+                .update();
+    }
+
+    public void updateSnapshot(Long recordId, String snapshotJson) {
+        lambdaUpdate().eq(MissionRecord::getId, recordId)
+                .set(MissionRecord::getContextSnapshot, snapshotJson)
+                .update();
+    }
 }

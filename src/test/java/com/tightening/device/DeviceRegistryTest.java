@@ -9,6 +9,7 @@ import com.tightening.device.handler.DeviceHandler;
 import com.tightening.device.handler.DeviceHandlerFactory;
 import com.tightening.device.handler.ToolHandler;
 import com.tightening.entity.Device;
+import com.tightening.lifecycle.DataRouter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,11 +30,14 @@ class DeviceRegistryTest {
     @Mock
     private ToolHandler toolHandler;
 
+    @Mock
+    private DataRouter dataRouter;
+
     private DeviceRegistry registry;
 
     @BeforeEach
     void setUp() {
-        registry = new DeviceRegistry(handlerFactory);
+        registry = new DeviceRegistry(handlerFactory, dataRouter);
     }
 
     @Test

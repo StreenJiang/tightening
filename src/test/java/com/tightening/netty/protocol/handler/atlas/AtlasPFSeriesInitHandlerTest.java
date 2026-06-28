@@ -44,7 +44,7 @@ class AtlasPFSeriesInitHandlerTest {
                 .thenReturn(CompletableFuture.completedFuture(true));
         lenient().when(deviceHandler.subscribeTighteningData(anyLong()))
                 .thenReturn(CompletableFuture.completedFuture(true));
-        lenient().when(deviceHandler.forceDisableToolOp(anyLong()))
+        lenient().when(deviceHandler.forceLock(anyLong()))
                 .thenReturn(CompletableFuture.completedFuture(true));
 
         Device device = new Device();
@@ -100,7 +100,7 @@ class AtlasPFSeriesInitHandlerTest {
     @Test
     @DisplayName("force disable fails: channel stays open (non-critical)")
     void testForceDisableFails() {
-        when(deviceHandler.forceDisableToolOp(TEST_DEVICE_ID))
+        when(deviceHandler.forceLock(TEST_DEVICE_ID))
                 .thenReturn(CompletableFuture.completedFuture(false));
 
         channel.pipeline().fireChannelActive();

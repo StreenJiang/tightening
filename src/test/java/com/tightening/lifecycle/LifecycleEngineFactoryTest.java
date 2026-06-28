@@ -1,9 +1,11 @@
 package com.tightening.lifecycle;
 
+import com.tightening.config.LocalSettings;
 import com.tightening.constant.DeviceType;
 import com.tightening.entity.ProductBolt;
 import com.tightening.entity.ProductMission;
 import com.tightening.judgment.JudgmentStrategy;
+import com.tightening.service.ExportTaskService;
 import com.tightening.service.MissionRecordService;
 import com.tightening.service.TighteningDataService;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("LifecycleEngineFactory")
@@ -24,14 +27,17 @@ class LifecycleEngineFactoryTest {
 
     @Mock private MissionRecordService missionRecordService;
     @Mock private TighteningDataService tighteningDataService;
+    @Mock private ExportTaskService exportTaskService;
+    @Mock private LocalSettings settings;
     @Mock private JudgmentStrategy judgmentStrategy;
 
     private LifecycleEngineFactory factory;
 
     @BeforeEach
     void setUp() {
+        lenient().when(settings.exportTypes()).thenReturn(List.of("standard_excel"));
         factory = new LifecycleEngineFactory(
-            missionRecordService, tighteningDataService,
+            missionRecordService, tighteningDataService, exportTaskService, settings,
             Map.of(DeviceType.ATLAS_PF4000, judgmentStrategy));
     }
 

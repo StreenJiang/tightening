@@ -17,9 +17,9 @@ public class DeviceHolder {
 
     private final ReentrantLock stateLock = new ReentrantLock();
     private final ReentrantLock pSetLock = new ReentrantLock();
-    @Setter private volatile boolean isToolEnabled = false;
-    @Setter private volatile long lastEnableTime = 0;
-    @Setter private volatile long lastDisableTime = 0;
+    @Setter private volatile boolean isUnlocked = false;
+    @Setter private volatile long lastUnlockTime = 0;
+    @Setter private volatile long lastLockTime = 0;
 
     public DeviceHolder(Device device) {
         this.device = device;

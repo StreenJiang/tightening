@@ -234,3 +234,19 @@ _Avoid_: 激活检查、前置校验
 **LifecycleResult（生命周期结果）**:
 引擎生命周期结束时的返回值：Completed(missionResult) — 走过完整生命周期；Aborted(reason) — 激活前中止（验证/激活失败）；Faulted(error) — 引擎自身异常。
 _Avoid_: 结束状态、完成结果
+
+**MissionOrchestrator（任务编排器）**:
+引擎生命周期的单一入口。负责创建引擎实例（通过 LifecycleEngineFactory）、持有活跃引擎引用、将设备拧紧数据路由到正确引擎的 inbox、以及在引擎完成回调中判断是否自循环重启。与 DeviceRegistry 协作，在设备注册时挂载数据路由回调。
+_Avoid_: 任务管理器、流程控制器
+
+**LocalSettings / settings.yml（本地化配置）**:
+部署环境的本地化配置文件（`~/tightening_system/settings.yml`），独立于 application.yaml。客户部署时按需复制修改。当前包含：自循环开关（`self-loop-enabled`）、导出类型列表（`export-types`）。后续扩展 PLC 超时、心跳间隔、Capability 开关等。
+_Avoid_: 应用配置、环境变量
+
+**DataRouter（数据路由器）**:
+将拧紧数据从设备回调路由到正确引擎 inbox 的接口。`DeviceRegistry` 依赖此接口（而非 `MissionOrchestrator`），消除循环依赖。`MissionOrchestrator` 实现此接口，在设备注册时通过 `ToolAdapter.onTighteningData()` 挂载回调。
+_Avoid_: 消息路由器、事件分发器
+
+**Lock / Unlock（锁定/解锁）**:
+替代原有 enable/disable 术语。锁定（lock）= 禁止拧紧工具执行拧紧操作；解锁（unlock）= 允许操作。ToolHandler 层对应方法重命名：`enableToolOp→unlock`、`disableToolOp→lock`。ITool 接口的 `sendLock()`/`sendUnlock()` 不变，由 ToolAdapter 内部映射到 handler 的新方法。
+_Avoid_: 启用/禁用（旧术语）

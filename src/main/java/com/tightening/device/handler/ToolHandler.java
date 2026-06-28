@@ -46,19 +46,19 @@ public abstract class ToolHandler extends TCPDeviceHandler {
         this.toolAdapter = adapter;
     }
 
-    public CompletableFuture<Boolean> enableToolOp(long deviceId) {
+    public CompletableFuture<Boolean> unlock(long deviceId) {
         return changeToolState(true, deviceId, false);
     }
 
-    public CompletableFuture<Boolean> disableToolOp(long deviceId) {
+    public CompletableFuture<Boolean> lock(long deviceId) {
         return changeToolState(false, deviceId, false);
     }
 
-    public CompletableFuture<Boolean> forceEnableToolOp(long deviceId) {
+    public CompletableFuture<Boolean> forceUnlock(long deviceId) {
         return changeToolState(true, deviceId, true);
     }
 
-    public CompletableFuture<Boolean> forceDisableToolOp(long deviceId) {
+    public CompletableFuture<Boolean> forceLock(long deviceId) {
         return changeToolState(false, deviceId, true);
     }
 
@@ -73,8 +73,8 @@ public abstract class ToolHandler extends TCPDeviceHandler {
         }
     }
 
-    public boolean isToolEnabled(long deviceId) {
-        return getHolder(deviceId).isToolEnabled();
+    public boolean isUnlocked(long deviceId) {
+        return getHolder(deviceId).isUnlocked();
     }
 
     public CompletableFuture<Boolean> sendHeartbeat(long deviceId) {
@@ -91,25 +91,25 @@ public abstract class ToolHandler extends TCPDeviceHandler {
      */
     private CompletableFuture<Boolean> changeToolState(boolean targetEnabled, long deviceId,
                                                        boolean bypassCooldown) {
-        String action = targetEnabled ? "enable" : "disable";
+        String action = targetEnabled ? "unlock" : "lock";
         long now = System.currentTimeMillis();
         DeviceHolder holder = getHolder(deviceId);
 
         holder.getStateLock().lock();
         try {
             if (!bypassCooldown) {
-                boolean oppositeState = targetEnabled != holder.isToolEnabled();
-                long lastTime = targetEnabled ? holder.getLastEnableTime() : holder.getLastDisableTime();
-                log.debug("{}ToolOp: deviceId={}, current isEnabled={}, oppositeState={}",
-                          action, deviceId, holder.isToolEnabled(), oppositeState);
+                boolean oppositeState = targetEnabled != holder.isUnlocked();
+                long lastTime = targetEnabled ? holder.getLastUnlockTime() : holder.getLastLockTime();
+                log.debug("{}: deviceId={}, current isUnlocked={}, oppositeState={}",
+                          action, deviceId, holder.isUnlocked(), oppositeState);
 
-                if (!oppositeState && (now - lastTime) < toolCommonConfig.getEnableDisableCooldownMs()) {
-                    log.debug("{}ToolOp rejected by cooldown: deviceId={}, elapsed={}ms",
+                if (!oppositeState && (now - lastTime) < toolCommonConfig.getLockUnlockCooldownMs()) {
+                    log.debug("{} rejected by cooldown: deviceId={}, elapsed={}ms",
                               action, deviceId, now - lastTime);
                     return CompletableFuture.completedFuture(false);
                 }
             } else {
-                log.debug("force{}Tool: deviceId={}, bypass cooldown", action, deviceId);
+                log.debug("force{}: deviceId={}, bypass cooldown", action, deviceId);
             }
             setLastTime(holder, targetEnabled, now);
         } finally {
@@ -128,9 +128,9 @@ public abstract class ToolHandler extends TCPDeviceHandler {
                 holder.getStateLock().lock();
                 try {
                     if (targetEnabled) {
-                        holder.setToolEnabled(true);
+                        holder.setUnlocked(true);
                     } else {
-                        holder.setToolEnabled(false);
+                        holder.setUnlocked(false);
                     }
                 } finally {
                     holder.getStateLock().unlock();
@@ -147,9 +147,9 @@ public abstract class ToolHandler extends TCPDeviceHandler {
         holder.getStateLock().lock();
         try {
             if (targetEnabled) {
-                holder.setLastEnableTime(time);
+                holder.setLastUnlockTime(time);
             } else {
-                holder.setLastDisableTime(time);
+                holder.setLastLockTime(time);
             }
         } finally {
             holder.getStateLock().unlock();

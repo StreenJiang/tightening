@@ -64,16 +64,16 @@ class ToolAdapterTest {
     }
 
     @Test
-    @DisplayName("sendLock() 委托 enableToolOp")
+    @DisplayName("sendLock() 委托 unlock")
     void sendLockDelegates() {
-        when(handler.enableToolOp(1L)).thenReturn(CompletableFuture.completedFuture(true));
+        when(handler.unlock(1L)).thenReturn(CompletableFuture.completedFuture(true));
         assertThat(adapter.sendLock()).isCompletedWithValue(true);
     }
 
     @Test
-    @DisplayName("sendUnlock() 委托 disableToolOp")
+    @DisplayName("sendUnlock() 委托 lock")
     void sendUnlockDelegates() {
-        when(handler.disableToolOp(1L)).thenReturn(CompletableFuture.completedFuture(false));
+        when(handler.lock(1L)).thenReturn(CompletableFuture.completedFuture(false));
         assertThat(adapter.sendUnlock()).isCompletedWithValue(false);
     }
 

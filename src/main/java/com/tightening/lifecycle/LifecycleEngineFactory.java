@@ -1,5 +1,6 @@
 package com.tightening.lifecycle;
 
+import com.tightening.config.LocalSettings;
 import com.tightening.constant.DeviceType;
 import com.tightening.device.contract.ITool;
 import com.tightening.entity.ProductBolt;
@@ -9,6 +10,7 @@ import com.tightening.lifecycle.capability.*;
 import com.tightening.lifecycle.monitor.DeviceConnectionMonitor;
 import com.tightening.lifecycle.monitor.LockStateMonitor;
 import com.tightening.lifecycle.monitor.PersistentMonitor;
+import com.tightening.service.ExportTaskService;
 import com.tightening.service.MissionRecordService;
 import com.tightening.service.TighteningDataService;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,8 @@ public class LifecycleEngineFactory {
 
     private final MissionRecordService missionRecordService;
     private final TighteningDataService tighteningDataService;
+    private final ExportTaskService exportTaskService;
+    private final LocalSettings settings;
     private final Map<DeviceType, JudgmentStrategy> judgmentStrategies;
 
     public LifecycleEngine createEngine(
@@ -51,7 +55,11 @@ public class LifecycleEngineFactory {
             new ControllerStatusCheck(),
             new ExecuteJudgment(judgmentStrategies),
             new StoreData(tighteningDataService),
-            new AdvanceBolt(missionRecordService)
+            new AdvanceBolt(missionRecordService),
+            new CancelTasks(),
+            new LockTools(),
+            new ResetState(),
+            new ExportData(exportTaskService, settings)
         );
 
         List<PersistentMonitor> monitors = List.of(

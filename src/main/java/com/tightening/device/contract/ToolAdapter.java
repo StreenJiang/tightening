@@ -44,12 +44,12 @@ public class ToolAdapter implements ITool {
 
     @Override
     public CompletableFuture<Boolean> sendLock() {
-        return handler.enableToolOp(device.getId());
+        return handler.unlock(device.getId());
     }
 
     @Override
     public CompletableFuture<Boolean> sendUnlock() {
-        return handler.disableToolOp(device.getId());
+        return handler.lock(device.getId());
     }
 
     @Override

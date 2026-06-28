@@ -15,6 +15,6 @@ public class FitSeriesInitHandler extends DeviceInitHandler {
     @Override
     protected void afterChannelActive(ChannelHandlerContext ctx) {
         long deviceId = ctx.channel().attr(DEVICE_ID).get();
-        ((ToolHandler) deviceHandler).forceDisableToolOp(deviceId);
+        ((ToolHandler) deviceHandler).forceLock(deviceId);
     }
 }

@@ -37,7 +37,7 @@ class DeviceControllerTest {
     @Test
     void enableTool_withToolHandler_shouldCallEnableToolOpAndReturn200() {
         when(deviceManager.getHandler(1L)).thenReturn(toolHandler);
-        when(toolHandler.enableToolOp(1L)).thenReturn(CompletableFuture.completedFuture(true));
+        when(toolHandler.unlock(1L)).thenReturn(CompletableFuture.completedFuture(true));
 
         DeferredResult<ResponseEntity<Boolean>> result = controller.enableTool(1L);
 
@@ -45,13 +45,13 @@ class DeviceControllerTest {
         ResponseEntity<Boolean> response = (ResponseEntity<Boolean>) result.getResult();
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody()).isTrue();
-        verify(toolHandler).enableToolOp(1L);
+        verify(toolHandler).unlock(1L);
     }
 
     @Test
     void enableTool_withToolHandlerAndException_shouldReturn500() {
         when(deviceManager.getHandler(1L)).thenReturn(toolHandler);
-        when(toolHandler.enableToolOp(1L)).thenReturn(CompletableFuture.failedFuture(new RuntimeException("fail")));
+        when(toolHandler.unlock(1L)).thenReturn(CompletableFuture.failedFuture(new RuntimeException("fail")));
 
         DeferredResult<ResponseEntity<Boolean>> result = controller.enableTool(1L);
 
@@ -78,7 +78,7 @@ class DeviceControllerTest {
     @Test
     void disableTool_withToolHandler_shouldCallDisableToolOpAndReturn200() {
         when(deviceManager.getHandler(1L)).thenReturn(toolHandler);
-        when(toolHandler.disableToolOp(1L)).thenReturn(CompletableFuture.completedFuture(true));
+        when(toolHandler.lock(1L)).thenReturn(CompletableFuture.completedFuture(true));
 
         DeferredResult<ResponseEntity<Boolean>> result = controller.disableTool(1L);
 
@@ -86,7 +86,7 @@ class DeviceControllerTest {
         ResponseEntity<Boolean> response = (ResponseEntity<Boolean>) result.getResult();
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody()).isTrue();
-        verify(toolHandler).disableToolOp(1L);
+        verify(toolHandler).lock(1L);
     }
 
     @Test
@@ -106,7 +106,7 @@ class DeviceControllerTest {
     @Test
     void getEnabled_withToolHandlerAndEnabled_shouldReturnTrue() {
         when(deviceManager.getHandler(1L)).thenReturn(toolHandler);
-        when(toolHandler.isToolEnabled(1L)).thenReturn(true);
+        when(toolHandler.isUnlocked(1L)).thenReturn(true);
 
         ResponseEntity<Boolean> response = controller.getEnabled(1L);
 
@@ -117,7 +117,7 @@ class DeviceControllerTest {
     @Test
     void getEnabled_withToolHandlerAndDisabled_shouldReturnFalse() {
         when(deviceManager.getHandler(1L)).thenReturn(toolHandler);
-        when(toolHandler.isToolEnabled(1L)).thenReturn(false);
+        when(toolHandler.isUnlocked(1L)).thenReturn(false);
 
         ResponseEntity<Boolean> response = controller.getEnabled(1L);
 

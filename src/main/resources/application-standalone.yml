@@ -20,7 +20,7 @@ device-config:
 
 tool-control:
   common:
-    enable_disable_cooldown_ms: 5000
+    lock_unlock_cooldown_ms: 5000
   atlas:
   fit:
     heart-beat-interval-ms: 30000

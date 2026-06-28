@@ -43,7 +43,7 @@ class FitSeriesInitHandlerTest {
     void channelActive_shouldForceDisableTool() {
         channel.pipeline().fireChannelActive();
 
-        verify(deviceHandler).forceDisableToolOp(100L);
+        verify(deviceHandler).forceLock(100L);
     }
 
     @Test

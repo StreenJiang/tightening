@@ -25,10 +25,10 @@ class DeviceHolderTest {
 
         assertThat(holder.getDevice()).isSameAs(device);
         assertThat(holder.getStatus()).isEqualTo(DeviceStatus.DISCONNECTED);
-        assertThat(holder.isToolEnabled()).isFalse();
+        assertThat(holder.isUnlocked()).isFalse();
         assertThat(holder.getChannel()).isNull();
-        assertThat(holder.getLastEnableTime()).isZero();
-        assertThat(holder.getLastDisableTime()).isZero();
+        assertThat(holder.getLastUnlockTime()).isZero();
+        assertThat(holder.getLastLockTime()).isZero();
         assertThat(holder.getStateLock()).isNotNull();
         assertThat(holder.getPSetLock()).isNotNull();
     }
@@ -64,44 +64,44 @@ class DeviceHolderTest {
     }
 
     @Test
-    void isToolEnabled_shouldDefaultToFalse() {
+    void isUnlocked_shouldDefaultToFalse() {
         DeviceHolder holder = new DeviceHolder(createDevice(1));
-        assertThat(holder.isToolEnabled()).isFalse();
+        assertThat(holder.isUnlocked()).isFalse();
     }
 
     @Test
-    void setToolEnabled_shouldToggleState() {
+    void setUnlocked_shouldToggleState() {
         DeviceHolder holder = new DeviceHolder(createDevice(1));
 
-        holder.setToolEnabled(true);
-        assertThat(holder.isToolEnabled()).isTrue();
+        holder.setUnlocked(true);
+        assertThat(holder.isUnlocked()).isTrue();
 
-        holder.setToolEnabled(false);
-        assertThat(holder.isToolEnabled()).isFalse();
+        holder.setUnlocked(false);
+        assertThat(holder.isUnlocked()).isFalse();
     }
 
     @Test
-    void lastEnableTime_shouldStoreAndReturnValue() {
+    void lastUnlockTime_shouldStoreAndReturnValue() {
         DeviceHolder holder = new DeviceHolder(createDevice(1));
-        assertThat(holder.getLastEnableTime()).isZero();
+        assertThat(holder.getLastUnlockTime()).isZero();
 
-        holder.setLastEnableTime(1000L);
-        assertThat(holder.getLastEnableTime()).isEqualTo(1000L);
+        holder.setLastUnlockTime(1000L);
+        assertThat(holder.getLastUnlockTime()).isEqualTo(1000L);
 
-        holder.setLastEnableTime(Long.MAX_VALUE);
-        assertThat(holder.getLastEnableTime()).isEqualTo(Long.MAX_VALUE);
+        holder.setLastUnlockTime(Long.MAX_VALUE);
+        assertThat(holder.getLastUnlockTime()).isEqualTo(Long.MAX_VALUE);
     }
 
     @Test
-    void lastDisableTime_shouldStoreAndReturnValue() {
+    void lastLockTime_shouldStoreAndReturnValue() {
         DeviceHolder holder = new DeviceHolder(createDevice(1));
-        assertThat(holder.getLastDisableTime()).isZero();
+        assertThat(holder.getLastLockTime()).isZero();
 
-        holder.setLastDisableTime(2000L);
-        assertThat(holder.getLastDisableTime()).isEqualTo(2000L);
+        holder.setLastLockTime(2000L);
+        assertThat(holder.getLastLockTime()).isEqualTo(2000L);
 
-        holder.setLastDisableTime(Long.MAX_VALUE);
-        assertThat(holder.getLastDisableTime()).isEqualTo(Long.MAX_VALUE);
+        holder.setLastLockTime(Long.MAX_VALUE);
+        assertThat(holder.getLastLockTime()).isEqualTo(Long.MAX_VALUE);
     }
 
     @Test

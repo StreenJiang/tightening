@@ -88,7 +88,7 @@ class ToolHandlerTest {
     @BeforeEach
     void setUp() {
         config = new ToolCommonConfig();
-        config.setEnableDisableCooldownMs(1000L);
+        config.setLockUnlockCooldownMs(1000L);
         handler = new TestToolHandler(group, deviceService, tighteningDataService, curveDataService, config);
         Device device = new Device();
         device.setId(DEVICE_ID);
@@ -107,97 +107,97 @@ class ToolHandlerTest {
     }
 
     @Test
-    @DisplayName("isToolEnabled 应读取 DeviceHolder 的状态")
-    void isToolEnabled_shouldReadHolderState() {
-        holder.setToolEnabled(false);
-        assertThat(handler.isToolEnabled(DEVICE_ID)).isFalse();
+    @DisplayName("isUnlocked 应读取 DeviceHolder 的状态")
+    void isUnlocked_shouldReadHolderState() {
+        holder.setUnlocked(false);
+        assertThat(handler.isUnlocked(DEVICE_ID)).isFalse();
 
-        holder.setToolEnabled(true);
-        assertThat(handler.isToolEnabled(DEVICE_ID)).isTrue();
+        holder.setUnlocked(true);
+        assertThat(handler.isUnlocked(DEVICE_ID)).isTrue();
     }
 
     // ============== changeToolState(true) ==============
 
     @Test
     @DisplayName("changeToolState(true): 工具禁用状态 → 允许启用（状态变更）")
-    void enableToolOp_whenToolDisabled_shouldSucceed() {
-        holder.setToolEnabled(false);
-        holder.setLastEnableTime(0);
+    void unlock_whenToolDisabled_shouldSucceed() {
+        holder.setUnlocked(false);
+        holder.setLastUnlockTime(0);
 
-        assertThat(handler.enableToolOp(DEVICE_ID).join()).isTrue();
+        assertThat(handler.unlock(DEVICE_ID).join()).isTrue();
     }
 
     @Test
     @DisplayName("changeToolState(true): 工具已启用且在冷却期内 → 拒绝")
-    void enableToolOp_whenToolEnabledAndWithinCooldown_shouldReject() {
-        holder.setToolEnabled(true);
-        holder.setLastEnableTime(System.currentTimeMillis());
+    void unlock_whenToolEnabledAndWithinCooldown_shouldReject() {
+        holder.setUnlocked(true);
+        holder.setLastUnlockTime(System.currentTimeMillis());
 
-        assertThat(handler.enableToolOp(DEVICE_ID).join()).isFalse();
+        assertThat(handler.unlock(DEVICE_ID).join()).isFalse();
     }
 
     @Test
     @DisplayName("changeToolState(true) bypass=true: 工具已启用且在冷却期内 → 强制允许")
-    void forceEnableToolOp_whenToolEnabledAndWithinCooldown_shouldSucceed() {
-        holder.setToolEnabled(true);
-        holder.setLastEnableTime(System.currentTimeMillis());
+    void forceUnlock_whenToolEnabledAndWithinCooldown_shouldSucceed() {
+        holder.setUnlocked(true);
+        holder.setLastUnlockTime(System.currentTimeMillis());
 
-        assertThat(handler.forceEnableToolOp(DEVICE_ID).join()).isTrue();
+        assertThat(handler.forceUnlock(DEVICE_ID).join()).isTrue();
     }
 
     // ============== changeToolState(false) ==============
 
     @Test
     @DisplayName("changeToolState(false): 工具启用状态 → 允许禁用（状态变更）")
-    void disableToolOp_whenToolEnabled_shouldSucceed() {
-        holder.setToolEnabled(true);
-        holder.setLastDisableTime(0);
+    void lock_whenToolEnabled_shouldSucceed() {
+        holder.setUnlocked(true);
+        holder.setLastLockTime(0);
 
-        assertThat(handler.disableToolOp(DEVICE_ID).join()).isTrue();
+        assertThat(handler.lock(DEVICE_ID).join()).isTrue();
     }
 
     @Test
     @DisplayName("changeToolState(false): 工具已禁用且在冷却期内 → 拒绝")
-    void disableToolOp_whenToolDisabledAndWithinCooldown_shouldReject() {
-        holder.setToolEnabled(false);
-        holder.setLastDisableTime(System.currentTimeMillis());
+    void lock_whenToolDisabledAndWithinCooldown_shouldReject() {
+        holder.setUnlocked(false);
+        holder.setLastLockTime(System.currentTimeMillis());
 
-        assertThat(handler.disableToolOp(DEVICE_ID).join()).isFalse();
+        assertThat(handler.lock(DEVICE_ID).join()).isFalse();
     }
 
     @Test
     @DisplayName("changeToolState(false) bypass=true: 工具已禁用且在冷却期内 → 强制允许")
-    void forceDisableToolOp_whenToolDisabledAndWithinCooldown_shouldSucceed() {
-        holder.setToolEnabled(false);
-        holder.setLastDisableTime(System.currentTimeMillis());
+    void forceLock_whenToolDisabledAndWithinCooldown_shouldSucceed() {
+        holder.setUnlocked(false);
+        holder.setLastLockTime(System.currentTimeMillis());
 
-        assertThat(handler.forceDisableToolOp(DEVICE_ID).join()).isTrue();
+        assertThat(handler.forceLock(DEVICE_ID).join()).isTrue();
     }
 
     // ============== 成功后的状态更新 ==============
 
     @Test
-    @DisplayName("enableToolOp 成功后更新 isToolEnabled=true 和 lastEnableTime")
-    void enableToolOp_shouldUpdateStateOnSuccess() {
-        holder.setToolEnabled(false);
-        holder.setLastEnableTime(0);
+    @DisplayName("unlock 成功后更新 isUnlocked=true 和 lastUnlockTime")
+    void unlock_shouldUpdateStateOnSuccess() {
+        holder.setUnlocked(false);
+        holder.setLastUnlockTime(0);
 
-        handler.enableToolOp(DEVICE_ID).join();
+        handler.unlock(DEVICE_ID).join();
 
-        assertThat(holder.isToolEnabled()).isTrue();
-        assertThat(holder.getLastEnableTime()).isGreaterThan(0);
+        assertThat(holder.isUnlocked()).isTrue();
+        assertThat(holder.getLastUnlockTime()).isGreaterThan(0);
     }
 
     @Test
-    @DisplayName("disableToolOp 成功后更新 isToolEnabled=false 和 lastDisableTime")
-    void disableToolOp_shouldUpdateStateOnSuccess() {
-        holder.setToolEnabled(true);
-        holder.setLastDisableTime(0);
+    @DisplayName("lock 成功后更新 isUnlocked=false 和 lastLockTime")
+    void lock_shouldUpdateStateOnSuccess() {
+        holder.setUnlocked(true);
+        holder.setLastLockTime(0);
 
-        handler.disableToolOp(DEVICE_ID).join();
+        handler.lock(DEVICE_ID).join();
 
-        assertThat(holder.isToolEnabled()).isFalse();
-        assertThat(holder.getLastDisableTime()).isGreaterThan(0);
+        assertThat(holder.isUnlocked()).isFalse();
+        assertThat(holder.getLastLockTime()).isGreaterThan(0);
     }
 
     // ============== sendPSetOp ==============

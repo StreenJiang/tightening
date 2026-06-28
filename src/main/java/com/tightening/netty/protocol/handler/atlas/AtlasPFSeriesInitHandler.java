@@ -40,7 +40,7 @@ public class AtlasPFSeriesInitHandler extends DeviceInitHandler {
                     return CompletableFuture.completedFuture(null);
                 })
                 // 全部成功，执行最终操作
-                .thenCompose(ignored -> handler.forceDisableToolOp(deviceId))
+                .thenCompose(ignored -> handler.forceLock(deviceId))
                 .thenAccept(disableResult -> {
                     if (disableResult == null || !disableResult) {
                         logErrorIfPresent(deviceId, "Force disable failed");

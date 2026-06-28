@@ -30,7 +30,7 @@ public class DeviceController {
         deferredResult.onTimeout(() -> deferredResult.setResult(ResponseEntity.status(408).body(false)));
 
         if (handler instanceof ToolHandler toolHandler) {
-            toolHandler.enableToolOp(deviceId)
+            toolHandler.unlock(deviceId)
                     .thenApply(ResponseEntity::ok)
                     .exceptionally(ex -> ResponseEntity.status(500).body(false))
                     .thenAccept(deferredResult::setResult);
@@ -48,7 +48,7 @@ public class DeviceController {
         deferredResult.onTimeout(() -> deferredResult.setResult(ResponseEntity.status(408).body(false)));
 
         if (handler instanceof ToolHandler toolHandler) {
-            toolHandler.disableToolOp(deviceId)
+            toolHandler.lock(deviceId)
                     .thenApply(ResponseEntity::ok)
                     .exceptionally(ex -> ResponseEntity.status(500).body(false))
                     .thenAccept(deferredResult::setResult);
@@ -64,7 +64,7 @@ public class DeviceController {
         DeviceHandler handler = deviceManager.getHandler(deviceId);
         boolean result = false;
         if (handler instanceof ToolHandler toolHandler) {
-            result = toolHandler.isToolEnabled(deviceId);
+            result = toolHandler.isUnlocked(deviceId);
         }
         return ResponseEntity.ok(result);
     }

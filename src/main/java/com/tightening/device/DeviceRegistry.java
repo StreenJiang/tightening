@@ -8,6 +8,7 @@ import com.tightening.device.handler.DeviceHandler;
 import com.tightening.device.handler.DeviceHandlerFactory;
 import com.tightening.device.handler.ToolHandler;
 import com.tightening.entity.Device;
+import com.tightening.lifecycle.DataRouter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.stereotype.Component;
@@ -22,9 +23,11 @@ public class DeviceRegistry {
 
     private final Map<Long, ITool> tools = new ConcurrentHashMap<>();
     private final DeviceHandlerFactory handlerFactory;
+    private final DataRouter dataRouter;
 
-    public DeviceRegistry(DeviceHandlerFactory handlerFactory) {
+    public DeviceRegistry(DeviceHandlerFactory handlerFactory, DataRouter dataRouter) {
         this.handlerFactory = handlerFactory;
+        this.dataRouter = dataRouter;
     }
 
     public ITool getTool(Long deviceId) {
@@ -52,6 +55,7 @@ public class DeviceRegistry {
         if (handler instanceof ToolHandler toolHandler) {
             ToolAdapter toolAdapter = new ToolAdapter(toolHandler, device);
             toolHandler.setToolAdapter(toolAdapter);
+            toolAdapter.onTighteningData(dto -> dataRouter.routeTighteningData(device.getId(), dto));
             tools.put(device.getId(), toolAdapter);
             log.debug("Registered ITool for device {} (type={})", device.getId(), device.getType());
         }

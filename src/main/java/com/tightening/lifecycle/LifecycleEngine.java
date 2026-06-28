@@ -26,7 +26,7 @@ public class LifecycleEngine {
         void handle(InboundMessage msg, MissionContext ctx, LifecycleEngine engine);
     }
 
-    private final BlockingQueue<InboundMessage> inbox = new LinkedBlockingQueue<>();
+    private final BlockingQueue<InboundMessage> inbox = new LinkedBlockingQueue<>(1024);
     private final Map<Class<?>, MessageHandler> handlers = new HashMap<>();
 
     private MissionContext context;

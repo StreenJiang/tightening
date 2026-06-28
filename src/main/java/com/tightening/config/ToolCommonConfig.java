@@ -8,5 +8,5 @@ import org.springframework.stereotype.Component;
 @Component
 @Data
 public class ToolCommonConfig {
-    private long enableDisableCooldownMs;
+    private long lockUnlockCooldownMs;
 }

@@ -9,13 +9,13 @@ class ToolCommonConfigTest {
     @Test
     void shouldCreateToolCommonConfigWithDefault() {
         ToolCommonConfig config = new ToolCommonConfig();
-        assertThat(config.getEnableDisableCooldownMs()).isZero();
+        assertThat(config.getLockUnlockCooldownMs()).isZero();
     }
 
     @Test
-    void shouldSetAndGetEnableDisableCooldownMs() {
+    void shouldSetAndGetLockUnlockCooldownMs() {
         ToolCommonConfig config = new ToolCommonConfig();
-        config.setEnableDisableCooldownMs(5000);
-        assertThat(config.getEnableDisableCooldownMs()).isEqualTo(5000);
+        config.setLockUnlockCooldownMs(5000);
+        assertThat(config.getLockUnlockCooldownMs()).isEqualTo(5000);
     }
 }

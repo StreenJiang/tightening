@@ -7,7 +7,6 @@ import com.tightening.device.handler.impl.TCPDeviceHandler;
 import com.tightening.dto.CurveDataDTO;
 import com.tightening.dto.TighteningDataDTO;
 import com.tightening.entity.CurveData;
-import com.tightening.entity.TighteningData;
 import com.tightening.service.CurveDataService;
 import com.tightening.service.DeviceService;
 import com.tightening.service.TighteningDataService;
@@ -160,11 +159,11 @@ public abstract class ToolHandler extends TCPDeviceHandler {
 
     public void handleTighteningData(TighteningDataDTO dto, Channel channel) {
         if (toolAdapter != null) {
+            TCPDeviceHandler.applyToolTypeName(channel, dto);
             toolAdapter.fireTighteningData(dto);
+        } else {
+            log.warn("ToolAdapter not set for device, dropping tightening data: tighteningId={}", dto.getTighteningId());
         }
-        TighteningData data = Converter.dto2Entity(dto, TighteningData::new);
-        TCPDeviceHandler.applyToolTypeName(channel, data);
-        tighteningDataService.save(data);
     }
 
     public void handleCurveData(CurveDataDTO dto, Channel channel) {

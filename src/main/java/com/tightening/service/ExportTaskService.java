@@ -1,5 +1,6 @@
 package com.tightening.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tightening.constant.ExportTaskStatus;
 import com.tightening.entity.ExportTask;
@@ -58,5 +59,17 @@ public class ExportTaskService extends ServiceImpl<ExportTaskMapper, ExportTask>
                 .set(ExportTask::getRetryCount, retryCount)
                 .set(ExportTask::getErrorMessage, errorMessage)
                 .update();
+    }
+
+    /**
+     * 清理超过指定天数的已完成/失败导出任务（使用逻辑删除）。
+     * @param olderThanDays 保留天数
+     * @return 删除的任务数量
+     */
+    public int cleanupTasks(int olderThanDays) {
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(olderThanDays);
+        return baseMapper.delete(new LambdaQueryWrapper<ExportTask>()
+                .in(ExportTask::getStatus, ExportTaskStatus.COMPLETED.getCode(), ExportTaskStatus.FAILED.getCode())
+                .apply("completed_at IS NOT NULL AND completed_at < {0}", cutoff.toString()));
     }
 }

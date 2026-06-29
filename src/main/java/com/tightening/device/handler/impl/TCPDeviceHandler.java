@@ -50,6 +50,13 @@ public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
         }
     }
 
+    public static void applyToolTypeName(Channel channel, com.tightening.dto.TighteningDataDTO dto) {
+        DeviceHolder holder = channel.attr(DEVICE_HOLDER).get();
+        if (holder != null) {
+            dto.setToolTypeName(holder.resolveToolTypeName());
+        }
+    }
+
     public TCPDeviceHandler(NioEventLoopGroup group, DeviceService deviceService) {
         self = this;
         this.group = group;

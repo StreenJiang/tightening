@@ -1,8 +1,10 @@
 package com.tightening.controller;
 
 import com.tightening.dto.ApiResponse;
+import com.tightening.dto.MissionStatus;
 import com.tightening.entity.ProductBolt;
 import com.tightening.entity.ProductMission;
+import com.tightening.lifecycle.MissionContext;
 import com.tightening.lifecycle.MissionOrchestrator;
 import com.tightening.service.ProductBoltService;
 import com.tightening.service.ProductMissionService;
@@ -52,12 +54,24 @@ public class MissionLifecycleController {
     }
 
     @GetMapping("/{id}/status")
-    public ResponseEntity<ApiResponse<String>> getMissionStatus(@PathVariable Long id) {
-        var engine = orchestrator.getActiveEngine(id);
-        if (engine.isEmpty()) {
-            return ResponseEntity.ok(ApiResponse.ok("idle"));
+    public ResponseEntity<ApiResponse<MissionStatus>> getMissionStatus(@PathVariable Long id) {
+        var engineOpt = orchestrator.getActiveEngine(id);
+        if (engineOpt.isEmpty()) {
+            return ResponseEntity.ok(ApiResponse.ok(
+                    new MissionStatus("idle", null, null, 0, 0, null)));
         }
-        String status = engine.get().isAlive() ? "running" : "finished";
-        return ResponseEntity.ok(ApiResponse.ok(status));
+        var engine = engineOpt.get();
+        MissionContext ctx = engine.getContext();
+        String status = engine.isAlive() ? "running" : "finished";
+        String stage = ctx != null && ctx.getCurrentStage() != null
+                ? ctx.getCurrentStage().name() : null;
+        String subState = ctx != null && ctx.getCurrentSubState() != null
+                ? ctx.getCurrentSubState().name() : null;
+        int currentBoltIndex = ctx != null ? ctx.getCurrentBoltIndex() : 0;
+        int totalBolts = ctx != null ? ctx.totalBolts() : 0;
+        Long missionRecordId = ctx != null && ctx.getMissionRecord() != null
+                ? ctx.getMissionRecord().getId() : null;
+        return ResponseEntity.ok(ApiResponse.ok(
+                new MissionStatus(status, stage, subState, currentBoltIndex, totalBolts, missionRecordId)));
     }
 }

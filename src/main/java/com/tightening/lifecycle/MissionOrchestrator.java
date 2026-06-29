@@ -13,6 +13,7 @@ import com.tightening.lifecycle.message.InboundMessage;
 import com.tightening.util.Converter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.context.event.EventListener;
@@ -42,7 +43,7 @@ public class MissionOrchestrator implements DataRouter {
     private final Map<Long, Integer> selfLoopCounts = new ConcurrentHashMap<>();
 
     public MissionOrchestrator(LifecycleEngineFactory factory,
-                               DeviceRegistry deviceRegistry,
+                               @Lazy DeviceRegistry deviceRegistry,
                                LocalSettings settings,
                                ApplicationEventPublisher publisher) {
         this.factory = factory;
@@ -57,12 +58,12 @@ public class MissionOrchestrator implements DataRouter {
     public void routeTighteningData(long deviceId, TighteningDataDTO dto) {
         Long missionId = deviceToMissionId.get(deviceId);
         if (missionId == null) {
-            log.trace("No active mission for deviceId={}, ignoring", deviceId);
+            log.warn("No active mission for deviceId={}, dropping tightening data", deviceId);
             return;
         }
         LifecycleEngine engine = activeEngines.get(missionId);
         if (engine == null) {
-            log.trace("Engine for missionId={} not alive, ignoring", missionId);
+            log.warn("Engine for missionId={} not alive, dropping tightening data", missionId);
             return;
         }
         TighteningData data = Converter.dto2Entity(dto, TighteningData::new);

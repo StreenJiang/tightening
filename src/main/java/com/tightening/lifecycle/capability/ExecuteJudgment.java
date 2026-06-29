@@ -22,7 +22,7 @@ public class ExecuteJudgment implements Capability {
     @Override public String id() { return "ExecuteJudgment"; }
     @Override public Stage stage() { return Stage.OPERATION; }
     @Override public SubState subState() { return SubState.JUDGING; }
-    @Override public int priority() { return 1; }
+    @Override public int priority() { return 3; }
 
     @Override
     public boolean precondition(MissionContext ctx) {

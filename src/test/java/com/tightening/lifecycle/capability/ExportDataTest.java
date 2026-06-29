@@ -1,6 +1,7 @@
 package com.tightening.lifecycle.capability;
 
 import com.tightening.config.LocalSettings;
+import com.tightening.constant.MissionResult;
 import com.tightening.entity.MissionRecord;
 import com.tightening.entity.ProductMission;
 import com.tightening.lifecycle.MissionContext;
@@ -8,6 +9,7 @@ import com.tightening.service.ExportTaskService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -31,13 +33,21 @@ class ExportDataTest {
         ExportData cap = new ExportData(exportTaskService, settings);
         MissionRecord record = new MissionRecord();
         record.setId(42L);
+        record.setProductCode("P001");
+        record.setIsRework(0);
+        record.setMissionResult(MissionResult.OK.getCode());
         MissionContext ctx = MissionContext.builder()
                 .productMissionId(1L).missionData(new ProductMission())
                 .boltConfigs(List.of()).deviceRegistry(Map.of())
                 .shouldSelfLoop(false)
                 .missionRecord(record).build();
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Pass);
-        verify(exportTaskService).createTask(eq("standard_excel"), eq(42L), anyString());
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(exportTaskService).createTask(eq("standard_excel"), eq(42L), payloadCaptor.capture());
+        String payload = payloadCaptor.getValue();
+        assertThat(payload).contains("\"productCode\":\"P001\"");
+        assertThat(payload).contains("\"isRework\":0");
+        assertThat(payload).contains("\"timestamp\":");
         verify(exportTaskService).createTask(eq("outer_db_store"), eq(42L), anyString());
     }
 

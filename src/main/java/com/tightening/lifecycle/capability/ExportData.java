@@ -37,6 +37,9 @@ public class ExportData implements Capability {
         payload.put("missionId", ctx.getProductMissionId());
         payload.put("missionRecordId", record.getId());
         payload.put("missionResult", record.getMissionResult());
+        payload.put("productCode", record.getProductCode() != null ? record.getProductCode() : "");
+        payload.put("isRework", record.getIsRework() != null ? record.getIsRework() : 0);
+        payload.put("timestamp", java.time.LocalDateTime.now().toString());
         payload.put("boltCount", ctx.totalBolts());
         payload.put("tighteningDataCount", ctx.getTighteningDataList().size());
 

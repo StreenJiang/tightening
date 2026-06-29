@@ -19,6 +19,18 @@ public class ExportWorker {
     private final ExportTaskService exportTaskService;
     private final ExporterRegistry exporterRegistry;
 
+    @Scheduled(cron = "0 0 3 * * ?")
+    public void cleanupOldTasks() {
+        try {
+            int removed = exportTaskService.cleanupTasks(7);
+            if (removed > 0) {
+                log.info("Cleaned up {} old export tasks (older than 7 days)", removed);
+            }
+        } catch (Exception e) {
+            log.error("Export task cleanup failed", e);
+        }
+    }
+
     @Scheduled(fixedDelay = 5000)
     public void processPending() {
         try {

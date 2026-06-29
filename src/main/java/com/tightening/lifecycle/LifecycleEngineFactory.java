@@ -46,13 +46,17 @@ public class LifecycleEngineFactory {
         PipelineDefinition pipeline = PipelineDefinition.createDefault();
 
         List<Capability> capabilities = List.of(
+            new WorkstationConfigCheck(),
             new PrepareBolts(),
             new CreateMissionRecord(missionRecordService),
             new SendArrangerSignal(),
             new SendSetterSelector(),
             new SendPSet(),
             new BoltBarCodeCheck(),
+            new ReceiveData(),
             new ControllerStatusCheck(),
+            new TorqueRangeCheck(),
+            new AngleRangeCheck(),
             new ExecuteJudgment(judgmentStrategies),
             new StoreData(tighteningDataService),
             new AdvanceBolt(missionRecordService),

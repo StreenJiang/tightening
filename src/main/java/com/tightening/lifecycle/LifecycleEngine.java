@@ -213,9 +213,12 @@ public class LifecycleEngine {
                 switch (action) {
                     case FAIL_CAPABILITY, FAIL_STAGE -> { handleStageFailure(cap); return; }
                     case RETRY_LATER -> {
-                        tickScheduler.schedule(
-                            () -> inbox.offer(new InboundCommand.AdvancePipeline()),
-                            100, TimeUnit.MILLISECONDS);
+                        tickScheduler.schedule(() -> {
+                            boolean accepted = inbox.offer(new InboundCommand.AdvancePipeline());
+                            if (!accepted) {
+                                log.warn("Retry AdvancePipeline dropped (inbox full)");
+                            }
+                        }, 100, TimeUnit.MILLISECONDS);
                         return;
                     }
                     case INTERRUPT -> {
@@ -296,7 +299,10 @@ public class LifecycleEngine {
         } catch (Exception cpEx) {
             log.error("Failed to save checkpoint", cpEx);
         }
-        inbox.offer(new EngineInternal.Faulted(e.getMessage()));
+        boolean accepted = inbox.offer(new EngineInternal.Faulted(e.getMessage()));
+        if (!accepted) {
+            log.error("Faulted message dropped (inbox full) — engine may hang: {}", e.getMessage());
+        }
     }
 
     private void saveCheckpoint(String reason) {
@@ -357,7 +363,13 @@ public class LifecycleEngine {
     }
 
     public void postMessage(InboundMessage msg) {
-        if (alive) inbox.offer(msg);
+        if (!alive) return;
+        boolean accepted = inbox.offer(msg);
+        if (!accepted) {
+            log.warn("Inbox FULL (capacity={}), dropping message: {}",
+                    inbox.size() + inbox.remainingCapacity(),
+                    msg.getClass().getSimpleName());
+        }
     }
 
     public void interrupt(String reason) {

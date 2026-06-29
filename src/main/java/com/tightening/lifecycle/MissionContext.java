@@ -12,6 +12,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Getter
 @Builder
@@ -26,13 +27,13 @@ public class MissionContext {
     private final Map<Long, ITool> deviceRegistry;
     private final boolean shouldSelfLoop;
 
-    /** 可变 — 引擎核心代码维护 */
-    @Builder.Default @Setter private Stage currentStage = Stage.VALIDATION;
-    @Builder.Default @Setter private SubState currentSubState = SubState.IDLE;
+    /** 可变 — 引擎核心代码维护 (volatile 确保 HTTP 线程读取可见性) */
+    @Builder.Default @Setter private volatile Stage currentStage = Stage.VALIDATION;
+    @Builder.Default @Setter private volatile SubState currentSubState = SubState.IDLE;
     @Builder.Default @Setter private BoltState[] boltStates = new BoltState[0];
-    @Builder.Default @Setter private int currentBoltIndex = 0;
+    @Builder.Default @Setter private volatile int currentBoltIndex = 0;
     @Builder.Default @Setter private int currentSideIndex = 0;
-    @Builder.Default @Setter private MissionRecord missionRecord = null;
+    @Builder.Default @Setter private volatile MissionRecord missionRecord = null;
     @Builder.Default private final List<TighteningData> tighteningDataList = new ArrayList<>();
     @Builder.Default @Setter private volatile boolean interruptRequested = false;
     @Builder.Default @Setter private volatile String interruptReason = null;
@@ -49,7 +50,7 @@ public class MissionContext {
 
     // ═══ 第三层：Capability 间临时数据 ═══
 
-    @Builder.Default private final Map<String, Object> extras = new HashMap<>();
+    @Builder.Default private final Map<String, Object> extras = new ConcurrentHashMap<>();
 
     // ═══ 崩溃恢复 ═══
 

@@ -25,7 +25,8 @@ public class MissionContext {
     private final ProductMission missionData;
     private final List<ProductBolt> boltConfigs;       // 按 boltSerialNum 排序（调用方保证）
     private final Map<Long, ITool> deviceRegistry;
-    private final boolean shouldSelfLoop;
+    /** 可变 — 引擎在运行时可能修改（例如 SkipScrew 快速路径禁用自循环） */
+    @Builder.Default @Setter private boolean shouldSelfLoop;
 
     /** 可变 — 引擎核心代码维护 (volatile 确保 HTTP 线程读取可见性) */
     @Builder.Default @Setter private volatile Stage currentStage = Stage.VALIDATION;
@@ -35,6 +36,12 @@ public class MissionContext {
     @Builder.Default @Setter private int currentSideIndex = 0;
     @Builder.Default @Setter private volatile MissionRecord missionRecord = null;
     @Builder.Default private final List<TighteningData> tighteningDataList = new ArrayList<>();
+    /** 产品追溯码（触发阶段写入，生命周期内不可变） */
+    @Builder.Default @Setter
+    private String productCode = null;
+    /** 物料码（触发阶段写入，生命周期内不可变） */
+    @Builder.Default @Setter
+    private String partsCode = null;
     @Builder.Default @Setter private volatile boolean interruptRequested = false;
     @Builder.Default @Setter private volatile String interruptReason = null;
 

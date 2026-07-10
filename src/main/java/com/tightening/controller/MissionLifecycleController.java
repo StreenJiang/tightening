@@ -1,11 +1,11 @@
 package com.tightening.controller;
 
-import com.tightening.dto.ApiResponse;
-import com.tightening.dto.MissionStatus;
+import com.tightening.dto.*;
 import com.tightening.entity.ProductBolt;
 import com.tightening.entity.ProductMission;
 import com.tightening.lifecycle.MissionContext;
 import com.tightening.lifecycle.MissionOrchestrator;
+import com.tightening.service.BarcodeValidationService;
 import com.tightening.service.ProductBoltService;
 import com.tightening.service.ProductMissionService;
 import lombok.RequiredArgsConstructor;
@@ -22,32 +22,70 @@ public class MissionLifecycleController {
     private final MissionOrchestrator orchestrator;
     private final ProductMissionService missionService;
     private final ProductBoltService boltService;
+    private final BarcodeValidationService barcodeService;
 
-    @PostMapping("/{id}/activate")
-    public ResponseEntity<ApiResponse<Long>> activateMission(@PathVariable Long id) {
+    @PostMapping("/{id}/validate-product-barcode")
+    public ResponseEntity<ApiResponse<BarcodeValidationResult>> validateProductBarcode(
+            @PathVariable Long id,
+            @RequestBody ValidateProductBarcodeRequest req) {
+        var result = barcodeService.validateProductCode(id, req.productCode());
+        if (result.matched()) {
+            return ResponseEntity.ok(ApiResponse.ok(BarcodeValidationResult.matched()));
+        }
+        if (result.suggestedMissionId() != null) {
+            return ResponseEntity.ok(ApiResponse.ok(
+                    BarcodeValidationResult.wrongMission(result.suggestedMissionId())));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(BarcodeValidationResult.notMatched()));
+    }
+
+    @PostMapping("/{id}/validate-parts-barcode")
+    public ResponseEntity<ApiResponse<BarcodeValidationResult>> validatePartsBarcode(
+            @PathVariable Long id,
+            @RequestBody ValidatePartsBarcodeRequest req) {
+        boolean pass = barcodeService.validatePartsCode(id, req.partsCode());
+        if (pass) {
+            return ResponseEntity.ok(ApiResponse.ok(BarcodeValidationResult.pass()));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(
+                BarcodeValidationResult.fail("物料码不匹配")));
+    }
+
+    @PostMapping("/{id}/trigger")
+    public ResponseEntity<ApiResponse<String>> trigger(
+            @PathVariable Long id,
+            @RequestBody TriggerRequestDto req) {
         if (orchestrator.getActiveEngine(id).isPresent()) {
-            return ResponseEntity.ok(ApiResponse.fail("mission already active: " + id));
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.fail("mission already active: " + id));
         }
         ProductMission mission = missionService.getById(id);
         if (mission == null) {
-            return ResponseEntity.ok(ApiResponse.fail("mission not found: " + id));
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.fail("mission not found: " + id));
         }
         List<ProductBolt> bolts = boltService.listByMissionId(id);
         if (bolts.isEmpty()) {
-            return ResponseEntity.ok(ApiResponse.fail("mission has no bolts: " + id));
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.fail("mission has no bolts: " + id));
         }
-        var engine = orchestrator.startMission(mission, bolts);
+        var engine = orchestrator.trigger(mission, bolts,
+                req.productCode(), req.partsCode());
         if (engine == null) {
-            return ResponseEntity.ok(ApiResponse.fail("mission already active: " + id));
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.fail("mission already active: " + id));
         }
-        return ResponseEntity.ok(ApiResponse.ok(mission.getId()));
+        return ResponseEntity.accepted()
+                .body(ApiResponse.ok("trigger request accepted"));
     }
 
+    // 原有端点保留
     @PostMapping("/{id}/interrupt")
     public ResponseEntity<ApiResponse<String>> interruptMission(@PathVariable Long id) {
         var engine = orchestrator.getActiveEngine(id);
         if (engine.isEmpty()) {
-            return ResponseEntity.ok(ApiResponse.fail("no active mission: " + id));
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.fail("no active mission: " + id));
         }
         engine.get().interrupt("user interrupt");
         return ResponseEntity.ok(ApiResponse.ok("interrupted"));

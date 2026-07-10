@@ -5,6 +5,7 @@ import com.tightening.constant.DeviceType;
 import com.tightening.entity.ProductBolt;
 import com.tightening.entity.ProductMission;
 import com.tightening.judgment.JudgmentStrategy;
+import com.tightening.service.BarCodeMatchingRuleService;
 import com.tightening.service.ExportTaskService;
 import com.tightening.service.MissionRecordService;
 import com.tightening.service.TighteningDataService;
@@ -30,6 +31,7 @@ class LifecycleEngineFactoryTest {
     @Mock private ExportTaskService exportTaskService;
     @Mock private LocalSettings settings;
     @Mock private JudgmentStrategy judgmentStrategy;
+    @Mock private BarCodeMatchingRuleService barCodeMatchingRuleService;
 
     private LifecycleEngineFactory factory;
 
@@ -38,7 +40,7 @@ class LifecycleEngineFactoryTest {
         lenient().when(settings.exportTypes()).thenReturn(List.of("standard_excel"));
         factory = new LifecycleEngineFactory(
             missionRecordService, tighteningDataService, exportTaskService, settings,
-            Map.of(DeviceType.ATLAS_PF4000, judgmentStrategy));
+            Map.of(DeviceType.ATLAS_PF4000, judgmentStrategy), barCodeMatchingRuleService);
     }
 
     @Test
@@ -46,7 +48,7 @@ class LifecycleEngineFactoryTest {
     void shouldCreateEngineWithContext() {
         var mission = new ProductMission();
         mission.setId(1L);
-        var engine = factory.createEngine(mission, List.of(), Map.of(), false);
+        var engine = factory.createEngine(mission, List.of(), Map.of(), false, null, null);
 
         assertThat(engine).isNotNull();
         assertThat(engine.getContext().getProductMissionId()).isEqualTo(1L);

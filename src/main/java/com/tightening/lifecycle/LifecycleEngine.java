@@ -5,9 +5,11 @@ import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.device.contract.ITool;
 import com.tightening.entity.MissionRecord;
+import com.tightening.constant.BarCodeRuleType;
 import com.tightening.lifecycle.capability.Capability;
 import com.tightening.lifecycle.capability.CapabilityResult;
 import com.tightening.lifecycle.capability.ErrorAction;
+import com.tightening.lifecycle.capability.TriggerCapability;
 import com.tightening.lifecycle.message.*;
 import com.tightening.lifecycle.monitor.PersistentMonitor;
 import com.tightening.service.MissionRecordService;
@@ -44,12 +46,17 @@ public class LifecycleEngine {
 
     private Consumer<String> onFaulted;
     private Consumer<Long> onCompleted;
+    private Consumer<Long> onTriggered;
+
+    private final List<TriggerCapability> triggerCaps;
 
     public LifecycleEngine(PipelineDefinition pipeline, MissionRecordService missionRecordService,
-                           List<Capability> capabilities, List<PersistentMonitor> monitors) {
+                           List<Capability> capabilities, List<PersistentMonitor> monitors,
+                           List<TriggerCapability> triggerCapabilities) {
         this.pipeline = pipeline;
         this.missionRecordService = missionRecordService;
         this.monitors = monitors != null ? monitors : List.of();
+        this.triggerCaps = triggerCapabilities != null ? triggerCapabilities : List.of();
         pipeline.registerCapabilities(capabilities).sortByPriority();
         registerDefaultHandlers();
     }
@@ -60,9 +67,11 @@ public class LifecycleEngine {
 
     public void onFaulted(Consumer<String> callback) { this.onFaulted = callback; }
     public void onCompleted(Consumer<Long> callback) { this.onCompleted = callback; }
+    public void onTriggered(Consumer<Long> callback) { this.onTriggered = callback; }
 
     private void registerDefaultHandlers() {
         registerHandler(InboundCommand.ActivateMission.class, this::handleActivateMission);
+        registerHandler(InboundCommand.TriggerRequest.class, this::handleTriggerRequest);
         registerHandler(InboundCommand.AdvancePipeline.class, this::handleAdvancePipeline);
         registerHandler(DeviceEvent.TighteningDataReceived.class, this::handleTighteningData);
         registerHandler(EngineInternal.Faulted.class, this::handleFaulted);
@@ -116,15 +125,104 @@ public class LifecycleEngine {
     void handleActivateMission(InboundMessage msg, MissionContext ctx, LifecycleEngine engine) {
         var cmd = (InboundCommand.ActivateMission) msg;
         log.info("Engine activating mission: {}", cmd.missionData().getId());
+        handleActivateMissionInternal(ctx);
+    }
 
-        int boltCount = cmd.bolts().size();
+    void handleTriggerRequest(InboundMessage msg, MissionContext ctx, LifecycleEngine engine) {
+        var cmd = (InboundCommand.TriggerRequest) msg;
+        log.info("Trigger request: productCode={}, partsCode={}", cmd.productCode(), cmd.partsCode());
+
+        ctx.setProductCode(cmd.productCode());
+        ctx.setPartsCode(cmd.partsCode());
+
+        CapabilityResult triggerResult = executeTriggerPipeline(ctx);
+        if (triggerResult == CapabilityResult.Fail) {
+            log.warn("Trigger pipeline failed");
+            if (onFaulted != null) onFaulted.accept("Trigger validation failed");
+            shutdown();
+            return;
+        }
+
+        if (triggerResult == CapabilityResult.Interrupt) {
+            // SkipScrew fast track — 不绑定设备，直接创建 OK MissionRecord 进 FINALIZATION
+            log.info("SkipScrew fast track — entering FINALIZATION");
+            handleActivateMissionSkipScrew(ctx);
+            return;
+        }
+
+        // trigger pipeline passed
+        if (!checkCanActivate(ctx)) {
+            log.warn("CheckCanActivate failed");
+            if (onFaulted != null) onFaulted.accept("CheckCanActivate failed");
+            shutdown();
+            return;
+        }
+
+        log.info("Trigger passed, entering lifecycle");
+        if (onTriggered != null) onTriggered.accept(ctx.getProductMissionId());
+        // 正常进入生命周期
+        handleActivateMissionInternal(ctx);
+    }
+
+    private CapabilityResult executeTriggerPipeline(MissionContext ctx) {
+        for (TriggerCapability cap : triggerCaps) {
+            if (!cap.precondition(ctx)) continue;
+            try {
+                CapabilityResult result = cap.execute(ctx);
+                switch (result) {
+                    case Pass, Skip -> {}
+                    case Fail -> { return CapabilityResult.Fail; }
+                    case Interrupt -> { return CapabilityResult.Interrupt; }
+                }
+            } catch (Exception e) {
+                ErrorAction action = cap.onError(ctx, e);
+                log.error("Trigger capability {} error: {}", cap.id(), e.getMessage());
+                if (action == ErrorAction.FAIL_STAGE) return CapabilityResult.Fail;
+            }
+        }
+        return CapabilityResult.Pass;
+    }
+
+    private boolean checkCanActivate(MissionContext ctx) {
+        // 触发管道的 ProductBarCodeCheck / PartsBarCodeMatching 已校验"有规则+无码→Fail"
+        // 此处兜底 — 若未来 Capability 被外部配置跳过，仍有最终门控。
+        // 通过 id() 判断触发 Capability 是否存在，避免导入具体实现类。
+        boolean hasProductCheck = triggerCaps.stream()
+                .anyMatch(c -> "ProductBarCodeCheck".equals(c.id()) && c.precondition(ctx));
+        boolean hasPartsCheck = triggerCaps.stream()
+                .anyMatch(c -> "PartsBarCodeMatching".equals(c.id()) && c.precondition(ctx));
+        if (hasProductCheck && (ctx.getProductCode() == null || ctx.getProductCode().isEmpty())) {
+            log.warn("CheckCanActivate: {} rule configured but no productCode",
+                    BarCodeRuleType.PRODUCT_TRACE.name());
+            return false;
+        }
+        if (hasPartsCheck && (ctx.getPartsCode() == null || ctx.getPartsCode().isEmpty())) {
+            log.warn("CheckCanActivate: {} rule configured but no partsCode",
+                    BarCodeRuleType.PARTS_BARCODE.name());
+            return false;
+        }
+        return true;
+    }
+
+    private void handleActivateMissionInternal(MissionContext ctx) {
+        int boltCount = ctx.getBoltConfigs().size();
         BoltState[] states = new BoltState[boltCount];
         Arrays.fill(states, BoltState.PENDING);
         ctx.setBoltStates(states);
-
         ctx.setCurrentStage(Stage.VALIDATION);
         ctx.setCurrentSubState(SubState.VALIDATING);
+        postMessage(new InboundCommand.AdvancePipeline());
+    }
 
+    private void handleActivateMissionSkipScrew(MissionContext ctx) {
+        // 创建 OK MissionRecord — createRecord 默认设 missionResult=NG，需后续 markAsOk
+        var record = missionRecordService.createRecord(
+                ctx.getProductMissionId(), ctx.getProductCode(), 0);
+        missionRecordService.markAsOk(record.getId());
+        ctx.setMissionRecord(record);
+        ctx.setCurrentStage(Stage.FINALIZATION);
+        ctx.setCurrentSubState(SubState.CLEANING_TASKS);
+        ctx.setShouldSelfLoop(false);
         postMessage(new InboundCommand.AdvancePipeline());
     }
 
@@ -358,8 +456,6 @@ public class LifecycleEngine {
             shutdown();
         });
         actorThread.start();
-        inbox.offer(new InboundCommand.ActivateMission(
-            ctx.getMissionData(), List.of(), ctx.getBoltConfigs(), List.of()));
     }
 
     public void postMessage(InboundMessage msg) {
@@ -384,7 +480,7 @@ public class LifecycleEngine {
     /** 设置上下文但不启动引擎，由工厂在组装后调用 */
     void initContext(MissionContext ctx) { this.context = ctx; }
 
-    private void shutdown() {
+    void shutdown() {
         alive = false;
         stopMonitorTicks();
         if (actorThread != null) actorThread.interrupt();

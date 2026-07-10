@@ -9,6 +9,7 @@ import com.tightening.entity.ProductBolt;
 import com.tightening.entity.ProductMission;
 import com.tightening.entity.TighteningData;
 import com.tightening.lifecycle.message.DeviceEvent;
+import com.tightening.lifecycle.message.InboundCommand;
 import com.tightening.lifecycle.message.InboundMessage;
 import com.tightening.util.Converter;
 import lombok.extern.slf4j.Slf4j;
@@ -86,7 +87,7 @@ public class MissionOrchestrator implements DataRouter {
         devices.keySet().forEach(deviceId -> deviceToMissionId.put(deviceId, mission.getId()));
 
         boolean shouldSelfLoop = settings.selfLoopEnabled();
-        LifecycleEngine engine = factory.createEngine(mission, bolts, devices, shouldSelfLoop);
+        LifecycleEngine engine = factory.createEngine(mission, bolts, devices, shouldSelfLoop, null, null);
 
         engine.onCompleted(recordId -> {
             boolean ok = isMissionOk(engine);
@@ -94,7 +95,7 @@ public class MissionOrchestrator implements DataRouter {
             if (shouldSelfLoop && ok) {
                 log.info("Self-loop: publishing event for mission {}", mission.getId());
                 publisher.publishEvent(new MissionCompletedEvent(
-                        mission.getId(), mission, bolts, true));
+                        mission.getId(), mission, bolts, true, null, null));
             } else {
                 selfLoopCounts.remove(mission.getId());
                 log.info("Mission {} completed, recordId={}", mission.getId(), recordId);
@@ -110,8 +111,74 @@ public class MissionOrchestrator implements DataRouter {
         activeEngines.put(mission.getId(), engine);
         engine.startMonitorTicks();
         engine.start(engine.getContext());
+        engine.postMessage(new InboundCommand.ActivateMission(
+                mission, List.of(), bolts, List.of()));
         log.info("Mission {} started (selfLoop={}, loopCount={})",
                 mission.getId(), shouldSelfLoop, loopCount);
+        return engine;
+    }
+
+    // === 触发阶段入口 ===
+
+    public LifecycleEngine trigger(ProductMission mission, List<ProductBolt> bolts,
+                                    String productCode, String partsCode) {
+        Long missionId = mission.getId();
+        if (activeEngines.containsKey(missionId)) {
+            log.warn("Mission {} already active", missionId);
+            return null;
+        }
+
+        int loopCount = selfLoopCounts.getOrDefault(missionId, 0);
+        if (loopCount >= MAX_SELF_LOOPS) {
+            log.warn("Mission {} reached maxSelfLoops", missionId);
+            selfLoopCounts.remove(missionId);
+            return null;
+        }
+        selfLoopCounts.put(missionId, loopCount + 1);
+
+        boolean shouldSelfLoop = settings.selfLoopEnabled();
+        Map<Long, ITool> devices = deviceRegistry.getAllTools().stream()
+                .collect(Collectors.toMap(ITool::id, t -> t));
+        LifecycleEngine engine = factory.createEngine(
+                mission, bolts, devices, shouldSelfLoop,
+                productCode, partsCode);
+
+        engine.onTriggered(mId -> {
+            engine.getContext().getDeviceRegistry().keySet()
+                    .forEach(deviceId -> deviceToMissionId.put(deviceId, mId));
+            engine.startMonitorTicks();
+        });
+
+        engine.onCompleted(recordId -> {
+            boolean ok = isMissionOk(engine);
+            MissionContext ctx = engine.getContext();
+            cleanup(missionId);
+            if (shouldSelfLoop && ok) {
+                publisher.publishEvent(new MissionCompletedEvent(
+                        missionId, mission, bolts, true,
+                        ctx != null ? ctx.getProductCode() : null,
+                        ctx != null ? ctx.getPartsCode() : null));
+            } else {
+                selfLoopCounts.remove(missionId);
+            }
+        });
+
+        engine.onFaulted(reason -> {
+            cleanup(missionId);
+            selfLoopCounts.remove(missionId);
+            log.warn("Mission {} trigger faulted: {}", missionId, reason);
+        });
+
+        LifecycleEngine prev = activeEngines.putIfAbsent(missionId, engine);
+        if (prev != null) {
+            engine.shutdown();
+            log.warn("Concurrent trigger for mission {}, rejected", missionId);
+            return null;
+        }
+        engine.start(engine.getContext());
+        engine.postMessage(new InboundCommand.TriggerRequest(productCode, partsCode));
+        log.info("Mission {} trigger posted (selfLoop={}, loopCount={})",
+                missionId, shouldSelfLoop, loopCount);
         return engine;
     }
 
@@ -123,7 +190,7 @@ public class MissionOrchestrator implements DataRouter {
         if (!event.ok()) return;
         log.info("Restarting mission {} (loop {})", event.missionId(),
                 selfLoopCounts.getOrDefault(event.missionId(), 0));
-        startMission(event.mission(), event.bolts());
+        trigger(event.mission(), event.bolts(), event.productCode(), event.partsCode());
     }
 
     // === 内部辅助 ===

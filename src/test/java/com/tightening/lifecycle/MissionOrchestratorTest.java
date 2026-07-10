@@ -12,6 +12,7 @@ import com.tightening.entity.TighteningData;
 import com.tightening.judgment.JudgmentResult;
 import com.tightening.judgment.JudgmentStrategy;
 import com.tightening.lifecycle.message.DeviceEvent;
+import com.tightening.service.BarCodeMatchingRuleService;
 import com.tightening.service.ExportTaskService;
 import com.tightening.service.MissionRecordService;
 import com.tightening.service.TighteningDataService;
@@ -41,6 +42,7 @@ class MissionOrchestratorTest {
     @Mock private JudgmentStrategy judgmentStrategy;
     @Mock private DeviceRegistry deviceRegistry;
     @Mock private LocalSettings settings;
+    @Mock private BarCodeMatchingRuleService barCodeMatchingRuleService;
     @Mock private ApplicationEventPublisher publisher;
     @Mock private ITool mockTool;
 
@@ -52,7 +54,7 @@ class MissionOrchestratorTest {
         lenient().when(settings.exportTypes()).thenReturn(List.of("standard_excel"));
         factory = new LifecycleEngineFactory(
             missionRecordService, tighteningDataService, exportTaskService, settings,
-            Map.of(DeviceType.ATLAS_PF4000, judgmentStrategy));
+            Map.of(DeviceType.ATLAS_PF4000, judgmentStrategy), barCodeMatchingRuleService);
         orchestrator = new MissionOrchestrator(factory, deviceRegistry, settings, publisher);
     }
 

@@ -6,10 +6,12 @@ import com.tightening.device.contract.ITool;
 import com.tightening.entity.ProductBolt;
 import com.tightening.entity.ProductMission;
 import com.tightening.judgment.JudgmentStrategy;
+import org.springframework.lang.Nullable;
 import com.tightening.lifecycle.capability.*;
 import com.tightening.lifecycle.monitor.DeviceConnectionMonitor;
 import com.tightening.lifecycle.monitor.LockStateMonitor;
 import com.tightening.lifecycle.monitor.PersistentMonitor;
+import com.tightening.service.BarCodeMatchingRuleService;
 import com.tightening.service.ExportTaskService;
 import com.tightening.service.MissionRecordService;
 import com.tightening.service.TighteningDataService;
@@ -28,12 +30,15 @@ public class LifecycleEngineFactory {
     private final ExportTaskService exportTaskService;
     private final LocalSettings settings;
     private final Map<DeviceType, JudgmentStrategy> judgmentStrategies;
+    private final BarCodeMatchingRuleService barCodeMatchingRuleService;
 
     public LifecycleEngine createEngine(
             ProductMission mission,
             List<ProductBolt> bolts,
             Map<Long, ITool> deviceMap,
-            boolean shouldSelfLoop) {
+            boolean shouldSelfLoop,
+            @Nullable String productCode,
+            @Nullable String partsCode) {
 
         MissionContext ctx = MissionContext.builder()
             .productMissionId(mission.getId())
@@ -41,6 +46,8 @@ public class LifecycleEngineFactory {
             .boltConfigs(bolts)
             .deviceRegistry(deviceMap)
             .shouldSelfLoop(shouldSelfLoop)
+            .productCode(productCode)
+            .partsCode(partsCode)
             .build();
 
         PipelineDefinition pipeline = PipelineDefinition.createDefault();
@@ -71,7 +78,8 @@ public class LifecycleEngineFactory {
             new DeviceConnectionMonitor()
         );
 
-        LifecycleEngine engine = new LifecycleEngine(pipeline, missionRecordService, capabilities, monitors);
+        LifecycleEngine engine = new LifecycleEngine(pipeline, missionRecordService, capabilities, monitors,
+                List.of());
         engine.initContext(ctx);
 
         engine.onFaulted(reason -> { /* 后续接事件发布 */ });

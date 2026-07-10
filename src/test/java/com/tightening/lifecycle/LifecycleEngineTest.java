@@ -9,6 +9,7 @@ import com.tightening.lifecycle.capability.Capability;
 import com.tightening.lifecycle.capability.CapabilityResult;
 import com.tightening.lifecycle.capability.ErrorAction;
 import com.tightening.lifecycle.message.*;
+import com.tightening.service.BarCodeMatchingRuleService;
 import com.tightening.service.MissionRecordService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,13 +38,16 @@ class LifecycleEngineTest {
     @Mock
     private MissionRecordService missionRecordService;
 
+    @Mock
+    private BarCodeMatchingRuleService barCodeMatchingRuleService;
+
     private PipelineDefinition pd;
     private LifecycleEngine engine;
 
     @BeforeEach
     void setUp() {
         pd = PipelineDefinition.createDefault();
-        engine = new LifecycleEngine(pd, missionRecordService, List.of(), List.of());
+        engine = new LifecycleEngine(pd, missionRecordService, List.of(), List.of(), List.of());
     }
 
     @Test
@@ -129,7 +133,7 @@ class LifecycleEngineTest {
 
         PipelineDefinition customPd = PipelineDefinition.createDefault();
         customPd.registerCapability(cap).sortByPriority();
-        engine = new LifecycleEngine(customPd, missionRecordService, List.of(cap), List.of());
+        engine = new LifecycleEngine(customPd, missionRecordService, List.of(cap), List.of(), List.of());
 
         ProductMission pm = new ProductMission();
         pm.setId(1L);
@@ -143,6 +147,7 @@ class LifecycleEngineTest {
             .build();
 
         engine.start(ctx);
+        engine.postMessage(new InboundCommand.ActivateMission(pm, List.of(), List.of(bolt), List.of()));
         assertThat(latch.await(3, TimeUnit.SECONDS)).isTrue();
         engine.postMessage(new EngineInternal.Faulted("stop"));
     }
@@ -163,7 +168,7 @@ class LifecycleEngineTest {
 
         PipelineDefinition customPd = PipelineDefinition.createDefault();
         customPd.registerCapability(cap).sortByPriority();
-        engine = new LifecycleEngine(customPd, missionRecordService, List.of(cap), List.of());
+        engine = new LifecycleEngine(customPd, missionRecordService, List.of(cap), List.of(), List.of());
         engine.onFaulted(r -> latch.countDown());
 
         MissionRecord record = new MissionRecord();

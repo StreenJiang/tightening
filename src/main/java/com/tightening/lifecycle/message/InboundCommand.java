@@ -4,6 +4,7 @@ import com.tightening.entity.BoltDeviceBinding;
 import com.tightening.entity.ProductBolt;
 import com.tightening.entity.ProductMission;
 import com.tightening.entity.ProductSide;
+import org.springframework.lang.Nullable;
 
 import java.util.List;
 
@@ -25,4 +26,10 @@ public sealed interface InboundCommand extends InboundMessage {
 
     /** 中断当前 Mission */
     record InterruptMission(String reason) implements InboundCommand {}
+
+    /** 触发激活请求 — 携带条码信息，投递到引擎 inbox */
+    record TriggerRequest(
+        @Nullable String productCode,
+        @Nullable String partsCode
+    ) implements InboundCommand {}
 }

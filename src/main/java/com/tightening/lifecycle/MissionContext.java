@@ -52,7 +52,6 @@ public class MissionContext {
     @Builder.Default @Setter private TighteningData previousOperationData = null;
     @Builder.Default private final List<CurveData> pendingCurveData = new ArrayList<>();
     @Builder.Default @Setter private JudgmentResult judgeResult = null;
-    @Builder.Default @Setter private int tighteningStatus = 0;
     @Builder.Default private final Set<LockMessage> lockMessages = new LinkedHashSet<>();
 
     // ═══ 第三层：Capability 间临时数据 ═══

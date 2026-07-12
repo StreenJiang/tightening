@@ -48,7 +48,7 @@ class AtlasFrameCodecTest {
 
     @Test
     void testEncode() {
-        AtlasFrame atlasFrame = AtlasFrame.enableTool();
+        AtlasFrame atlasFrame = AtlasFrame.unlockTool();
 
         // 写入到出站
         channel.writeOutbound(atlasFrame);

@@ -83,7 +83,7 @@ public abstract class ToolHandler extends TCPDeviceHandler {
     /**
      * 通用状态变更（带冷却控制，支持强制绕过）
      *
-     * @param targetEnabled  true=启用，false=禁用
+     * @param targetEnabled  true=解锁，false=锁定
      * @param deviceId       设备ID
      * @param bypassCooldown true=绕过冷却检查，false=遵守冷却
      * @return CompletableFuture，操作结果
@@ -115,7 +115,7 @@ public abstract class ToolHandler extends TCPDeviceHandler {
             holder.getStateLock().unlock();
         }
 
-        CompletableFuture<Boolean> operation = targetEnabled ? enableTool(deviceId) : disableTool(deviceId);
+        CompletableFuture<Boolean> operation = targetEnabled ? unlockTool(deviceId) : lockTool(deviceId);
 
         return operation.whenComplete((result, ex) -> {
             if (ex != null) {
@@ -179,7 +179,7 @@ public abstract class ToolHandler extends TCPDeviceHandler {
     }
 
     // ============== 抽象方法（子类必须实现，返回 CompletableFuture） ==============
-    protected abstract CompletableFuture<Boolean> enableTool(long deviceId);
-    protected abstract CompletableFuture<Boolean> disableTool(long deviceId);
+    protected abstract CompletableFuture<Boolean> unlockTool(long deviceId);
+    protected abstract CompletableFuture<Boolean> lockTool(long deviceId);
     protected abstract CompletableFuture<Boolean> sendPSetCmd(long deviceId, int pSet);
 }

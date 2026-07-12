@@ -62,20 +62,6 @@ class LifecycleEngineTest {
     }
 
     @Test
-    @DisplayName("postMessage 将消息投递到 inbox")
-    void shouldDispatchMessageToRegisteredHandler() throws Exception {
-        CountDownLatch latch = new CountDownLatch(1);
-        engine.registerHandler(InboundCommand.SelfLoop.class, (msg, ctx, eng) -> latch.countDown());
-
-        MissionContext ctx = minimalContext();
-        engine.start(ctx);
-        engine.postMessage(new InboundCommand.SelfLoop());
-
-        assertThat(latch.await(2, TimeUnit.SECONDS)).isTrue();
-        engine.postMessage(new EngineInternal.Faulted("stop"));
-    }
-
-    @Test
     @DisplayName("Faulted 消息触发 onFaulted 回调")
     void shouldHandleFaultedMessage() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -116,8 +102,8 @@ class LifecycleEngineTest {
     }
 
     @Test
-    @DisplayName("HandleActivateMission 初始化 BoltStates 并推进管道")
-    void shouldActivateMissionAndAdvancePipeline() throws Exception {
+    @DisplayName("TriggerRequest 初始化 BoltStates 并推进管道")
+    void shouldTriggerAndAdvancePipeline() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
 
         Capability cap = mock(Capability.class);
@@ -147,7 +133,7 @@ class LifecycleEngineTest {
             .build();
 
         engine.start(ctx);
-        engine.postMessage(new InboundCommand.ActivateMission(pm, List.of(), List.of(bolt), List.of()));
+        engine.postMessage(new InboundCommand.TriggerRequest(null, null));
         assertThat(latch.await(3, TimeUnit.SECONDS)).isTrue();
         engine.postMessage(new EngineInternal.Faulted("stop"));
     }

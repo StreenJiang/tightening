@@ -76,25 +76,25 @@ public class FitSeriesHandler extends ToolHandler {
     }
 
     @Override
-    protected CompletableFuture<Boolean> enableTool(long deviceId) {
-        return sendCmdAsync(FitFrame::enableTool,
+    protected CompletableFuture<Boolean> unlockTool(long deviceId) {
+        return sendCmdAsync(FitFrame::unlockTool,
                             FitCommandType.ENABLE_DISABLE.toString(),
                             generateKey(FitCommandType.ENABLE_DISABLE.getCode(), deviceId),
                             deviceId)
                 .exceptionally(ex -> {
-                    log.warn("Error while sending enable to tool", ex);
+                    log.warn("Error while sending unlock to tool", ex);
                     return false;
                 });
     }
 
     @Override
-    protected CompletableFuture<Boolean> disableTool(long deviceId) {
-        return sendCmdAsync(FitFrame::disableTool,
+    protected CompletableFuture<Boolean> lockTool(long deviceId) {
+        return sendCmdAsync(FitFrame::lockTool,
                             FitCommandType.ENABLE_DISABLE.toString(),
                             generateKey(FitCommandType.ENABLE_DISABLE.getCode(), deviceId),
                             deviceId)
                 .exceptionally(ex -> {
-                    log.warn("Error while sending disable to tool", ex);
+                    log.warn("Error while sending lock to tool", ex);
                     return false;
                 });
     }

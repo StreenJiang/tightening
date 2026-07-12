@@ -70,11 +70,11 @@ public class AtlasFrame {
         return new AtlasFrame(AtlasCommandType.SUBSCRIBE_DATA.getMid(), 3).setNoAckFlag(1);
     }
 
-    public static AtlasFrame enableTool() {
+    public static AtlasFrame unlockTool() {
         return new AtlasFrame(AtlasCommandType.ENABLE.getMid());
     }
 
-    public static AtlasFrame disableTool() {
+    public static AtlasFrame lockTool() {
         return new AtlasFrame(AtlasCommandType.DISABLE.getMid());
     }
 

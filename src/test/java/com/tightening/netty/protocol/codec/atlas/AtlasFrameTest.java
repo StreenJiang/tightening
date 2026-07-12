@@ -54,14 +54,14 @@ class AtlasFrameTest {
     }
 
     @Test
-    void enableTool() {
-        AtlasFrame frame = AtlasFrame.enableTool();
+    void unlockTool() {
+        AtlasFrame frame = AtlasFrame.unlockTool();
         assertThat(frame.getMid()).isEqualTo(AtlasCommandType.ENABLE.getMid());
     }
 
     @Test
-    void disableTool() {
-        AtlasFrame frame = AtlasFrame.disableTool();
+    void lockTool() {
+        AtlasFrame frame = AtlasFrame.lockTool();
         assertThat(frame.getMid()).isEqualTo(AtlasCommandType.DISABLE.getMid());
     }
 

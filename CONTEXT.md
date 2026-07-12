@@ -22,15 +22,15 @@ _Avoid_: 主机、控制柜
 
 ## 业务实体
 
-**ProductMission（产品任务）**[规划中]:
+**ProductMission（产品任务）**:
 一次完整的产品装配任务定义。包含多个 ProductSide，规定所有需要拧紧的螺栓。执行后生成一条 MissionRecord。
 _Avoid_: 生产任务、工单
 
-**ProductSide（产品面）**[规划中]:
+**ProductSide（产品面）**:
 产品装配任务中一个物理面，包含多个 ProductBolt。一个 ProductMission 的所有 ProductSide 必须全部执行完毕，否则任务判定 NG。
 _Avoid_: 面位、装配面
 
-**ProductBolt（产品螺栓）**[规划中]:
+**ProductBolt（产品螺栓）**:
 ProductSide 中一颗需要拧紧的螺栓，有独立的序列号（boltSerialNum）。
 _Avoid_: 螺丝、紧固件
 
@@ -38,11 +38,11 @@ _Avoid_: 螺丝、紧固件
 ProductMission 被执行一次后生成的记录。一条 MissionRecord 包含 0 条或多条 TighteningData，记录该任务下所有拧紧操作的结果。是历史快照，不通过外键与 ProductMission 强关联。
 _Avoid_: 任务记录、执行日志
 
-**ProductCode（产品码/追溯码）**[规划中]:
+**ProductCode（产品码/追溯码）**:
 产品的唯一标识字符串，由上层系统下发，贯穿整个任务生命周期。作为服务级追溯码，独立于 Atlas 协议层的 VIN 字段。
 _Avoid_: 条码、VIN、序列号
 
-**Rework（返工）**[规划中]:
+**Rework（返工）**:
 对已完成任务的重新执行。MissionRecord.isRework 标记该记录是否为返工任务（0=正常首次执行，1=返工）。默认创建为 NORMAL(0)。
 _Avoid_: 重做、重试
 
@@ -116,12 +116,12 @@ _Avoid_: 设备仓库、连接池
 
 ## 工具控制
 
-**enable / disable（启用/禁用）**:
-允许或禁止拧紧工具执行拧紧操作。通过异步命令下发到工具端，命令完成后更新状态。
-_Avoid_: 启动/停止、激活/停用
+**Lock / Unlock（锁定/解锁）**:
+锁定（lock）= 禁止拧紧工具执行拧紧操作；解锁（unlock）= 允许操作。ITool 接口提供 `sendLock()` / `sendUnlock()`，ToolHandler 公开方法为 `lock()` / `unlock()`。
+_Avoid_: 启用/禁用、enable/disable
 
 **cooldown（冷却机制）**:
-连续发送同一类型命令（enable 对 enable、disable 对 disable）的最小间隔。目的是防止短时间内大量重复命令阻塞通道，影响其它命令的反馈接收。可通过 force 方法绕过。
+连续发送同一类型命令（lock 对 lock、unlock 对 unlock）的最小间隔。目的是防止短时间内大量重复命令阻塞通道，影响其它命令的反馈接收。可通过 force 方法绕过。
 _Avoid_: 限流、节流
 
 **PSET switching（参数集切换）**:
@@ -150,30 +150,30 @@ _Avoid_: 命令码、消息类型
 一次完整的协议消息单元。Atlas 帧 = head 长度字段 + MID + Revision + 定长 ASCII 数据 + `\0`。FIT 帧 = HEAD + cmdType + dataLength + data + TAIL。
 _Avoid_: 数据包、报文
 
-## 任务生命周期 [规划中]
+## 任务生命周期
 
 **Lifecycle Engine（生命周期引擎）**:
-驱动 Mission 从激活到完成的 Actor 模型引擎。每次激活创建一个实例，持有 Context（私有状态），通过 inbox 消息队列串行处理设备数据和操作员命令。生命周期结束后返回 LifecycleResult。
+驱动 Mission 从激活到完成的 Actor 模型引擎。每次激活创建一个实例，持有 Context（私有状态），通过 inbox 消息队列串行处理设备数据和操作员命令。生命周期结束后通过 onCompleted / onFaulted 回调通知 MissionOrchestrator。
 _Avoid_: 状态机引擎、流程引擎
 
 **Stage（阶段）**:
-生命周期的宏观阶段：VALIDATION（校验）→ ACTIVATION（激活）→ OPERATION（拧紧执行）→ FINALIZATION（收尾）。每个阶段内部包含多个子状态，由 `determineTransition` 按管道结果驱动转换。
+生命周期的宏观阶段：VALIDATION（校验）→ ACTIVATION（激活）→ OPERATION（拧紧执行）→ FINALIZATION（收尾）。每个阶段内部包含多个子状态，由引擎 `advancePipeline()` + `PipelineDefinition.getNext()` 驱动转换。
 _Avoid_: 步骤、节点
 
 **Self-Loop（自循环）**:
 上一个 Mission OK 完成后的自动激活机制。此为触发信号的一种（`SELF_LOOP`），不等同于"无条码直接激活"——自循环后仍需走校验和 CheckCanActivate。NG 完成不触发自循环。
 _Avoid_: 自动循环、重复任务
 
-**WorkplaceStatus（工作台状态）**:
+**WorkplaceStatus（工作台状态）**[规划中]:
 工作台的操作锁定状态：UNACTIVATED → ACTIVATED → OPERATION_ENABLE / OPERATION_DISABLE。FINISHED_OK/NG 不由 workplaceStatus 承载，而由 MissionRecord.missionResult 承载。
 _Avoid_: 工作台模式
 
-**BoltStatus（螺栓状态）**:
-单颗螺栓的运行状态：DEFAULT（初始）→ WORKING（正在拧紧）→ DONE（OK）/ ERROR（NG）。NG 后允许重试——ERROR → WORKING。
-_Avoid_: 螺丝状态、点位状态
+**BoltState（螺栓状态）**:
+单颗螺栓的运行状态（`BoltState` 枚举）：PENDING(0) → TIGHTENING(1) → JUDGED_OK(2) / JUDGED_NG(3)。每个螺栓独立追踪，OPERATION 阶段循环推进。
+_Avoid_: 螺丝状态、点位状态、BoltStatus
 
 
-**Inspection / Challenge Task（点检/挑战任务）**:
+**Inspection / Challenge Task（点检/挑战任务）**[规划中]:
 正式任务前的强制检验任务。使用与常规 Mission 相同的生命周期引擎。两种类型：ALL（一次性，解锁当日全部 Mission）和 CHOSEN（绑定指定 Mission）。
 _Avoid_: 检验任务、校准任务
 
@@ -181,38 +181,42 @@ _Avoid_: 检验任务、校准任务
 当 Mission 配置 `SkipScrew=true` 时，触发阶段直接跳过所有检测、所有流程、所有设备交互→ 创建 OK 记录 → 导出 → Completed(OK)。不走 VALIDATION/ACTIVATION/OPERATION。
 _Avoid_: 跳点、直通
 
-## 引擎与管道 [规划中]
+## 引擎与管道
 
 **Capability（能力单元）**:
 可独立启用/禁用的业务判断单元。每个 Capability 有前置条件（precondition）和执行逻辑（execute），返回 Pass/Fail/Skip/Interrupt 驱动管道推进。客户通过授权系统决定启用哪些 Capability。
 _Avoid_: 插件、模块、步骤
 
+**TriggerCapability（触发能力单元）**:
+Capability 的子类型（`TriggerCapability extends Capability`），属于 pre-VALIDATION 触发管道，不注册到 4 阶段 `PipelineDefinition` 中。由 `LifecycleEngineFactory` 作为独立列表注入引擎，在 `TriggerRequest` 到达时由 `executeTriggerPipeline()` 执行。当前实现：ProductBarCodeCheck、PartsBarCodeMatching、SkipScrewCheck。
+_Avoid_: 触发检查、前置校验 Capability
+
 **Pipeline（管道）**:
 一个子状态下 Capability 的有序执行链。按 `priority` 排序，顺序执行。任一 Fail → 管道中止；全部 Pass → 管道完成。Capability 之间通过 Context 字段传递数据。
 _Avoid_: 链、序列
 
-**Global Capability Pool（全局 Capability 池）**:
+**Global Capability Pool（全局 Capability 池）**[规划中]:
 所有已知 Capability 的注册表。客户从池中按授权选择启用哪些 Capability。池按阶段（VALIDATION/ACTIVATION/OPERATION/FINALIZATION）组织。新增功能 = 新增 Capability 并注册入池。
 _Avoid_: 功能列表、模块注册表
 
-**Attachment Point（附着点）**:
+**Attachment Point（附着点）**[规划中]:
 子状态转换 `A → B` 上的两个插入位置：Before（A 离开前，可阻止转换）和 After（B 进入后，仅通知）。客户额外逻辑通过注册 Capability 到对应附着点实现，无需修改原有 Capability。
 _Avoid_: 钩子、事件点
 
 **Persistent Monitor（持久监控）**:
-OPERATION 阶段的定时器驱动循环检查器。与管道 Capability 不同——不参与管道，不驱动子状态转换。通过向 inbox 投递定时消息触发执行。当前实例：LockStateMonitor、DevicePreconditionMonitor、DeviceConnectionMonitor。
+OPERATION 阶段的定时器驱动循环检查器。与管道 Capability 不同——不参与管道，不驱动子状态转换。通过向 inbox 投递定时消息触发执行。当前实例：LockStateMonitor、DeviceConnectionMonitor。
 _Avoid_: 后台任务、守护线程
 
-**LockStateMonitor（锁状态监控器）**:
-OPERATION 阶段的持久监控器（50-100ms 周期）。只读消费 `lockMsgs` 集合，合并后统一发送 tool lock/unlock 命令。OPERATION 阶段内**唯一**的锁操作执行者。手动锁定/解锁具有最高优先级（覆盖其他来源）。
+**LockStateMonitor（锁状态监控器）**[规划中]:
+OPERATION 阶段的持久监控器（50ms 周期，由引擎 tickScheduler 驱动）。只读消费 `lockMsgs` 集合，合并后统一发送 tool lock/unlock 命令。OPERATION 阶段内**唯一**的锁操作执行者。手动锁定/解锁具有最高优先级（覆盖其他来源）。
 _Avoid_: 锁管理、锁定任务
 
-**DevicePreconditionMonitor（设备前置监控器）**:
+**DevicePreconditionMonitor（设备前置监控器）**[规划中]:
 OPERATION 阶段的持久监控器（100ms 周期）。检查排列机和套筒选择器是否就位，超时后触发重试/终止。
 _Avoid_: 前置检查器
 
-**DeviceConnectionMonitor（设备连接监控器）**:
-OPERATION 阶段的持久监控器（500ms 周期）。遍历 DeviceRegistry 检查 `isConnected()`，状态变化时发 `DeviceStatusChanged` 出站消息。与 `lockMsgs` 完全独立。
+**DeviceConnectionMonitor（设备连接监控器）**[规划中]:
+OPERATION 阶段的持久监控器（1000ms 周期）。遍历 DeviceRegistry 检查 `isConnected()`，断开时记录 warn 日志。后续扩展：状态变化追踪 + `DeviceStatusChanged` 出站消息。
 _Avoid_: 连接检测器
 
 **Outbox（出站表）**:
@@ -220,18 +224,18 @@ SQLite 中的 `export_task` 表。FINALIZATION 阶段的 ExportData 等 Capabili
 _Avoid_: 导出队列表、异步任务表
 
 **JudgmentStrategy（判定策略）**:
-按 DeviceType 分发到具体实现（AtlasJudgment / FitJudgment / SudongJudgment）的策略接口，`ControllerStatusCheck` Capability 通过该接口获取拧紧数据的控制器原始判定。位于独立包 `com.tightening.judgment`，不依赖 Capability 基础设施。设备新增 = 新增策略实现 + 注册到 `JudgmentConfig`。
+按 DeviceType 分发到具体实现（AtlasJudgment / FitJudgment / SudongJudgment）的策略接口，`ExecuteJudgment` Capability 通过该接口获取拧紧数据的控制器原始判定。位于独立包 `com.tightening.judgment`，不依赖 Capability 基础设施。设备新增 = 新增策略实现 + 注册到 `JudgmentConfig`。
 _Avoid_: 判定器、结果解释器
 
-**Trigger Signal（触发信号）**:
+**Trigger Signal（触发信号）**[规划中]:
 生命周期激活的发起者：OPERATOR_CLICK / SCANNER_INPUT / PLC_SIGNAL / SELF_LOOP / HTTP_REQUEST。与条码获取方式、条码校验策略组合形成完整的触发流程。
 _Avoid_: 激活信号、启动事件
 
-**CheckCanActivate（激活条件判定）**:
-触发阶段的最终门控。检查产品追溯码和物料码是否满足 Mission 配置要求——不满足则拒绝激活并提示操作员扫码。条码校验通过后自动调用，点击激活也走同一逻辑。
-_Avoid_: 激活检查、前置校验
+**Trigger Pipeline（触发管道）**:
+引擎 pre-VALIDATION 的独立管道，由 `executeTriggerPipeline()` 驱动 TriggerCapability 链（ProductBarCodeCheck → PartsBarCodeMatching → SkipScrewCheck）。条码校验由 TriggerCapability 直接查询规则后判定，不经过单独的激活门控。
+_Avoid_: 激活检查、前置校验、CheckCanActivate
 
-**LifecycleResult（生命周期结果）**:
+**LifecycleResult（生命周期结果）**[规划中]:
 引擎生命周期结束时的返回值：Completed(missionResult) — 走过完整生命周期；Aborted(reason) — 激活前中止（验证/激活失败）；Faulted(error) — 引擎自身异常。
 _Avoid_: 结束状态、完成结果
 
@@ -247,6 +251,4 @@ _Avoid_: 应用配置、环境变量
 将拧紧数据从设备回调路由到正确引擎 inbox 的接口。`DeviceRegistry` 依赖此接口（而非 `MissionOrchestrator`），消除循环依赖。`MissionOrchestrator` 实现此接口，在设备注册时通过 `ToolAdapter.onTighteningData()` 挂载回调。
 _Avoid_: 消息路由器、事件分发器
 
-**Lock / Unlock（锁定/解锁）**:
-替代原有 enable/disable 术语。锁定（lock）= 禁止拧紧工具执行拧紧操作；解锁（unlock）= 允许操作。ToolHandler 层对应方法重命名：`enableToolOp→unlock`、`disableToolOp→lock`。ITool 接口的 `sendLock()`/`sendUnlock()` 不变，由 ToolAdapter 内部映射到 handler 的新方法。
-_Avoid_: 启用/禁用（旧术语）
+**cooldown（冷却机制）**:

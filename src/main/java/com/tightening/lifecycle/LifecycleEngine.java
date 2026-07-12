@@ -5,7 +5,7 @@ import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.device.contract.ITool;
 import com.tightening.entity.MissionRecord;
-import com.tightening.constant.BarCodeRuleType;
+
 import com.tightening.lifecycle.capability.Capability;
 import com.tightening.lifecycle.capability.CapabilityResult;
 import com.tightening.lifecycle.capability.ErrorAction;
@@ -70,7 +70,6 @@ public class LifecycleEngine {
     public void onTriggered(Consumer<Long> callback) { this.onTriggered = callback; }
 
     private void registerDefaultHandlers() {
-        registerHandler(InboundCommand.ActivateMission.class, this::handleActivateMission);
         registerHandler(InboundCommand.TriggerRequest.class, this::handleTriggerRequest);
         registerHandler(InboundCommand.AdvancePipeline.class, this::handleAdvancePipeline);
         registerHandler(DeviceEvent.TighteningDataReceived.class, this::handleTighteningData);
@@ -122,12 +121,6 @@ public class LifecycleEngine {
 
     // === 消息 Handler ===
 
-    void handleActivateMission(InboundMessage msg, MissionContext ctx, LifecycleEngine engine) {
-        var cmd = (InboundCommand.ActivateMission) msg;
-        log.info("Engine activating mission: {}", cmd.missionData().getId());
-        handleActivateMissionInternal(ctx);
-    }
-
     void handleTriggerRequest(InboundMessage msg, MissionContext ctx, LifecycleEngine engine) {
         var cmd = (InboundCommand.TriggerRequest) msg;
         log.info("Trigger request: productCode={}, partsCode={}", cmd.productCode(), cmd.partsCode());
@@ -146,22 +139,13 @@ public class LifecycleEngine {
         if (triggerResult == CapabilityResult.Interrupt) {
             // SkipScrew fast track — 不绑定设备，直接创建 OK MissionRecord 进 FINALIZATION
             log.info("SkipScrew fast track — entering FINALIZATION");
-            handleActivateMissionSkipScrew(ctx);
-            return;
-        }
-
-        // trigger pipeline passed
-        if (!checkCanActivate(ctx)) {
-            log.warn("CheckCanActivate failed");
-            if (onFaulted != null) onFaulted.accept("CheckCanActivate failed");
-            shutdown();
+            startSkipScrewLifecycle(ctx);
             return;
         }
 
         log.info("Trigger passed, entering lifecycle");
         if (onTriggered != null) onTriggered.accept(ctx.getProductMissionId());
-        // 正常进入生命周期
-        handleActivateMissionInternal(ctx);
+        startNormalLifecycle(ctx);
     }
 
     private CapabilityResult executeTriggerPipeline(MissionContext ctx) {
@@ -183,28 +167,8 @@ public class LifecycleEngine {
         return CapabilityResult.Pass;
     }
 
-    private boolean checkCanActivate(MissionContext ctx) {
-        // 触发管道的 ProductBarCodeCheck / PartsBarCodeMatching 已校验"有规则+无码→Fail"
-        // 此处兜底 — 若未来 Capability 被外部配置跳过，仍有最终门控。
-        // 通过 id() 判断触发 Capability 是否存在，避免导入具体实现类。
-        boolean hasProductCheck = triggerCaps.stream()
-                .anyMatch(c -> "ProductBarCodeCheck".equals(c.id()) && c.precondition(ctx));
-        boolean hasPartsCheck = triggerCaps.stream()
-                .anyMatch(c -> "PartsBarCodeMatching".equals(c.id()) && c.precondition(ctx));
-        if (hasProductCheck && (ctx.getProductCode() == null || ctx.getProductCode().isEmpty())) {
-            log.warn("CheckCanActivate: {} rule configured but no productCode",
-                    BarCodeRuleType.PRODUCT_TRACE.name());
-            return false;
-        }
-        if (hasPartsCheck && (ctx.getPartsCode() == null || ctx.getPartsCode().isEmpty())) {
-            log.warn("CheckCanActivate: {} rule configured but no partsCode",
-                    BarCodeRuleType.PARTS_BARCODE.name());
-            return false;
-        }
-        return true;
-    }
 
-    private void handleActivateMissionInternal(MissionContext ctx) {
+    private void startNormalLifecycle(MissionContext ctx) {
         int boltCount = ctx.getBoltConfigs().size();
         BoltState[] states = new BoltState[boltCount];
         Arrays.fill(states, BoltState.PENDING);
@@ -214,7 +178,7 @@ public class LifecycleEngine {
         postMessage(new InboundCommand.AdvancePipeline());
     }
 
-    private void handleActivateMissionSkipScrew(MissionContext ctx) {
+    private void startSkipScrewLifecycle(MissionContext ctx) {
         // 创建 OK MissionRecord — createRecord 默认设 missionResult=NG，需后续 markAsOk
         var record = missionRecordService.createRecord(
                 ctx.getProductMissionId(), ctx.getProductCode(), 0);

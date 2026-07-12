@@ -18,7 +18,7 @@ class FitCurveDataReassemblerTest {
     void nonCurveFrame_passesThrough() {
         EmbeddedChannel channel = new EmbeddedChannel(new FitCurveDataReassembler());
         try {
-            FitFrame input = FitFrame.enableTool();
+            FitFrame input = FitFrame.unlockTool();
 
             channel.writeInbound(input);
             FitFrame output = channel.readInbound();

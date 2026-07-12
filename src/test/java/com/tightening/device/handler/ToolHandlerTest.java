@@ -65,12 +65,12 @@ class ToolHandlerTest {
         }
 
         @Override
-        public CompletableFuture<Boolean> enableTool(long deviceId) {
+        public CompletableFuture<Boolean> unlockTool(long deviceId) {
             return CompletableFuture.completedFuture(true);
         }
 
         @Override
-        public CompletableFuture<Boolean> disableTool(long deviceId) {
+        public CompletableFuture<Boolean> lockTool(long deviceId) {
             return CompletableFuture.completedFuture(true);
         }
 

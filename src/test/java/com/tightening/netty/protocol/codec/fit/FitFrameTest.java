@@ -26,15 +26,15 @@ class FitFrameTest {
     }
 
     @Test
-    void enableTool() {
-        FitFrame frame = FitFrame.enableTool();
+    void unlockTool() {
+        FitFrame frame = FitFrame.unlockTool();
         assertThat(frame.getCmdType()).isEqualTo(FitCommandType.ENABLE_DISABLE.getCode());
         assertThat(frame.getData()).containsExactly(0x01);
     }
 
     @Test
-    void disableTool() {
-        FitFrame frame = FitFrame.disableTool();
+    void lockTool() {
+        FitFrame frame = FitFrame.lockTool();
         assertThat(frame.getCmdType()).isEqualTo(FitCommandType.ENABLE_DISABLE.getCode());
         assertThat(frame.getData()).containsExactly(0x00);
     }
@@ -55,7 +55,7 @@ class FitFrameTest {
 
     @Test
     void toString_containsEnumName() {
-        FitFrame frame = FitFrame.enableTool();
+        FitFrame frame = FitFrame.unlockTool();
         String str = frame.toString();
         assertThat(str)
                 .contains("FitFrame")

@@ -52,6 +52,9 @@ class MissionOrchestratorTest {
     @BeforeEach
     void setUp() {
         lenient().when(settings.exportTypes()).thenReturn(List.of("standard_excel"));
+        lenient().when(mockTool.id()).thenReturn(1L);
+        lenient().when(mockTool.type()).thenReturn(DeviceType.ATLAS_PF4000);
+        lenient().doNothing().when(exportTaskService).createTask(anyString(), anyLong(), anyString());
         factory = new LifecycleEngineFactory(
             missionRecordService, tighteningDataService, exportTaskService, settings,
             Map.of(DeviceType.ATLAS_PF4000, judgmentStrategy), barCodeMatchingRuleService);
@@ -79,36 +82,20 @@ class MissionOrchestratorTest {
     }
 
     @Test
-    @DisplayName("startMission 创建并启动引擎")
-    void shouldCreateAndStartEngine() throws InterruptedException {
-        lenient().when(missionRecordService.createRecord(anyLong(), any(), anyInt()))
-            .thenReturn(missionRecordWithId(42L, null));
-        lenient().when(deviceRegistry.getAllTools()).thenReturn(List.of());
-
-        LifecycleEngine engine = orchestrator.startMission(
-            missionWithId(1L), List.of(boltWithId(10L, 1)));
-
-        assertThat(engine).isNotNull();
-        assertThat(engine.isAlive()).isTrue();
-        engine.interrupt("test done");
-        Thread.sleep(300);
-    }
-
-    @Test
     @DisplayName("OK 且 selfLoopEnabled 时发布 MissionCompletedEvent")
     void shouldPublishEventOnOkCompletion() throws Exception {
         when(missionRecordService.createRecord(anyLong(), any(), anyInt()))
             .thenReturn(missionRecordWithId(42L, MissionResult.OK.getCode()));
         when(deviceRegistry.getAllTools()).thenReturn(List.of(mockTool));
-        when(mockTool.id()).thenReturn(1L);
-        when(mockTool.type()).thenReturn(DeviceType.ATLAS_PF4000);
         when(mockTool.sendLock()).thenReturn(CompletableFuture.completedFuture(true));
         when(settings.selfLoopEnabled()).thenReturn(true);
         when(judgmentStrategy.judge(any())).thenReturn(JudgmentResult.ok());
 
-        LifecycleEngine engine = orchestrator.startMission(
-            missionWithId(1L), List.of(boltWithId(10L, 1)));
+        LifecycleEngine engine = orchestrator.trigger(
+            missionWithId(1L), List.of(boltWithId(10L, 1)), null, null);
 
+        assertThat(engine).isNotNull();
+        Thread.sleep(500);
         TighteningData data = new TighteningData();
         data.setTighteningId(100L);
         data.setTighteningStatus(1);
@@ -123,15 +110,15 @@ class MissionOrchestratorTest {
         when(missionRecordService.createRecord(anyLong(), any(), anyInt()))
             .thenReturn(missionRecordWithId(42L, null));
         when(deviceRegistry.getAllTools()).thenReturn(List.of(mockTool));
-        when(mockTool.id()).thenReturn(1L);
-        when(mockTool.type()).thenReturn(DeviceType.ATLAS_PF4000);
         when(mockTool.sendLock()).thenReturn(CompletableFuture.completedFuture(true));
         when(settings.selfLoopEnabled()).thenReturn(true);
         when(judgmentStrategy.judge(any())).thenReturn(JudgmentResult.ng("Test NG"));
 
-        LifecycleEngine engine = orchestrator.startMission(
-            missionWithId(1L), List.of(boltWithId(10L, 1)));
+        LifecycleEngine engine = orchestrator.trigger(
+            missionWithId(1L), List.of(boltWithId(10L, 1)), null, null);
 
+        assertThat(engine).isNotNull();
+        Thread.sleep(500);  // 等引擎走到 TIGHTENING_RECEIVED 等待点
         TighteningData data = new TighteningData();
         data.setTighteningId(100L);
         data.setTighteningStatus(1);

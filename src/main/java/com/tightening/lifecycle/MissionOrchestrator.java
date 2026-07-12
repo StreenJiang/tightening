@@ -71,53 +71,6 @@ public class MissionOrchestrator implements DataRouter {
         engine.postMessage(new DeviceEvent.TighteningDataReceived(data, deviceId));
     }
 
-    // === 引擎生命周期管理 ===
-
-    public LifecycleEngine startMission(ProductMission mission, List<ProductBolt> bolts) {
-        int loopCount = selfLoopCounts.getOrDefault(mission.getId(), 0);
-        if (loopCount >= MAX_SELF_LOOPS) {
-            log.warn("Mission {} reached maxSelfLoops, not restarting", mission.getId());
-            selfLoopCounts.remove(mission.getId());
-            return null;
-        }
-        selfLoopCounts.put(mission.getId(), loopCount + 1);
-
-        Map<Long, ITool> devices = deviceRegistry.getAllTools().stream()
-                .collect(Collectors.toMap(ITool::id, t -> t));
-        devices.keySet().forEach(deviceId -> deviceToMissionId.put(deviceId, mission.getId()));
-
-        boolean shouldSelfLoop = settings.selfLoopEnabled();
-        LifecycleEngine engine = factory.createEngine(mission, bolts, devices, shouldSelfLoop, null, null);
-
-        engine.onCompleted(recordId -> {
-            boolean ok = isMissionOk(engine);
-            cleanup(mission.getId());
-            if (shouldSelfLoop && ok) {
-                log.info("Self-loop: publishing event for mission {}", mission.getId());
-                publisher.publishEvent(new MissionCompletedEvent(
-                        mission.getId(), mission, bolts, true, null, null));
-            } else {
-                selfLoopCounts.remove(mission.getId());
-                log.info("Mission {} completed, recordId={}", mission.getId(), recordId);
-            }
-        });
-
-        engine.onFaulted(reason -> {
-            cleanup(mission.getId());
-            selfLoopCounts.remove(mission.getId());
-            log.warn("Mission {} faulted: {}", mission.getId(), reason);
-        });
-
-        activeEngines.put(mission.getId(), engine);
-        engine.startMonitorTicks();
-        engine.start(engine.getContext());
-        engine.postMessage(new InboundCommand.ActivateMission(
-                mission, List.of(), bolts, List.of()));
-        log.info("Mission {} started (selfLoop={}, loopCount={})",
-                mission.getId(), shouldSelfLoop, loopCount);
-        return engine;
-    }
-
     // === 触发阶段入口 ===
 
     public LifecycleEngine trigger(ProductMission mission, List<ProductBolt> bolts,
@@ -152,8 +105,9 @@ public class MissionOrchestrator implements DataRouter {
         engine.onCompleted(recordId -> {
             boolean ok = isMissionOk(engine);
             MissionContext ctx = engine.getContext();
+            boolean ctxShouldSelfLoop = ctx.isShouldSelfLoop();
             cleanup(missionId);
-            if (shouldSelfLoop && ok) {
+            if (shouldSelfLoop && ok && ctxShouldSelfLoop) {
                 publisher.publishEvent(new MissionCompletedEvent(
                         missionId, mission, bolts, true,
                         ctx != null ? ctx.getProductCode() : null,

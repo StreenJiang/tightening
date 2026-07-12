@@ -61,7 +61,6 @@ public class LifecycleEngineFactory {
             new SendPSet(),
             new BoltBarCodeCheck(),
             new ReceiveData(),
-            new ControllerStatusCheck(),
             new TorqueRangeCheck(),
             new AngleRangeCheck(),
             new ExecuteJudgment(judgmentStrategies),
@@ -78,8 +77,14 @@ public class LifecycleEngineFactory {
             new DeviceConnectionMonitor()
         );
 
+        List<TriggerCapability> triggerCaps = List.of(
+            new ProductBarCodeCheck(barCodeMatchingRuleService),
+            new PartsBarCodeMatching(barCodeMatchingRuleService),
+            new SkipScrewCheck()
+        );
+
         LifecycleEngine engine = new LifecycleEngine(pipeline, missionRecordService, capabilities, monitors,
-                List.of());
+                triggerCaps);
         engine.initContext(ctx);
 
         engine.onFaulted(reason -> { /* 后续接事件发布 */ });

@@ -34,11 +34,11 @@ public class FitFrame {
                 '}';
     }
 
-    public static FitFrame enableTool() {
+    public static FitFrame unlockTool() {
         return new FitFrame(FitCommandType.ENABLE_DISABLE.getCode(), new byte[] { 0x01 });
     }
 
-    public static FitFrame disableTool() {
+    public static FitFrame lockTool() {
         return new FitFrame(FitCommandType.ENABLE_DISABLE.getCode(), new byte[] { 0x00 });
     }
 

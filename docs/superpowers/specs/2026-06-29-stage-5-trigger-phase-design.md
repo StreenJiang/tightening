@@ -279,3 +279,15 @@ Controller 依赖注入新增: `BarCodeMatchingRuleService`、`BarcodeValidation
 | 5 | 产品码+物料码全部通过 | "ABC" | "MAT" | 全部 Pass → CheckCanActivate → VALIDATION |
 | 6 | SkipScrew | "ABC" | "MAT" | SkipScrewCheck Interrupt → 快速通道 → FINALIZATION |
 | 7 | 产品码匹配到其它任务 | "XYZ" | - | validate-product-barcode 返回 WRONG_MISSION |
+
+---
+
+## 9. 已知问题
+
+**Trigger pipeline 未接入引擎**（2026-07-10 审查发现）。
+
+三个 TriggerCapability（ProductBarCodeCheck、PartsBarCodeMatching、SkipScrewCheck）已实现，但 `LifecycleEngineFactory.createEngine()` 未创建并注入——传了 `List.of()` 空列表。结果是 `MissionOrchestrator.trigger()` 进入引擎后 trigger pipeline 空转、直接返回 Pass。
+
+REST 层的条码校验端点（BarcodeValidationService）仍正常工作，但引擎层的防御性二次门控缺失。
+
+**下一 stage 修复**: 见 [Stage 6 设计文档](2026-07-10-stage-6-trigger-integration-fix.md)。

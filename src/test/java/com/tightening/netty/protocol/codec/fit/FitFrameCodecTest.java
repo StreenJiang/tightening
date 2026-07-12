@@ -45,7 +45,7 @@ class FitFrameCodecTest {
 
     @Test
     void testEncode() {
-        FitFrame fitFrame = FitFrame.enableTool();
+        FitFrame fitFrame = FitFrame.unlockTool();
 
         // 写入到出站
         channel.writeOutbound(fitFrame);

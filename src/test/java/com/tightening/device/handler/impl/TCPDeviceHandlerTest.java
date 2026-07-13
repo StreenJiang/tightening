@@ -1,6 +1,7 @@
 package com.tightening.device.handler.impl;
 
 import com.tightening.constant.DeviceStatus;
+import com.tightening.constant.atlas.AtlasCommandType;
 import com.tightening.device.DeviceHolder;
 import com.tightening.entity.Device;
 import com.tightening.entity.TighteningData;
@@ -156,6 +157,39 @@ class TCPDeviceHandlerTest {
         assertThat(handler.generateKey("enable", 1L)).isEqualTo("enable:1");
         assertThat(handler.generateKey("disable", 42L)).isEqualTo("disable:42");
         assertThat(handler.generateKey(101, 7L)).isEqualTo("101:7");
+    }
+
+    @Test
+    @DisplayName("generateKey 传入 AtlasCommandType 枚举时产生含描述的 key，与接收侧不匹配（BUG 复现）")
+    void generateKey_withEnumConstant_containsDescription() {
+        // AtlasCommandType.ENABLE.toString() = "0043 (使能信号)"
+        // generateKey 的 + 运算符调用 toString()，产生含中文描述的 key
+        String enumKey = handler.generateKey(AtlasCommandType.ENABLE, 1L);
+        assertThat(enumKey).isEqualTo("0043 (使能信号):1");
+
+        // 接收侧 (InBoundHandler) 使用 getMid() 生成 key
+        String midKey = handler.generateKey(AtlasCommandType.ENABLE.getMid(), 1L);
+        assertThat(midKey).isEqualTo("43:1");
+
+        // 两 key 不匹配 —— 这就是 lock/unlock 超时的根因
+        assertThat(enumKey).isNotEqualTo(midKey);
+    }
+
+    @Test
+    @DisplayName("generateKey 使用 getMid() 时产生纯数字 key，与接收侧一致（修复后行为）")
+    void generateKey_withMidInt_shouldProduceCleanKey() {
+        // ENABLE(43), DISABLE(42) — lock/unlock
+        assertThat(handler.generateKey(AtlasCommandType.ENABLE.getMid(), 1L)).isEqualTo("43:1");
+        assertThat(handler.generateKey(AtlasCommandType.DISABLE.getMid(), 1L)).isEqualTo("42:1");
+
+        // PARAMETER_SET(18), HEARTBEAT(9999) — 已正确使用 getMid()，不受影响
+        assertThat(handler.generateKey(AtlasCommandType.PARAMETER_SET.getMid(), 1L)).isEqualTo("18:1");
+        assertThat(handler.generateKey(AtlasCommandType.HEARTBEAT.getMid(), 1L)).isEqualTo("9999:1");
+
+        // 验证 DISABLE 和 ENABLE 的 getMid() key 也与接收侧 handlePositiveOrNegativeResult 的格式一致
+        long deviceId = 42L;
+        assertThat(handler.generateKey(AtlasCommandType.ENABLE.getMid(), deviceId)).isEqualTo("43:42");
+        assertThat(handler.generateKey(AtlasCommandType.DISABLE.getMid(), deviceId)).isEqualTo("42:42");
     }
 
     // ======================== addResultFuture ========================

@@ -85,7 +85,7 @@ public class AtlasPFSeriesHandler extends ToolHandler {
     protected CompletableFuture<Boolean> unlockTool(long deviceId) {
         return sendCmdAsync(AtlasFrame::unlockTool,
                             AtlasCommandType.ENABLE.toString(),
-                            generateKey(AtlasCommandType.ENABLE, deviceId),
+                            generateKey(AtlasCommandType.ENABLE.getMid(), deviceId),
                             deviceId)
                 .exceptionally(ex -> {
                     log.warn("Error while sending unlock to tool", ex);
@@ -97,7 +97,7 @@ public class AtlasPFSeriesHandler extends ToolHandler {
     protected CompletableFuture<Boolean> lockTool(long deviceId) {
         return sendCmdAsync(AtlasFrame::lockTool,
                             AtlasCommandType.DISABLE.toString(),
-                            generateKey(AtlasCommandType.DISABLE, deviceId),
+                            generateKey(AtlasCommandType.DISABLE.getMid(), deviceId),
                             deviceId)
                 .exceptionally(ex -> {
                     log.warn("Error while sending lock to tool", ex);

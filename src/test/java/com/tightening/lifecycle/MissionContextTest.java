@@ -32,7 +32,6 @@ class MissionContextTest {
         assertThat(ctx.getTighteningDataList()).isEmpty();
         assertThat(ctx.getExtras()).isEmpty();
         assertThat(ctx.getLockMessages()).isEmpty();
-        assertThat(ctx.getPendingCurveData()).isEmpty();
     }
 
     @Test

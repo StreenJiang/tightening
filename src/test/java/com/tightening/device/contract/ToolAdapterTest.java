@@ -64,17 +64,17 @@ class ToolAdapterTest {
     }
 
     @Test
-    @DisplayName("sendLock() 委托 unlock")
+    @DisplayName("sendLock() 委托 lock")
     void sendLockDelegates() {
-        when(handler.unlock(1L)).thenReturn(CompletableFuture.completedFuture(true));
+        when(handler.lock(1L)).thenReturn(CompletableFuture.completedFuture(true));
         assertThat(adapter.sendLock()).isCompletedWithValue(true);
     }
 
     @Test
-    @DisplayName("sendUnlock() 委托 lock")
+    @DisplayName("sendUnlock() 委托 unlock")
     void sendUnlockDelegates() {
-        when(handler.lock(1L)).thenReturn(CompletableFuture.completedFuture(false));
-        assertThat(adapter.sendUnlock()).isCompletedWithValue(false);
+        when(handler.unlock(1L)).thenReturn(CompletableFuture.completedFuture(true));
+        assertThat(adapter.sendUnlock()).isCompletedWithValue(true);
     }
 
     @Test

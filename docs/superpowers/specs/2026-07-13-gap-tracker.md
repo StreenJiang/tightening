@@ -7,6 +7,20 @@
 > - **📋 TODO** — 功能未完成/标记了 TODO/标了 [规划中]
 > - **⚠️ Gap** — 不一致、遗漏、死代码、硬编码，非紧急但应清理
 
+## 已修复（2026-07-13）
+
+| 项 | 修复 |
+|----|------|
+| 🐛 1. Atlas lock/unlock Key 不匹配 | `generateKey(ENABLE.getMid(), deviceId)` / `generateKey(DISABLE.getMid(), deviceId)` |
+| 🐛 2. ToolAdapter 语义颠倒 | `sendLock()` → `handler.lock()`, `sendUnlock()` → `handler.unlock()` |
+| ⚠️ G5. ReceiveData tighteningId 校验 | 新增 `precondition()` 对 `SUDONG_X7` 返回 false |
+| ⚠️ G6. MissionContext 缺 currentPSet | 新增 `volatile Integer currentPSet` 字段 + `SendPSet` 写入 |
+| 📋 T3. FIT barcode 未写入 DTO | `tighteningData.setVin(barcode)` |
+| ⚠️ G1. MissionContext 死字段 | `previousOperationData`/`pendingCurveData`/`extras` 标记 `@Deprecated` |
+| ⚠️ G12. 重复 ObjectMapper | `Converter` 和 `BarcodeMatcher` 引用 `JsonUtils.OBJECT_MAPPER` |
+| ⚠️ G4. partsCode 绑定粒度 | 条码匹配规则新增 `segments TEXT` 列（多段 JSON 匹配），Flyway V1.0.14 |
+| 📋 T7. MissionContext 预留字段 | `currentPSet` 已补充；`checkpoint`/`lockMessages` 仍预留 |
+
 ---
 
 ## 🐛 Bug

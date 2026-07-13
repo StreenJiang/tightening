@@ -1,16 +1,20 @@
 package com.tightening.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.tightening.constant.BarCodeRuleType;
 import com.tightening.constant.PrerequisiteType;
 import com.tightening.entity.BarCodeMatchingRule;
 import com.tightening.entity.MissionPrerequisite;
 import com.tightening.entity.ProductMission;
+import com.tightening.util.BarcodeMatcher;
+import com.tightening.util.JsonUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Slf4j
@@ -63,16 +67,23 @@ public class MissionConfigValidator {
     }
 
     public void validateKeyCharLength(BarCodeMatchingRule rule) {
-        if (rule.getKeyStartPosition() == null || rule.getKeyChar() == null) return;
-        int expectedLen;
-        if (rule.getKeyEndPosition() != null) {
-            expectedLen = rule.getKeyEndPosition() - rule.getKeyStartPosition() + 1;
-        } else {
-            expectedLen = 1;
-        }
-        if (rule.getKeyChar().length() != expectedLen) {
-            throw new IllegalArgumentException(
-                    "key_char 长度(" + rule.getKeyChar().length() + ")与位置范围(" + expectedLen + ")不匹配");
+        String segmentsJson = rule.getSegments();
+        if (segmentsJson == null || segmentsJson.isEmpty()) return;
+
+        try {
+            var segments = JsonUtils.OBJECT_MAPPER.readValue(segmentsJson,
+                    new TypeReference<List<BarcodeMatcher.Segment>>() {});
+            for (var seg : segments) {
+                int expectedLen = seg.e() - seg.s();
+                if (seg.v() != null && seg.v().length() != expectedLen) {
+                    throw new IllegalArgumentException(
+                            "segments value 长度(" + seg.v().length() + ")与位置范围(" + expectedLen + ")不匹配");
+                }
+            }
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Failed to parse segments JSON for validation", e);
         }
     }
 

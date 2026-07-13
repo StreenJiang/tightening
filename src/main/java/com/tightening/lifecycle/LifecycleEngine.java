@@ -16,6 +16,7 @@ import com.tightening.service.MissionRecordService;
 import com.tightening.util.JsonUtils;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -198,10 +199,23 @@ public class LifecycleEngine {
     void handleTighteningData(InboundMessage msg, MissionContext ctx, LifecycleEngine engine) {
         if (ctx == null) return;
         var event = (DeviceEvent.TighteningDataReceived) msg;
+        var data = event.data();
         log.debug("Tightening data: device={}, tighteningId={}",
-            event.deviceId(), event.data().getTighteningId());
+            event.deviceId(), data.getTighteningId());
 
-        ctx.setCurrentOperationData(event.data());
+        // 不回传 vin/parameterSet/timestamp 的协议 → 系统回填
+        if (data.getVin() == null || data.getVin().isEmpty()) {
+            data.setVin(ctx.getProductCode());
+        }
+        if (data.getParameterSet() <= 0) {
+            Integer pset = ctx.getCurrentPSet();
+            if (pset != null) data.setParameterSet(pset);
+        }
+        if (data.getTimestamp() == null || data.getTimestamp().isEmpty()) {
+            data.setTimestamp(LocalDateTime.now().toString());
+        }
+
+        ctx.setCurrentOperationData(data);
 
         // 解析设备类型供 ExecuteJudgment 使用
         ITool tool = ctx.getDeviceRegistry().get(event.deviceId());

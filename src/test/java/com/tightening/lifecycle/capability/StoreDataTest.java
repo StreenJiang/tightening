@@ -42,7 +42,6 @@ class StoreDataTest {
         assertThat(data.getMissionRecordId()).isEqualTo(42L);
         verify(tighteningDataService).save(data);
         assertThat(ctx.getTighteningDataList()).contains(data);
-        assertThat(ctx.getPreviousOperationData()).isSameAs(data);
         assertThat(ctx.getCurrentOperationData()).isNull();
     }
 

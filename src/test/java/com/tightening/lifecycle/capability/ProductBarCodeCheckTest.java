@@ -56,7 +56,7 @@ class ProductBarCodeCheckTest {
         when(ruleService.listByMissionId(1L))
                 .thenReturn(List.of(new BarCodeMatchingRule()
                         .setRuleType(BarCodeRuleType.PRODUCT_TRACE.getCode())
-                        .setKeyStartPosition(0).setKeyEndPosition(3).setKeyChar("ABC")));
+                        .setSegments("[{\"s\":0,\"e\":3,\"v\":\"ABC\"}]")));
 
         assertThat(cap.execute(ctx)).isEqualTo(Fail);
     }
@@ -70,7 +70,7 @@ class ProductBarCodeCheckTest {
         when(ruleService.listByMissionId(1L))
                 .thenReturn(List.of(new BarCodeMatchingRule()
                         .setRuleType(BarCodeRuleType.PRODUCT_TRACE.getCode())
-                        .setKeyStartPosition(0).setKeyEndPosition(3).setKeyChar("ABC")));
+                        .setSegments("[{\"s\":0,\"e\":3,\"v\":\"ABC\"}]")));
 
         assertThat(cap.execute(ctx)).isEqualTo(Pass);
     }
@@ -84,7 +84,7 @@ class ProductBarCodeCheckTest {
         when(ruleService.listByMissionId(1L))
                 .thenReturn(List.of(new BarCodeMatchingRule()
                         .setRuleType(BarCodeRuleType.PRODUCT_TRACE.getCode())
-                        .setKeyStartPosition(0).setKeyEndPosition(3).setKeyChar("ABC")));
+                        .setSegments("[{\"s\":0,\"e\":3,\"v\":\"ABC\"}]")));
 
         assertThat(cap.execute(ctx)).isEqualTo(Fail);
     }

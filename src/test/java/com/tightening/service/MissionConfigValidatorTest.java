@@ -12,51 +12,42 @@ class MissionConfigValidatorTest {
     private final MissionConfigValidator validator = new MissionConfigValidator(null, null);
 
     @Test
-    @DisplayName("validateKeyCharLength: single char passes")
+    @DisplayName("segments: single char passes")
     void singleCharPasses() {
         BarCodeMatchingRule rule = new BarCodeMatchingRule()
-                .setKeyStartPosition(3)
-                .setKeyChar("A");
+                .setSegments("[{\"s\":3,\"e\":4,\"v\":\"A\"}]");
         assertThatNoException().isThrownBy(() -> validator.validateKeyCharLength(rule));
     }
 
     @Test
-    @DisplayName("validateKeyCharLength: range with matching length passes")
+    @DisplayName("segments: range with matching length passes")
     void rangeMatchingLengthPasses() {
         BarCodeMatchingRule rule = new BarCodeMatchingRule()
-                .setKeyStartPosition(2)
-                .setKeyEndPosition(5)
-                .setKeyChar("ABCD");
+                .setSegments("[{\"s\":2,\"e\":6,\"v\":\"ABCD\"}]");
         assertThatNoException().isThrownBy(() -> validator.validateKeyCharLength(rule));
     }
 
     @Test
-    @DisplayName("validateKeyCharLength: mismatch throws")
+    @DisplayName("segments: length mismatch throws")
     void mismatchThrows() {
         BarCodeMatchingRule rule = new BarCodeMatchingRule()
-                .setKeyStartPosition(2)
-                .setKeyEndPosition(5)
-                .setKeyChar("ABC");
+                .setSegments("[{\"s\":2,\"e\":6,\"v\":\"ABC\"}]");
         assertThatThrownBy(() -> validator.validateKeyCharLength(rule))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("key_char");
+                .hasMessageContaining("不匹配");
     }
 
     @Test
-    @DisplayName("validateKeyCharLength: null keyChar is no-op")
-    void nullKeyCharNoOp() {
-        BarCodeMatchingRule rule = new BarCodeMatchingRule()
-                .setKeyStartPosition(3)
-                .setKeyChar(null);
+    @DisplayName("null segments is no-op")
+    void nullSegmentsNoOp() {
+        BarCodeMatchingRule rule = new BarCodeMatchingRule();
         assertThatNoException().isThrownBy(() -> validator.validateKeyCharLength(rule));
     }
 
     @Test
-    @DisplayName("validateKeyCharLength: null keyStartPosition is no-op")
-    void nullStartPositionNoOp() {
-        BarCodeMatchingRule rule = new BarCodeMatchingRule()
-                .setKeyStartPosition(null)
-                .setKeyChar("A");
+    @DisplayName("empty segments is no-op")
+    void emptySegmentsNoOp() {
+        BarCodeMatchingRule rule = new BarCodeMatchingRule().setSegments("");
         assertThatNoException().isThrownBy(() -> validator.validateKeyCharLength(rule));
     }
 }

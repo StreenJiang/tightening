@@ -52,7 +52,7 @@ class PartsBarCodeMatchingTest {
         when(ruleService.listByMissionId(1L))
                 .thenReturn(List.of(new BarCodeMatchingRule()
                         .setRuleType(BarCodeRuleType.PARTS_BARCODE.getCode())
-                        .setKeyStartPosition(0).setKeyEndPosition(3).setKeyChar("MAT")));
+                        .setSegments("[{\"s\":0,\"e\":3,\"v\":\"MAT\"}]")));
 
         assertThat(cap.execute(ctx)).isEqualTo(Fail);
     }
@@ -66,7 +66,7 @@ class PartsBarCodeMatchingTest {
         when(ruleService.listByMissionId(1L))
                 .thenReturn(List.of(new BarCodeMatchingRule()
                         .setRuleType(BarCodeRuleType.PARTS_BARCODE.getCode())
-                        .setKeyStartPosition(0).setKeyEndPosition(3).setKeyChar("MAT")));
+                        .setSegments("[{\"s\":0,\"e\":3,\"v\":\"MAT\"}]")));
 
         assertThat(cap.execute(ctx)).isEqualTo(Pass);
     }

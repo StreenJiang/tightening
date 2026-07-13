@@ -17,7 +17,5 @@ public class BarCodeMatchingRuleDTO extends BaseDTO {
     private Integer ruleType;
     private String partNumber;
     private Integer expectedLength;
-    private Integer keyStartPosition;
-    private Integer keyEndPosition;
-    private String keyChar;
+    private String segments;
 }

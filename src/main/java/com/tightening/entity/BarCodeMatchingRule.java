@@ -20,7 +20,5 @@ public class BarCodeMatchingRule extends BaseEntity {
     private Integer ruleType;
     private String partNumber;
     private Integer expectedLength;
-    private Integer keyStartPosition;
-    private Integer keyEndPosition;
-    private String keyChar;
+    private String segments;
 }

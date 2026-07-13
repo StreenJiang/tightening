@@ -23,14 +23,14 @@
 | Tool Running | （被动接收） | `55AA 05 85 00 7B 45 0D0A` |
 | Error | （被动接收） | `55AA 05 CF FC 4C 64 0D0A` |
 
-- Lock/Unlock 无显式应答 — 间隔 200ms 连发两次（双发策略），直接返回 true
-- PSet 应答格式 `55AA 05 82 {subCmd:1B} CRC 0D0A` — `0582` 为通用应答命令，按 `cmd + subCmd` 匹配而非整串 hex
+- Lock/Unlock 无显式应答 — 直接写 channel 并返回 true（不经过 `sendCmdAsync` 的 rspFutures 机制）
+- **PSet 应答匹配**：PSet 请求 cmd=`0x0205`，应答 cmd=`0x8205`。`sendPSetCmd` 用**应答 cmd**（`0x8205`）注册 key，与 `InBoundHandler` 收到的 PSet 响应对齐。SudongX7 的请求和响应使用不同的命令字（与 Atlas 不同，Atlas 同一 MID 用于请求和响应两端）
 
 ### 1.3 拧紧数据帧（命令头 0x2781）
 
 示例帧（原始 43 字节）：`55AA2781003901E7030000B70D0B00470B000200000100174C048403E7030000100ED00200000163A20D0A`
 
-FrameDecoder 剥离帧头(55AA) + CRC(63A2) + 帧尾(0D0A)后，Parser 收到 37 字节命令+数据段，偏移基准如下。
+FrameDecoder 剥离帧头(55AA) + 长度字节 + CRC + 帧尾(0D0A)后，Codec 解码为 `SudongX7Frame(cmd, data)`。Pipeline 传递到 InBoundHandler → `Parser.parse(cmd, data)` — cmd 用于校验（`==0x2781`），data 为剩余的字段字节。以下偏移表以原始帧为基准，`Parser偏移` 即 data 字节数组的下标：
 
 **原始帧偏移** → **Parser 偏移** 对照：
 
@@ -118,14 +118,14 @@ DeviceHandler (interface)
 |-----------------------------|--------------------------|
 | `setupChannelInitializer()` 组装 Pipeline | 无（Pipeline 顺序由父类定义） |
 | `SudongX7FrameDecoder` / `SudongX7FrameCodec` 注册 | 无 |
-| `SudongX7Constants` 命令字/帧头帧尾常量 | 无 |
-| `SudongX7Frame` 帧模型 + 工厂方法 | 无 |
+| `SudongX7Constants` 命令字/帧头帧尾常量 | 无（常量由 Frame、Codec、FrameDecoder、Parser 引用） |
+| `SudongX7Frame` 帧模型 + 工厂方法 + buildFrame（package-private） | 无 |
 | `SudongX7TighteningDataParser` 数据解析 | 无 |
-| `SudongX7InBoundHandler` 命令分发（switch 命令头） | 无 |
+| `SudongX7InBoundHandler` 命令分发（用 `SudongX7Frame.isXxx()` 方法，非直接 switch 魔数） | 无 |
 | `SudongX7InitHandler` 连接后 forceLock | 无 |
 | `getSupportedTypes()` 返回空 Set（子类覆盖） | `getSupportedTypes()` 返回 `EnumSet.of(SUDONG_X7)` |
-| `lockTool()` / `unlockTool()` 默认实现（抛 UnsupportedOperationException） | `lockTool()` / `unlockTool()` 双发策略 |
-| `sendPSetCmd()` 抽象方法 | `sendPSetCmd()` 调用 `SudongX7Frame.sendPSet()` |
+| `lockTool()` / `unlockTool()` 默认实现（抛 UnsupportedOperationException） | `lockTool()` / `unlockTool()` 直接写 channel，因为无显式应答 |
+| `sendPSetCmd()` 抽象方法 | `sendPSetCmd()` 用 `sendCmdAsync` + 应答 cmd（`0x8205`）注册 key |
 | `sendHeartbeat()` 返回 `completedFuture(false)` | 无 |
 
 ### 2.2 Netty Pipeline
@@ -143,22 +143,28 @@ SudongX7FrameDecoder      ← ByteToMessageDecoder（帧边界 + CRC 校验）
 
 ### 2.3 SudongX7FrameDecoder（核心组件）
 
-逐字节扫描策略：
+实现要点：
 
-```
-1. 在 ByteBuf 中扫描 0x55 0xAA
-2. 读到帧头后，读取下一个字节 = 数据包长度 N
-3. 等待可读字节 ≥ N + 2（帧尾）
-4. 读取 N 字节载荷 + 2 字节帧尾
-5. 校验帧尾 = 0x0D 0x0A，不匹配则丢弃并重置到帧头后一个字节继续扫描
-6. 从载荷末尾 2 字节提取 CRC16，对载荷前 N-2 字节计算 CRC，不匹配则丢弃+WARN 日志
-7. 校验通过：将命令+数据部分（不含帧头、长度字节、CRC、帧尾）封装为 ByteBuf 传给下游
-```
+1. **帧头扫描**：从当前 readerIndex 起逐字节 `getByte(i)` 扫描 `0x55 0xAA`（不消费字节，避免 TCP 粘包边界丢数据）
+2. **读长度 N**：`in.readByte() & 0xFF`
+3. **边界检查**：等待可读字节 ≥ N + 2（帧尾），不足则回退 readerIndex 等待下次 receive
+4. **N 字节载荷 + 帧尾**：先读 N-2 字节 cmd+data（一次分配），再读 2 字节 CRC（`readUnsignedShortLE`），再读 2 字节帧尾
+5. **帧尾校验**：`0x0D 0x0A`，不匹配则从 headerIdx+1 重新扫描
+6. **CRC 校验**：对 cmd+data 计算 CRC16，与读出的 CRC 比较，不匹配则从 headerIdx+1 重新扫描
+7. **输出**：cmd+data 字节封装为 ByteBuf 传给下游 Codec（不含帧头、长度字节、CRC、帧尾）
 
-边界情况处理：
-- 帧头后数据不足：等待下次 receive 累积
-- CRC 校验失败：丢弃整帧，告警日志
-- 连续扫描失败超过阈值：不做特殊处理（由 Netty 连接管理兜底）
+边界情况：
+- 帧头后数据不足 → 回退 readerIndex，等待下次 receive 累积
+- CRC/帧尾校验失败 → 丢弃当前候选帧，从 headerIdx+1 继续扫描
+- 整个可读区间无 `55AA` → 跳过所有安全字节，保留最后 1 字节（可能是帧头的一半）
+
+**帧长度公式**：`N = len(payload) + 2`，其中 payload = cmd(2B) + data，CRC = 2B。例如 Lock 帧 payload=5 字节（`01 00 00 02 00`），N=7。
+
+**帧组装共享**：`SudongX7Frame.buildFrame(byte[] payload)` 和 `buildFrame(int cmd, byte[] data)` 为 package-private，供同包下的 `SudongX7FrameCodec.encode()` 和测试 `SudongX7FrameDecoderTest` 委托调用。Codec 的 `encode()` 路径当前由 pipeline 注册但 `SudongX7Handler` 的 lock/unlock 通过 `dualSend()` 直接写 channel（无显式应答无需 rspFutures），PSet 通过 `sendCmdAsync` 的 `Supplier<byte[]>` 路径也不走 Codec encode。
+
+**帧头/帧尾常量**：`SudongX7Constants.FRAME_HEADER_HIGH/LOW`、`FRAME_TAIL_HIGH/LOW` 由 `SudongX7FrameDecoder` 和 `SudongX7Frame.buildFrame()` 引用。命令字常量 `CMD_TIGHTENING_DATA` 等由 `SudongX7Frame.isXxx()` 方法和 `SudongX7TighteningDataParser` 引用。`InBoundHandler` 通过 `SudongX7Frame.isXxx()` 做命令分发。
+
+**Lock/Unlock 负载**：`SudongX7Frame` 中用显式 `byte[]` 常量定义（`{0x01,0x00,0x00,0x02,0x00}`），替代设计阶段的 `hexToBytes()` 辅助方法。
 
 ### 2.4 Barcode / ParameterSet / Timestamp 回填
 
@@ -260,26 +266,34 @@ if (ctx.getCurrentDeviceType() == DeviceType.SUDONG_X7) return false; // Skip
 | 文件 | 包/路径 | 职责 |
 |------|---------|------|
 | `Crc16Utils.java` | `util` | Modbus CRC16 计算（多项式 0xA001） |
-| `SudongX7Constants.java` | `constant.sudongx7` | 命令字、帧头帧尾、特殊 hex 常量 |
-| `SudongX7Frame.java` | `netty.protocol.codec.sudongx7` | 帧模型 + 静态工厂方法 |
-| `SudongX7FrameDecoder.java` | `netty.protocol.codec.sudongx7` | 帧边界检测 + CRC 校验 |
-| `SudongX7FrameCodec.java` | `netty.protocol.codec.sudongx7` | ByteBuf ↔ SudongX7Frame 编解码 |
+| `SudongX7Constants.java` | `constant.sudongx7` | 命令字、帧头帧尾常量（由 Frame/Codec/FrameDecoder/Parser 引用） |
+| `SudongX7Frame.java` | `netty.protocol.codec.sudongx7` | 帧模型 + 静态工厂方法 + `buildFrame()`（package-private，供 Codec 复用） |
+| `SudongX7FrameDecoder.java` | `netty.protocol.codec.sudongx7` | 帧边界检测 + CRC 校验（引用 `SudongX7Constants` 帧头/帧尾常量） |
+| `SudongX7FrameCodec.java` | `netty.protocol.codec.sudongx7` | ByteBuf ↔ SudongX7Frame 编解码；`encode()` 委托 `SudongX7Frame.buildFrame(cmd, data)` |
 | `SudongX7InitHandler.java` | `netty.protocol.handler.sudongx7` | 连接后 forceLock |
-| `SudongX7InBoundHandler.java` | `netty.protocol.handler.sudongx7` | 命令分发 + 数据委托 |
-| `SudongX7TighteningDataParser.java` | `netty.protocol.util.sudongx7` | 拧紧数据 hex→DTO 解析 |
-| `SudongSeriesHandler.java` | `device.handler.impl` | extends ToolHandler, abstract（公共逻辑）|
-| `SudongX7Handler.java` | `device.handler.impl` | extends SudongSeriesHandler, @Component |
+| `SudongX7InBoundHandler.java` | `netty.protocol.handler.sudongx7` | 命令分发（用 `SudongX7Frame.isXxx()` 而非内联魔数）+ 数据委托 |
+| `SudongX7TighteningDataParser.java` | `netty.protocol.util.sudongx7` | `parse(int cmd, byte[] data)` → DTO（引用 `SudongX7Constants.CMD_TIGHTENING_DATA`） |
+| `SudongSeriesHandler.java` | `device.handler.impl` | extends ToolHandler, abstract（Pipeline 组装公共逻辑） |
+| `SudongX7Handler.java` | `device.handler.impl` | extends SudongSeriesHandler, @Component（Lock/Unlock 直接写 channel，PSet 用应答 cmd 注册 key） |
+| `SudongJudgment.java` | `judgment` | SudongX7 拧紧质量判定（torque ∧ angle ∧ tighteningStatus） |
 
 ### 3.2 修改文件
 
 | 文件 | 改动内容 |
 |------|---------|
-| `constant/DeviceType.java` | 新增 `SUDONG_X7(4, "SudongX7")` |
+| `constant/DeviceType.java` | 新增 `SUDONG_X7(4, "SUDONG-X7")` |
+| `config/JudgmentConfig.java` | 注册 `SUDONG_X7 → new SudongJudgment()` |
 | `lifecycle/LifecycleEngine.java` | `handleTighteningData()` 新增 vin/parameterSet/timestamp 回填逻辑 |
-| `lifecycle/capability/ReceiveData.java` | `precondition()` 新增 SudongX7 排除 |
-| `lifecycle/capability/SendPSet.java` | `execute()` 新增 `ctx.setCurrentPSet()` |
-| `lifecycle/MissionContext.java` | 新增 `currentPSet` volatile 字段 |
-| `lifecycle/MissionOrchestrator.java` | 无需改动（回填在 Engine 内完成） |
+| `lifecycle/capability/ReceiveData.java` | `precondition()` 对 SUDONG_X7 返回 false |
+| `lifecycle/capability/SendPSet.java` | `execute()` 成功后 `ctx.setCurrentPSet(psetId)` |
+| `lifecycle/MissionContext.java` | 新增 `currentPSet` volatile 字段；`previousOperationData`/`pendingCurveData`/`extras` 标记 `@Deprecated` |
+| `device/contract/ToolAdapter.java` | `sendLock()` → `handler.lock()`, `sendUnlock()` → `handler.unlock()`（Bug 2 修复） |
+| `device/handler/impl/AtlasPFSeriesHandler.java` | `generateKey(ENABLE.getMid(), deviceId)` / `DISABLE.getMid()`（Bug 1 修复） |
+| `netty/protocol/util/fit/FitTighteningDataParser.java` | barcode 解码后 `dto.setVin(barcode)`（Gap T3 修复） |
+| `util/Converter.java` | ObjectMapper 引用 `JsonUtils.OBJECT_MAPPER`（Gap G12 修复） |
+| `util/BarcodeMatcher.java` | 新增多段 JSON 匹配；ObjectMapper 引用 `JsonUtils.OBJECT_MAPPER` |
+| `entity/BarCodeMatchingRule.java` | 新增 `segments TEXT` 字段（V1.0.14），旧三字段标记 `@Deprecated` |
+| `dto/BarCodeMatchingRuleDTO.java` | 新增 `segments` 字段 |
 
 ---
 

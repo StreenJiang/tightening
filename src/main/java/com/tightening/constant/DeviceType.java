@@ -12,6 +12,7 @@ public enum DeviceType {
     ATLAS_PF4000(1, "PF4000"),
     ATLAS_PF6000_OP(2, "PF6000-OP"),
     FIT_FTC6(3, "FIT-FTC6"),
+    SUDONG_X7(4, "SUDONG-X7"),
     ;
 
     private final int id;

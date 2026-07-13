@@ -1,22 +1,44 @@
 package com.tightening.util;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tightening.entity.BarCodeMatchingRule;
+import lombok.extern.slf4j.Slf4j;
 
+import java.util.List;
+
+@Slf4j
 public final class BarcodeMatcher {
+
+    private static final ObjectMapper mapper = JsonUtils.OBJECT_MAPPER;
 
     private BarcodeMatcher() {}
 
-    /**
-     * 对条码做位置匹配。
-     * keyStartPosition/keyEndPosition 均未配置 → 无位置约束，放行；
-     * expectedLength 非空 → 先检查长度。
-     */
+    public record Segment(int s, int e, String v) {}
+
     public static boolean matches(BarCodeMatchingRule rule, String code) {
         if (code == null) return false;
         if (rule.getExpectedLength() != null && code.length() != rule.getExpectedLength()) return false;
-        if (rule.getKeyStartPosition() == null || rule.getKeyEndPosition() == null) return true;
-        int end = Math.min(rule.getKeyEndPosition(), code.length());
-        int start = Math.min(rule.getKeyStartPosition(), end);
-        return code.substring(start, end).equals(rule.getKeyChar());
+
+        String segmentsJson = rule.getSegments();
+        if (segmentsJson == null || segmentsJson.isEmpty()) return true;
+
+        return matchesSegments(segmentsJson, code);
+    }
+
+    static boolean matchesSegments(String segmentsJson, String code) {
+        try {
+            List<Segment> segments = mapper.readValue(segmentsJson, new TypeReference<>() {});
+            if (segments.isEmpty()) return true;
+            for (Segment seg : segments) {
+                int end = Math.min(seg.e, code.length());
+                int start = Math.min(seg.s, end);
+                if (!code.substring(start, end).equals(seg.v)) return false;
+            }
+            return true;
+        } catch (Exception e) {
+            log.warn("Failed to parse barcode segments JSON: {}", segmentsJson, e);
+            return false;
+        }
     }
 }

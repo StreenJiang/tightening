@@ -49,8 +49,7 @@ public class MissionContext {
 
     @Builder.Default @Setter private TighteningData currentOperationData = null;
     @Builder.Default @Setter private DeviceType currentDeviceType = null;  // 由 handleTighteningData 从 deviceRegistry 解析
-    @Builder.Default @Setter private TighteningData previousOperationData = null;
-    @Builder.Default private final List<CurveData> pendingCurveData = new ArrayList<>();
+    @Builder.Default @Setter private volatile Integer currentPSet = null;  // SendPSet 写入，仅 SudongX7 等不回传协议使用
     @Builder.Default @Setter private JudgmentResult judgeResult = null;
     @Builder.Default private final Set<LockMessage> lockMessages = new LinkedHashSet<>();
 

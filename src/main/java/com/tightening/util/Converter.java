@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.function.Supplier;
 
 public final class Converter {
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = JsonUtils.OBJECT_MAPPER;
 
     public static <E extends BaseEntity, T extends BaseDTO> T entity2Dto(E entity, Supplier<T> supplier) {
         T dto = supplier.get();

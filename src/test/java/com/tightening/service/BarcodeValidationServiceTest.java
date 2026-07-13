@@ -46,7 +46,7 @@ class BarcodeValidationServiceTest {
         void positionMatch() {
             var rule = new BarCodeMatchingRule()
                     .setRuleType(BarCodeRuleType.PRODUCT_TRACE.getCode())
-                    .setKeyStartPosition(0).setKeyEndPosition(2).setKeyChar("AB")
+                    .setSegments("[{\"s\":0,\"e\":2,\"v\":\"AB\"}]")
                     .setExpectedLength(6).setProductMissionId(1L);
             when(ruleService.listByMissionId(1L)).thenReturn(List.of(rule));
 
@@ -60,14 +60,14 @@ class BarcodeValidationServiceTest {
         void wrongMission() {
             var rule1 = new BarCodeMatchingRule()
                     .setRuleType(BarCodeRuleType.PRODUCT_TRACE.getCode())
-                    .setKeyStartPosition(0).setKeyEndPosition(1).setKeyChar("X")
+                    .setSegments("[{\"s\":0,\"e\":1,\"v\":\"X\"}]")
                     .setExpectedLength(6).setProductMissionId(1L);
             when(ruleService.listByMissionId(1L)).thenReturn(List.of(rule1));
             // 模拟全库查询：只有 mission 2 匹配
             when(ruleService.findProductTraceRulesExcluding(1L)).thenReturn(List.of(
                 new BarCodeMatchingRule()
                     .setRuleType(BarCodeRuleType.PRODUCT_TRACE.getCode())
-                    .setKeyStartPosition(0).setKeyEndPosition(1).setKeyChar("A")
+                    .setSegments("[{\"s\":0,\"e\":1,\"v\":\"A\"}]")
                     .setExpectedLength(6).setProductMissionId(2L)
             ));
 
@@ -95,7 +95,7 @@ class BarcodeValidationServiceTest {
         void match() {
             var rule = new BarCodeMatchingRule()
                     .setRuleType(BarCodeRuleType.PARTS_BARCODE.getCode())
-                    .setKeyStartPosition(0).setKeyEndPosition(2).setKeyChar("MA")
+                    .setSegments("[{\"s\":0,\"e\":2,\"v\":\"MA\"}]")
                     .setExpectedLength(6).setProductMissionId(1L);
             when(ruleService.listByMissionId(1L)).thenReturn(List.of(rule));
 
@@ -107,7 +107,7 @@ class BarcodeValidationServiceTest {
         void noMatch() {
             var rule = new BarCodeMatchingRule()
                     .setRuleType(BarCodeRuleType.PARTS_BARCODE.getCode())
-                    .setKeyStartPosition(0).setKeyEndPosition(2).setKeyChar("XX")
+                    .setSegments("[{\"s\":0,\"e\":2,\"v\":\"XX\"}]")
                     .setExpectedLength(6).setProductMissionId(1L);
             when(ruleService.listByMissionId(1L)).thenReturn(List.of(rule));
 

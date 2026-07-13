@@ -18,9 +18,7 @@ class BarCodeMatchingRuleTest {
         original.setRuleType(2);
         original.setPartNumber("PN-12345");
         original.setExpectedLength(20);
-        original.setKeyStartPosition(3);
-        original.setKeyEndPosition(10);
-        original.setKeyChar("ABC");
+        original.setSegments("[{\"s\":3,\"e\":10,\"v\":\"ABC\"}]");
 
         String json = mapper.writeValueAsString(original);
         BarCodeMatchingRule restored = mapper.readValue(json, BarCodeMatchingRule.class);
@@ -30,9 +28,7 @@ class BarCodeMatchingRuleTest {
         assertThat(restored.getRuleType()).isEqualTo(2);
         assertThat(restored.getPartNumber()).isEqualTo("PN-12345");
         assertThat(restored.getExpectedLength()).isEqualTo(20);
-        assertThat(restored.getKeyStartPosition()).isEqualTo(3);
-        assertThat(restored.getKeyEndPosition()).isEqualTo(10);
-        assertThat(restored.getKeyChar()).isEqualTo("ABC");
+        assertThat(restored.getSegments()).isEqualTo("[{\"s\":3,\"e\":10,\"v\":\"ABC\"}]");
     }
 
     @Test

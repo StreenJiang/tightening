@@ -1,5 +1,6 @@
 package com.tightening.lifecycle.capability;
 
+import com.tightening.constant.DeviceType;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.entity.TighteningData;
@@ -13,6 +14,12 @@ public class ReceiveData implements Capability {
     @Override public Stage stage() { return Stage.OPERATION; }
     @Override public SubState subState() { return SubState.TIGHTENING_RECEIVED; }
     @Override public int priority() { return 0; }
+
+    @Override
+    public boolean precondition(MissionContext ctx) {
+        if (ctx.getCurrentDeviceType() == DeviceType.SUDONG_X7) return false;
+        return true;
+    }
 
     @Override
     public CapabilityResult execute(MissionContext ctx) {

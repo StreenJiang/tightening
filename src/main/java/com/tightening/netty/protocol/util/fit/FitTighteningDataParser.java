@@ -58,6 +58,7 @@ public final class FitTighteningDataParser {
             try {
                 String barcode = new String(barcodeBytes, "GBK");
                 log.debug("barcode=" + barcode);
+                tighteningData.setVin(barcode);
             } catch (Exception e) {
                 log.warn("Failed to decode barcode", e);
             }

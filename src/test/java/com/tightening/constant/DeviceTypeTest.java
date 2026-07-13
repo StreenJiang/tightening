@@ -83,7 +83,7 @@ class DeviceTypeTest {
 
     @Test
     void values_count() {
-        assertThat(DeviceType.values()).hasSize(3);
+        assertThat(DeviceType.values()).hasSize(4);
     }
 
     @Test

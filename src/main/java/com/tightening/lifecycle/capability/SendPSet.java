@@ -33,6 +33,8 @@ public class SendPSet implements Capability {
             .whenComplete((ok, ex) -> {
                 if (ex != null || !Boolean.TRUE.equals(ok)) {
                     log.warn("SendPSet failed for bolt {}: ok={}", bolt.getBoltSerialNum(), ok, ex);
+                } else {
+                    ctx.setCurrentPSet(bolt.getParameterSetId().intValue());
                 }
             });
         log.info("PSet {} sent for bolt {}", bolt.getParameterSetId(), bolt.getBoltSerialNum());

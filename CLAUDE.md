@@ -208,6 +208,7 @@ Flyway 迁移文件：
 - 驼峰转换：`map-underscore-to-camel-case: true`
 - Controller 路径：`/api/devices`, `/api/login` 等，只用 POST
 - 异步响应使用 `DeferredResult` + `CompletableFuture`
+- **严禁全限定类名**：禁止在方法体内使用 `com.foo.bar.SomeClass` 或 `java.util.List` 等全限定名直接声明/接收类型。所有类型必须通过文件顶部的 `import` 语句导入，方法体内只用短名。唯一例外是同一个类名存在多个版本冲突且无法重命名时（极少见）
 
 ## Agent skills
 

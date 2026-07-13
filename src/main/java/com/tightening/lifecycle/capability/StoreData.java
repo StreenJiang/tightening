@@ -32,7 +32,6 @@ public class StoreData implements Capability {
         }
         tighteningDataService.save(data);
         ctx.getTighteningDataList().add(data);
-        ctx.setPreviousOperationData(data);
         ctx.setCurrentOperationData(null);
         log.info("StoreData: id={}, missionRecordId={}", data.getId(), data.getMissionRecordId());
         return CapabilityResult.Pass;

@@ -7,6 +7,8 @@ import com.tightening.device.event.DeviceChangeEvent;
 import com.tightening.device.handler.DeviceHandler;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
 import com.tightening.entity.Device;
+import com.tightening.lifecycle.monitor.DeviceConnectionMonitor;
+import com.tightening.service.SseService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -32,9 +34,12 @@ public class DeviceManager implements AutoCloseable {
     private final ExecutorService connectExecutor;
     private final AtomicInteger activeUserCount = new AtomicInteger(0);
     private final DeviceConfig deviceConfig;
+    private final DeviceConnectionMonitor deviceConnectionMonitor;
+    private final SseService sseService;
     private volatile boolean running = false;
 
-    public DeviceManager(DeviceConfig deviceConfig) {
+    public DeviceManager(DeviceConfig deviceConfig, DeviceConnectionMonitor deviceConnectionMonitor,
+                         SseService sseService) {
         deviceHandlers = new ConcurrentHashMap<>();
         scanScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "DeviceScan-Thread");
@@ -42,6 +47,8 @@ public class DeviceManager implements AutoCloseable {
             return t;
         });
         this.deviceConfig = deviceConfig;
+        this.deviceConnectionMonitor = deviceConnectionMonitor;
+        this.sseService = sseService;
         DeviceConfig.ConnectThread connectThread = deviceConfig.getConnectThread();
         connectExecutor = new ThreadPoolExecutor(connectThread.getCorePoolSize(),
                                                  connectThread.getMaxPoolSize(),
@@ -57,6 +64,7 @@ public class DeviceManager implements AutoCloseable {
             // 重复调用无害，方法内部有判断 running
             start(devices);
         }
+        deviceConnectionMonitor.start();
     }
 
     // 用户登出或会话销毁时调用
@@ -130,6 +138,9 @@ public class DeviceManager implements AutoCloseable {
         // 断开所有设备连接（设备内部线程清理由设备自己负责）
         deviceHandlers.forEach((deviceId, handler) -> handler.disconnect(deviceId));
         deviceHandlers.clear();
+
+        deviceConnectionMonitor.stop();
+        sseService.close();
     }
 
     // 监听设备变更事件（使用 @TransactionalEventListener 确保事务提交后处理）

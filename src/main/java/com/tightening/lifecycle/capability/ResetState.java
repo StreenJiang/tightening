@@ -16,8 +16,8 @@ public class ResetState implements Capability {
     @Override
     public CapabilityResult execute(MissionContext ctx) {
         ctx.getExtras().clear();
-        ctx.getLockMessages().clear();
-        log.info("ResetState: mission context extras and lock messages cleared");
+        ctx.getLockReasons().clear();
+        log.info("ResetState: mission context extras and lock reasons cleared");
         return CapabilityResult.Pass;
     }
 }

@@ -11,6 +11,7 @@ import com.tightening.lifecycle.capability.ErrorAction;
 import com.tightening.lifecycle.message.*;
 import com.tightening.service.BarCodeMatchingRuleService;
 import com.tightening.service.MissionRecordService;
+import com.tightening.service.WorkplaceStatusService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,13 +42,16 @@ class LifecycleEngineTest {
     @Mock
     private BarCodeMatchingRuleService barCodeMatchingRuleService;
 
+    @Mock
+    private WorkplaceStatusService workplaceStatusService;
+
     private PipelineDefinition pd;
     private LifecycleEngine engine;
 
     @BeforeEach
     void setUp() {
         pd = PipelineDefinition.createDefault();
-        engine = new LifecycleEngine(pd, missionRecordService, List.of(), List.of(), List.of());
+        engine = new LifecycleEngine(pd, missionRecordService, List.of(), List.of(), List.of(), workplaceStatusService);
     }
 
     @Test
@@ -119,7 +123,7 @@ class LifecycleEngineTest {
 
         PipelineDefinition customPd = PipelineDefinition.createDefault();
         customPd.registerCapability(cap).sortByPriority();
-        engine = new LifecycleEngine(customPd, missionRecordService, List.of(cap), List.of(), List.of());
+        engine = new LifecycleEngine(customPd, missionRecordService, List.of(cap), List.of(), List.of(), workplaceStatusService);
 
         ProductMission pm = new ProductMission();
         pm.setId(1L);
@@ -154,7 +158,7 @@ class LifecycleEngineTest {
 
         PipelineDefinition customPd = PipelineDefinition.createDefault();
         customPd.registerCapability(cap).sortByPriority();
-        engine = new LifecycleEngine(customPd, missionRecordService, List.of(cap), List.of(), List.of());
+        engine = new LifecycleEngine(customPd, missionRecordService, List.of(cap), List.of(), List.of(), workplaceStatusService);
         engine.onFaulted(r -> latch.countDown());
 
         MissionRecord record = new MissionRecord();

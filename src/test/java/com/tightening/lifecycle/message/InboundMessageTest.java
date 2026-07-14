@@ -1,7 +1,6 @@
 package com.tightening.lifecycle.message;
 
 import com.tightening.entity.TighteningData;
-import com.tightening.lifecycle.LockMessage;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -35,15 +34,5 @@ class InboundMessageTest {
         } else {
             org.junit.jupiter.api.Assertions.fail("Expected Faulted");
         }
-    }
-
-    @Test
-    @DisplayName("LockMessage isManual 判断")
-    void lockMessageManualCheck() {
-        var manualLock = new LockMessage("MANUAL_LOCK", "operator locked");
-        var autoLock = new LockMessage("DEVICE_MONITOR", "device offline");
-
-        assertThat(manualLock.isManual()).isTrue();
-        assertThat(autoLock.isManual()).isFalse();
     }
 }

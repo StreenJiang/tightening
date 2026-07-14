@@ -1,5 +1,6 @@
 package com.tightening.lifecycle.capability;
 
+import com.tightening.constant.LockReason;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.device.contract.ITool;
@@ -29,12 +30,17 @@ public class SendPSet implements Capability {
             log.warn("No tool found for bolt {}", bolt.getBoltSerialNum());
             return CapabilityResult.Fail;
         }
+        ctx.getLockReasons().add(LockReason.PSET_SENDING);
         tool.sendPSet(bolt.getParameterSetId().intValue())
             .whenComplete((ok, ex) -> {
-                if (ex != null || !Boolean.TRUE.equals(ok)) {
-                    log.warn("SendPSet failed for bolt {}: ok={}", bolt.getBoltSerialNum(), ok, ex);
-                } else {
-                    ctx.setCurrentPSet(bolt.getParameterSetId().intValue());
+                try {
+                    if (ex != null || !Boolean.TRUE.equals(ok)) {
+                        log.warn("SendPSet failed for bolt {}: ok={}", bolt.getBoltSerialNum(), ok, ex);
+                    } else {
+                        ctx.setCurrentPSet(bolt.getParameterSetId().intValue());
+                    }
+                } finally {
+                    ctx.getLockReasons().remove(LockReason.PSET_SENDING);
                 }
             });
         log.info("PSet {} sent for bolt {}", bolt.getParameterSetId(), bolt.getBoltSerialNum());

@@ -2,6 +2,7 @@ package com.tightening.lifecycle;
 
 import com.tightening.constant.BoltState;
 import com.tightening.constant.DeviceType;
+import com.tightening.constant.LockReason;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.device.contract.ITool;
@@ -51,7 +52,8 @@ public class MissionContext {
     @Builder.Default @Setter private DeviceType currentDeviceType = null;  // 由 handleTighteningData 从 deviceRegistry 解析
     @Builder.Default @Setter private volatile Integer currentPSet = null;  // SendPSet 写入，仅 SudongX7 等不回传协议使用
     @Builder.Default @Setter private JudgmentResult judgeResult = null;
-    @Builder.Default private final Set<LockMessage> lockMessages = new LinkedHashSet<>();
+    @Builder.Default private final Set<LockReason> lockReasons = new LinkedHashSet<>();
+    @Builder.Default @Setter private volatile boolean boltUnlockOverride = false;
 
     // ═══ 第三层：Capability 间临时数据 ═══
 

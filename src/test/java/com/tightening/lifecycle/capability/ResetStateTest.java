@@ -3,7 +3,7 @@ package com.tightening.lifecycle.capability;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.entity.ProductMission;
-import com.tightening.lifecycle.LockMessage;
+import com.tightening.constant.LockReason;
 import com.tightening.lifecycle.MissionContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -49,17 +49,17 @@ class ResetStateTest {
     }
 
     @Test
-    @DisplayName("execute 清除 extras 和 lockMessages 并返回 Pass")
+    @DisplayName("execute 清除 extras 和 lockReasons 并返回 Pass")
     void executeShouldClearStateAndReturnPass() {
         MissionContext ctx = MissionContext.builder()
             .productMissionId(1L).missionData(new ProductMission())
             .boltConfigs(List.of()).deviceRegistry(Map.of())
             .shouldSelfLoop(false).build();
         ctx.getExtras().put("key1", "value1");
-        ctx.getLockMessages().add(new LockMessage("TEST", "test lock"));
+        ctx.getLockReasons().add(LockReason.PSET_SENDING);
 
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Pass);
         assertThat(ctx.getExtras()).isEmpty();
-        assertThat(ctx.getLockMessages()).isEmpty();
+        assertThat(ctx.getLockReasons()).isEmpty();
     }
 }

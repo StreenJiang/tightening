@@ -3,6 +3,7 @@ package com.tightening.lifecycle;
 import com.tightening.constant.BoltState;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
+import com.tightening.constant.WorkplaceStatus;
 import com.tightening.device.contract.ITool;
 import com.tightening.entity.MissionRecord;
 
@@ -13,6 +14,7 @@ import com.tightening.lifecycle.capability.TriggerCapability;
 import com.tightening.lifecycle.message.*;
 import com.tightening.lifecycle.monitor.PersistentMonitor;
 import com.tightening.service.MissionRecordService;
+import com.tightening.service.WorkplaceStatusService;
 import com.tightening.util.JsonUtils;
 import lombok.extern.slf4j.Slf4j;
 
@@ -50,14 +52,17 @@ public class LifecycleEngine {
     private Consumer<Long> onTriggered;
 
     private final List<TriggerCapability> triggerCaps;
+    private final WorkplaceStatusService wsService;
 
     public LifecycleEngine(PipelineDefinition pipeline, MissionRecordService missionRecordService,
                            List<Capability> capabilities, List<PersistentMonitor> monitors,
-                           List<TriggerCapability> triggerCapabilities) {
+                           List<TriggerCapability> triggerCapabilities,
+                           WorkplaceStatusService wsService) {
         this.pipeline = pipeline;
         this.missionRecordService = missionRecordService;
         this.monitors = monitors != null ? monitors : List.of();
         this.triggerCaps = triggerCapabilities != null ? triggerCapabilities : List.of();
+        this.wsService = wsService;
         pipeline.registerCapabilities(capabilities).sortByPriority();
         registerDefaultHandlers();
     }
@@ -145,6 +150,7 @@ public class LifecycleEngine {
         }
 
         log.info("Trigger passed, entering lifecycle");
+        wsService.transitionTo(WorkplaceStatus.ACTIVATED, Set.of());
         if (onTriggered != null) onTriggered.accept(ctx.getProductMissionId());
         startNormalLifecycle(ctx);
     }
@@ -462,5 +468,6 @@ public class LifecycleEngine {
         alive = false;
         stopMonitorTicks();
         if (actorThread != null) actorThread.interrupt();
+        wsService.reset();
     }
 }

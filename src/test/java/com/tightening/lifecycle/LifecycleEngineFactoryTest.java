@@ -13,6 +13,7 @@ import com.tightening.service.BarCodeMatchingRuleService;
 import com.tightening.service.ExportTaskService;
 import com.tightening.service.MissionRecordService;
 import com.tightening.service.TighteningDataService;
+import com.tightening.service.WorkplaceStatusService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,6 +41,7 @@ class LifecycleEngineFactoryTest {
     @Mock private LocalSettings settings;
     @Mock private JudgmentStrategy judgmentStrategy;
     @Mock private BarCodeMatchingRuleService barCodeMatchingRuleService;
+    @Mock private WorkplaceStatusService workplaceStatusService;
     @Mock private ITool mockTool;
 
     private LifecycleEngineFactory factory;
@@ -52,7 +54,8 @@ class LifecycleEngineFactoryTest {
         lenient().when(mockTool.type()).thenReturn(DeviceType.ATLAS_PF4000);
         factory = new LifecycleEngineFactory(
             missionRecordService, tighteningDataService, exportTaskService, settings,
-            Map.of(DeviceType.ATLAS_PF4000, judgmentStrategy), barCodeMatchingRuleService);
+            Map.of(DeviceType.ATLAS_PF4000, judgmentStrategy), barCodeMatchingRuleService,
+            workplaceStatusService);
     }
 
     @AfterEach

@@ -42,6 +42,7 @@ public class AdvanceBolt implements Capability {
 
         if (ctx.hasMoreBolts()) {
             ctx.setCurrentBoltIndex(ctx.getCurrentBoltIndex() + 1);
+            ctx.setBoltUnlockOverride(false);
             ctx.setCurrentOperationData(null);
             ctx.setJudgeResult(null);
             log.info("Advancing to bolt {}/{}", ctx.getCurrentBoltIndex() + 1, ctx.totalBolts());

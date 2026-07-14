@@ -7,6 +7,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 public interface ITool extends IDevice {
+    boolean isUnlocked();
+
     CompletableFuture<Boolean> sendLock();
 
     CompletableFuture<Boolean> sendUnlock();

@@ -8,13 +8,13 @@ import com.tightening.entity.ProductMission;
 import com.tightening.judgment.JudgmentStrategy;
 import org.springframework.lang.Nullable;
 import com.tightening.lifecycle.capability.*;
-import com.tightening.lifecycle.monitor.DeviceConnectionMonitor;
 import com.tightening.lifecycle.monitor.LockStateMonitor;
 import com.tightening.lifecycle.monitor.PersistentMonitor;
 import com.tightening.service.BarCodeMatchingRuleService;
 import com.tightening.service.ExportTaskService;
 import com.tightening.service.MissionRecordService;
 import com.tightening.service.TighteningDataService;
+import com.tightening.service.WorkplaceStatusService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -31,6 +31,7 @@ public class LifecycleEngineFactory {
     private final LocalSettings settings;
     private final Map<DeviceType, JudgmentStrategy> judgmentStrategies;
     private final BarCodeMatchingRuleService barCodeMatchingRuleService;
+    private final WorkplaceStatusService workplaceStatusService;
 
     public LifecycleEngine createEngine(
             ProductMission mission,
@@ -73,8 +74,7 @@ public class LifecycleEngineFactory {
         );
 
         List<PersistentMonitor> monitors = List.of(
-            new LockStateMonitor(),
-            new DeviceConnectionMonitor()
+            new LockStateMonitor(workplaceStatusService)
         );
 
         List<TriggerCapability> triggerCaps = List.of(
@@ -84,7 +84,7 @@ public class LifecycleEngineFactory {
         );
 
         LifecycleEngine engine = new LifecycleEngine(pipeline, missionRecordService, capabilities, monitors,
-                triggerCaps);
+                triggerCaps, workplaceStatusService);
         engine.initContext(ctx);
 
         engine.onFaulted(reason -> { /* 后续接事件发布 */ });

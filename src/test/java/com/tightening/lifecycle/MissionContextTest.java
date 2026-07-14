@@ -31,7 +31,7 @@ class MissionContextTest {
         assertThat(ctx.getCurrentSubState()).isEqualTo(SubState.IDLE);
         assertThat(ctx.getTighteningDataList()).isEmpty();
         assertThat(ctx.getExtras()).isEmpty();
-        assertThat(ctx.getLockMessages()).isEmpty();
+        assertThat(ctx.getLockReasons()).isEmpty();
     }
 
     @Test

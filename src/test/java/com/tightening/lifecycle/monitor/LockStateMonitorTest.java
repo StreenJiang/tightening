@@ -1,53 +1,100 @@
 package com.tightening.lifecycle.monitor;
 
-import com.tightening.entity.ProductMission;
-import com.tightening.lifecycle.LockMessage;
+import com.tightening.constant.LockReason;
+import com.tightening.constant.WorkplaceStatus;
+import com.tightening.device.contract.ITool;
 import com.tightening.lifecycle.MissionContext;
+import com.tightening.service.WorkplaceStatusService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.Mockito.*;
 
 @DisplayName("LockStateMonitor")
 class LockStateMonitorTest {
 
-    @Test
-    @DisplayName("空 Context 不抛异常")
-    void shouldNotThrowOnEmptyContext() {
-        var monitor = new LockStateMonitor();
-        var ctx = minimalContext();
-        assertThatCode(() -> monitor.execute(ctx)).doesNotThrowAnyException();
+    private WorkplaceStatusService wsService;
+    private LockStateMonitor monitor;
+    private ITool tool;
+
+    @BeforeEach
+    void setUp() {
+        wsService = mock(WorkplaceStatusService.class);
+        monitor = new LockStateMonitor(wsService);
+        tool = mock(ITool.class);
     }
 
     @Test
-    @DisplayName("intervalMs 为正")
-    void intervalShouldBePositive() {
-        assertThat(new LockStateMonitor().intervalMs()).isPositive();
+    @DisplayName("intervalMs 应为 50ms")
+    void shouldReturn50msInterval() {
+        assertThat(monitor.intervalMs()).isEqualTo(50);
     }
 
     @Test
-    @DisplayName("有 MANUAL_LOCK 时正常执行")
-    void shouldDetectManualLock() {
-        var monitor = new LockStateMonitor();
-        var ctx = minimalContext();
-        ctx.getLockMessages().add(new LockMessage("MANUAL_LOCK", "operator"));
-        assertThatCode(() -> monitor.execute(ctx)).doesNotThrowAnyException();
+    @DisplayName("lockReasons 非空 + tool 已 unlock → 应发送 lock")
+    void shouldLockWhenReasonsNotEmptyAndToolUnlocked() {
+        var ctx = ctxWithTool(tool);
+        ctx.getLockReasons().add(LockReason.PSET_SENDING);
+        when(tool.isUnlocked()).thenReturn(true);
+
+        monitor.execute(ctx);
+
+        verify(tool, times(1)).sendLock();
+        verify(wsService, times(1)).transitionTo(
+                eq(WorkplaceStatus.OPERATION_DISABLE), anySet());
     }
 
     @Test
-    @DisplayName("DeviceConnectionMonitor intervalMs 为正")
-    void deviceConnectionMonitorIntervalShouldBePositive() {
-        assertThat(new DeviceConnectionMonitor().intervalMs()).isPositive();
+    @DisplayName("lockReasons 为空 + tool 已 lock → 应发送 unlock")
+    void shouldUnlockWhenReasonsEmptyAndToolLocked() {
+        var ctx = ctxWithTool(tool);
+        when(tool.isUnlocked()).thenReturn(false);
+
+        monitor.execute(ctx);
+
+        verify(tool, times(1)).sendUnlock();
+        verify(wsService, times(1)).transitionTo(
+                eq(WorkplaceStatus.OPERATION_ENABLE), eq(Set.of()));
     }
 
-    private static MissionContext minimalContext() {
+    @Test
+    @DisplayName("boltUnlockOverride 为 true → 跳过所有逻辑")
+    void shouldSkipWhenBoltUnlockOverrideTrue() {
+        var ctx = ctxWithTool(tool);
+        ctx.setBoltUnlockOverride(true);
+        ctx.getLockReasons().add(LockReason.PSET_SENDING);
+
+        monitor.execute(ctx);
+
+        verify(tool, never()).sendLock();
+        verify(tool, never()).sendUnlock();
+        verify(wsService, never()).transitionTo(any(), any());
+    }
+
+    @Test
+    @DisplayName("状态已匹配时不应重复发送")
+    void shouldNotRedundantSend() {
+        var ctx = ctxWithTool(tool);
+        ctx.getLockReasons().add(LockReason.ADMIN_CONFIRM);
+        when(tool.isUnlocked()).thenReturn(false);  // already locked
+
+        monitor.execute(ctx);
+
+        verify(tool, never()).sendLock();
+        verify(tool, never()).sendUnlock();
+    }
+
+    private static MissionContext ctxWithTool(ITool tool) {
         return MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission())
-            .boltConfigs(List.of()).deviceRegistry(Map.of())
-            .shouldSelfLoop(false).build();
+            .productMissionId(1L)
+            .shouldSelfLoop(false)
+            .boltConfigs(java.util.List.of())
+            .deviceRegistry(Map.of(1L, tool))
+            .build();
     }
 }

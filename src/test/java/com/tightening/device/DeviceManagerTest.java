@@ -7,6 +7,8 @@ import com.tightening.constant.DeviceType;
 import com.tightening.device.event.DeviceChangeEvent;
 import com.tightening.device.handler.DeviceHandler;
 import com.tightening.entity.Device;
+import com.tightening.lifecycle.monitor.DeviceConnectionMonitor;
+import com.tightening.service.SseService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,6 +24,8 @@ import static org.mockito.Mockito.when;
 class DeviceManagerTest {
 
     private DeviceHandler mockHandler;
+    private DeviceConnectionMonitor mockDeviceConnectionMonitor;
+    private SseService mockSseService;
     private DeviceManager deviceManager;
 
     @BeforeEach
@@ -50,7 +54,9 @@ class DeviceManagerTest {
         // Wire the mock handler into the static provider so DeviceType.getHandlerByTypeId() returns it
         DeviceType.initProvider(type -> mockHandler);
 
-        deviceManager = new DeviceManager(deviceConfig);
+        mockDeviceConnectionMonitor = mock(DeviceConnectionMonitor.class);
+        mockSseService = mock(SseService.class);
+        deviceManager = new DeviceManager(deviceConfig, mockDeviceConnectionMonitor, mockSseService);
     }
 
     @AfterEach

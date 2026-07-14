@@ -16,6 +16,7 @@ import com.tightening.service.BarCodeMatchingRuleService;
 import com.tightening.service.ExportTaskService;
 import com.tightening.service.MissionRecordService;
 import com.tightening.service.TighteningDataService;
+import com.tightening.service.WorkplaceStatusService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -43,6 +44,7 @@ class MissionOrchestratorTest {
     @Mock private DeviceRegistry deviceRegistry;
     @Mock private LocalSettings settings;
     @Mock private BarCodeMatchingRuleService barCodeMatchingRuleService;
+    @Mock private WorkplaceStatusService workplaceStatusService;
     @Mock private ApplicationEventPublisher publisher;
     @Mock private ITool mockTool;
 
@@ -57,7 +59,8 @@ class MissionOrchestratorTest {
         lenient().doNothing().when(exportTaskService).createTask(anyString(), anyLong(), anyString());
         factory = new LifecycleEngineFactory(
             missionRecordService, tighteningDataService, exportTaskService, settings,
-            Map.of(DeviceType.ATLAS_PF4000, judgmentStrategy), barCodeMatchingRuleService);
+            Map.of(DeviceType.ATLAS_PF4000, judgmentStrategy), barCodeMatchingRuleService,
+            workplaceStatusService);
         orchestrator = new MissionOrchestrator(factory, deviceRegistry, settings, publisher);
     }
 

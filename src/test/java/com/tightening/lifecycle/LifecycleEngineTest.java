@@ -133,7 +133,7 @@ class LifecycleEngineTest {
             .missionData(pm)
             .boltConfigs(List.of(bolt))
             .deviceRegistry(Map.of())
-            .shouldSelfLoop(false)
+            
             .build();
 
         engine.start(ctx);
@@ -170,7 +170,7 @@ class LifecycleEngineTest {
             .missionData(pm2)
             .boltConfigs(List.of(new ProductBolt().setBoltSerialNum(1)))
             .deviceRegistry(Map.of())
-            .shouldSelfLoop(false)
+            
             .missionRecord(record)
             .currentStage(Stage.OPERATION)
             .currentSubState(SubState.STORING)
@@ -193,7 +193,7 @@ class LifecycleEngineTest {
             .missionData(pm)
             .boltConfigs(List.of())
             .deviceRegistry(Map.of())
-            .shouldSelfLoop(false)
+            
             .build();
     }
 }

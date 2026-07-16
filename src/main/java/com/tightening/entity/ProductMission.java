@@ -1,6 +1,7 @@
 package com.tightening.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.tightening.constant.InspectionScope;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -22,5 +23,5 @@ public class ProductMission extends BaseEntity {
     private Integer multiDeviceIndependent;
     private Integer skipScrew;
     private Integer isInspection;
-    private Integer inspectionScope;
+    private InspectionScope inspectionScope;
 }

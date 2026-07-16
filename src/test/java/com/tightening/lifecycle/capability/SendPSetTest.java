@@ -39,7 +39,7 @@ class SendPSetTest {
         MissionContext ctx = MissionContext.builder()
             .productMissionId(1L).missionData(new ProductMission())
             .boltConfigs(List.of()).deviceRegistry(Map.of())
-            .shouldSelfLoop(false).build();
+            .build();
         assertThat(cap.precondition(ctx)).isFalse();
     }
 
@@ -50,7 +50,7 @@ class SendPSetTest {
         MissionContext ctx = MissionContext.builder()
             .productMissionId(1L).missionData(new ProductMission())
             .boltConfigs(List.of(bolt)).deviceRegistry(Map.of())
-            .shouldSelfLoop(false).build();
+            .build();
         assertThat(cap.precondition(ctx)).isFalse();
     }
 
@@ -61,7 +61,7 @@ class SendPSetTest {
         MissionContext ctx = MissionContext.builder()
             .productMissionId(1L).missionData(new ProductMission())
             .boltConfigs(List.of(bolt)).deviceRegistry(Map.of(1L, tool))
-            .shouldSelfLoop(false).build();
+            .build();
         // 通过 Answer 验证 sendPSet 被调用时 lockReasons 中已包含 PSET_SENDING
         when(tool.sendPSet(2)).thenAnswer(invocation -> {
             assertThat(ctx.getLockReasons()).contains(LockReason.PSET_SENDING);

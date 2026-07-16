@@ -56,7 +56,7 @@ class MissionLifecycleControllerTest {
                 .missionData(new com.tightening.entity.ProductMission())
                 .boltConfigs(java.util.List.of())
                 .deviceRegistry(java.util.Map.of())
-                .shouldSelfLoop(false)
+                
                 .build();
         ctx.setCurrentStage(com.tightening.constant.Stage.OPERATION);
         ctx.setCurrentSubState(com.tightening.constant.SubState.JUDGING);
@@ -82,7 +82,7 @@ class MissionLifecycleControllerTest {
                 .missionData(new com.tightening.entity.ProductMission())
                 .boltConfigs(java.util.List.of())
                 .deviceRegistry(java.util.Map.of())
-                .shouldSelfLoop(false)
+                
                 .build();
         when(engine.getContext()).thenReturn(ctx);
         when(engine.isAlive()).thenReturn(false);

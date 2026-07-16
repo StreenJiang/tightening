@@ -1,5 +1,7 @@
 package com.tightening.dto;
 
+import com.tightening.constant.InspectionScope;
+
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -19,5 +21,5 @@ public class ProductMissionDTO extends BaseDTO {
     private Integer multiDeviceIndependent;
     private Integer skipScrew;
     private Integer isInspection;
-    private Integer inspectionScope;
+    private InspectionScope inspectionScope;
 }

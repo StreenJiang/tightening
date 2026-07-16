@@ -53,7 +53,7 @@ class CancelTasksTest {
         MissionContext ctx = MissionContext.builder()
             .productMissionId(1L).missionData(new ProductMission())
             .boltConfigs(List.of()).deviceRegistry(Map.of())
-            .shouldSelfLoop(false).build();
+            .build();
 
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Pass);
     }

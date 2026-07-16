@@ -37,7 +37,6 @@ public class LifecycleEngineFactory {
             ProductMission mission,
             List<ProductBolt> bolts,
             Map<Long, ITool> deviceMap,
-            boolean shouldSelfLoop,
             @Nullable String productCode,
             @Nullable String partsCode) {
 
@@ -46,7 +45,6 @@ public class LifecycleEngineFactory {
             .missionData(mission)
             .boltConfigs(bolts)
             .deviceRegistry(deviceMap)
-            .shouldSelfLoop(shouldSelfLoop)
             .productCode(productCode)
             .partsCode(partsCode)
             .build();

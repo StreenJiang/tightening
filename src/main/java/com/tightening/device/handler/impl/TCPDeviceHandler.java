@@ -20,7 +20,6 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.AttributeKey;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.Closeable;
 import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -29,7 +28,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 @Slf4j
-public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
+public abstract class TCPDeviceHandler implements DeviceHandler {
 
     protected final TCPDeviceHandler self;
     protected final Bootstrap bootstrap;
@@ -283,10 +282,5 @@ public abstract class TCPDeviceHandler implements DeviceHandler, Closeable {
             return devices.get(deviceId).getStatus();
         }
         return DeviceStatus.NONE;
-    }
-
-    @Override
-    public void close() {
-        // shared NioEventLoopGroup managed by NettyConfig
     }
 }

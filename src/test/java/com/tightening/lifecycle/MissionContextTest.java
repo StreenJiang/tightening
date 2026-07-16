@@ -24,7 +24,7 @@ class MissionContextTest {
             .missionData(missionWithId(1L))
             .boltConfigs(List.of())
             .deviceRegistry(Map.of())
-            .shouldSelfLoop(false)
+            
             .build();
 
         assertThat(ctx.getCurrentStage()).isEqualTo(Stage.VALIDATION);
@@ -42,7 +42,7 @@ class MissionContextTest {
         MissionContext ctx = MissionContext.builder()
             .productMissionId(1L).missionData(missionWithId(1L))
             .boltConfigs(List.of(b1, b2)).deviceRegistry(Map.of())
-            .shouldSelfLoop(false)
+            
             .currentBoltIndex(1).build();
 
         assertThat(ctx.currentBolt().getBoltName()).isEqualTo("Bolt2");
@@ -64,7 +64,7 @@ class MissionContextTest {
         MissionContext ctx = MissionContext.builder()
             .productMissionId(1L).missionData(missionWithId(1L))
             .boltConfigs(List.of(b1, b2)).deviceRegistry(Map.of())
-            .shouldSelfLoop(false).build();
+            .build();
 
         ctx.setCurrentBoltIndex(0);
         assertThat(ctx.hasMoreBolts()).isTrue();
@@ -78,7 +78,7 @@ class MissionContextTest {
         MissionContext ctx = MissionContext.builder()
             .productMissionId(1L).missionData(missionWithId(1L))
             .boltConfigs(List.of(new ProductBolt(), new ProductBolt()))
-            .deviceRegistry(Map.of()).shouldSelfLoop(false)
+            .deviceRegistry(Map.of())
             .boltStates(new BoltState[]{BoltState.JUDGED_OK, BoltState.JUDGED_NG})
             .build();
 
@@ -91,7 +91,7 @@ class MissionContextTest {
         MissionContext ctx = MissionContext.builder()
             .productMissionId(1L).missionData(missionWithId(1L))
             .boltConfigs(List.of(new ProductBolt(), new ProductBolt()))
-            .deviceRegistry(Map.of()).shouldSelfLoop(false)
+            .deviceRegistry(Map.of())
             .boltStates(new BoltState[]{BoltState.JUDGED_OK, BoltState.PENDING})
             .build();
 
@@ -125,7 +125,7 @@ class MissionContextTest {
             .missionData(missionWithId(1L))
             .boltConfigs(List.of())
             .deviceRegistry(Map.of())
-            .shouldSelfLoop(false)
+            
             .build();
     }
 }

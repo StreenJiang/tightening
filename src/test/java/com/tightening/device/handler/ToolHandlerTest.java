@@ -95,10 +95,6 @@ class ToolHandlerTest {
         holder = handler.addDeviceInfo(device);
     }
 
-    @AfterEach
-    void tearDown() throws Exception {
-        handler.close();
-    }
 
     @Test
     @DisplayName("getTighteningDataService 应返回构造注入的 service")

@@ -57,7 +57,7 @@ class StoreDataTest {
         return MissionContext.builder()
             .productMissionId(1L).missionData(new ProductMission())
             .boltConfigs(List.of()).deviceRegistry(Map.of())
-            .shouldSelfLoop(false).currentOperationData(data)
+            .currentOperationData(data)
             .missionRecord(record).build();
     }
 }

@@ -36,7 +36,7 @@ class AngleRangeCheckTest {
         MissionContext ctx = MissionContext.builder()
                 .productMissionId(1L).missionData(new ProductMission())
                 .boltConfigs(List.of(bolt)).deviceRegistry(Map.of())
-                .shouldSelfLoop(false)
+                
                 .currentOperationData(data).build();
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Pass);
         assertThat(ctx.getExtras().get("angleInRange")).isEqualTo(true);
@@ -52,7 +52,7 @@ class AngleRangeCheckTest {
         MissionContext ctx = MissionContext.builder()
                 .productMissionId(1L).missionData(new ProductMission())
                 .boltConfigs(List.of(bolt)).deviceRegistry(Map.of())
-                .shouldSelfLoop(false)
+                
                 .currentOperationData(data).build();
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Pass);
         assertThat(ctx.getExtras().get("angleInRange")).isEqualTo(false);
@@ -65,7 +65,7 @@ class AngleRangeCheckTest {
         MissionContext ctx = MissionContext.builder()
                 .productMissionId(1L).missionData(new ProductMission())
                 .boltConfigs(List.of(bolt)).deviceRegistry(Map.of())
-                .shouldSelfLoop(false)
+                
                 .currentOperationData(data).build();
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Pass);
         assertThat(ctx.getExtras().get("angleInRange")).isEqualTo(false);
@@ -77,7 +77,7 @@ class AngleRangeCheckTest {
         MissionContext ctx = MissionContext.builder()
                 .productMissionId(1L).missionData(new ProductMission())
                 .boltConfigs(List.of(new ProductBolt())).deviceRegistry(Map.of())
-                .shouldSelfLoop(false)
+                
                 .currentOperationData(data).build();
         assertThat(cap.precondition(ctx)).isFalse();
     }
@@ -88,7 +88,7 @@ class AngleRangeCheckTest {
         MissionContext ctx = MissionContext.builder()
                 .productMissionId(1L).missionData(new ProductMission())
                 .boltConfigs(List.of()).deviceRegistry(Map.of())
-                .shouldSelfLoop(false).build();
+                .build();
         assertThat(cap.precondition(ctx)).isFalse();
     }
 
@@ -98,7 +98,7 @@ class AngleRangeCheckTest {
         MissionContext ctx = MissionContext.builder()
                 .productMissionId(1L).missionData(new ProductMission())
                 .boltConfigs(List.of(bolt)).deviceRegistry(Map.of())
-                .shouldSelfLoop(false)
+                
                 .currentOperationData(null).build();
         assertThat(cap.precondition(ctx)).isFalse();
     }

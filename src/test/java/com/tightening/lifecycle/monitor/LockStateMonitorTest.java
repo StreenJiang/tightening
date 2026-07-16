@@ -92,7 +92,7 @@ class LockStateMonitorTest {
     private static MissionContext ctxWithTool(ITool tool) {
         return MissionContext.builder()
             .productMissionId(1L)
-            .shouldSelfLoop(false)
+            
             .boltConfigs(java.util.List.of())
             .deviceRegistry(Map.of(1L, tool))
             .build();

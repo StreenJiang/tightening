@@ -68,7 +68,7 @@ class LockToolsTest {
         MissionContext ctx = MissionContext.builder()
             .productMissionId(1L).missionData(new ProductMission())
             .boltConfigs(List.of()).deviceRegistry(Map.of(101L, tool1, 102L, tool2))
-            .shouldSelfLoop(false).build();
+            .build();
 
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Pass);
         verify(tool1).sendLock();

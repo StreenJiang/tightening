@@ -13,7 +13,6 @@ device-config:
 tool-control:
   common:
     lock_unlock_cooldown_ms: 5000
-  atlas:
   fit:
     heart-beat-interval-ms: 30000
     heart-beat-retry-max: 3

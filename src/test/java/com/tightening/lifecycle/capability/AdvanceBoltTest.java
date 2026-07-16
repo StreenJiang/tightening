@@ -96,7 +96,7 @@ class AdvanceBoltTest {
         return MissionContext.builder()
             .productMissionId(1L).missionData(new ProductMission())
             .boltConfigs(bolts).deviceRegistry(Map.of())
-            .shouldSelfLoop(false)
+            
             .boltStates(new BoltState[count])
             .build();
     }

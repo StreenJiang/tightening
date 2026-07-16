@@ -70,7 +70,7 @@ class LifecycleEngineFactoryTest {
     void shouldCreateEngineWithContext() {
         var mission = new ProductMission();
         mission.setId(1L);
-        var engine = factory.createEngine(mission, List.of(), Map.of(), false, null, null);
+        var engine = factory.createEngine(mission, List.of(), Map.of(), null, null);
 
         assertThat(engine).isNotNull();
         assertThat(engine.getContext().getProductMissionId()).isEqualTo(1L);
@@ -92,7 +92,7 @@ class LifecycleEngineFactoryTest {
         bolt.setTorqueMax(10.0);
 
         testEngine = factory.createEngine(mission, List.of(bolt),
-                Map.of(1L, mockTool), false, null, null);
+                Map.of(1L, mockTool), null, null);
 
         CountDownLatch triggered = new CountDownLatch(1);
         CountDownLatch faulted = new CountDownLatch(1);

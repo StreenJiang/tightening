@@ -26,9 +26,6 @@ public class MissionContext {
     private final ProductMission missionData;
     private final List<ProductBolt> boltConfigs;       // 按 boltSerialNum 排序（调用方保证）
     private final Map<Long, ITool> deviceRegistry;
-    /** 可变 — 引擎在运行时可能修改（例如 SkipScrew 快速路径禁用自循环） */
-    @Builder.Default @Setter private boolean shouldSelfLoop;
-
     /** 可变 — 引擎核心代码维护 (volatile 确保 HTTP 线程读取可见性) */
     @Builder.Default @Setter private volatile Stage currentStage = Stage.VALIDATION;
     @Builder.Default @Setter private volatile SubState currentSubState = SubState.IDLE;

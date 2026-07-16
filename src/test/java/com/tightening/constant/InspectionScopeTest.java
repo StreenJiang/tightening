@@ -2,20 +2,24 @@ package com.tightening.constant;
 
 import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class InspectionScopeTest {
 
     @Test
     void fromCode_shouldReturnCorrectValue() {
-        assertThat(InspectionScope.fromCode(1)).contains(InspectionScope.ALL);
-        assertThat(InspectionScope.fromCode(2)).contains(InspectionScope.CHOSEN);
+        assertThat(InspectionScope.fromCode(1)).isEqualTo(InspectionScope.ALL);
+        assertThat(InspectionScope.fromCode(2)).isEqualTo(InspectionScope.CHOSEN);
     }
 
     @Test
-    void fromCode_shouldReturnEmptyForInvalidCode() {
-        assertThat(InspectionScope.fromCode(-1)).isEmpty();
-        assertThat(InspectionScope.fromCode(0)).isEmpty();
-        assertThat(InspectionScope.fromCode(3)).isEmpty();
+    void fromCode_shouldThrowForInvalidCode() {
+        assertThatThrownBy(() -> InspectionScope.fromCode(-1))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> InspectionScope.fromCode(0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> InspectionScope.fromCode(3))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

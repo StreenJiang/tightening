@@ -13,7 +13,7 @@ class MissionContextLockReasonsTest {
     void shouldStartWithEmptyLockReasons() {
         var ctx = MissionContext.builder()
             .productMissionId(1L)
-            .shouldSelfLoop(false)
+            
             .boltConfigs(java.util.List.of())
             .deviceRegistry(java.util.Map.of())
             .build();
@@ -26,7 +26,7 @@ class MissionContextLockReasonsTest {
     void shouldStartWithBoltUnlockOverrideFalse() {
         var ctx = MissionContext.builder()
             .productMissionId(1L)
-            .shouldSelfLoop(false)
+            
             .boltConfigs(java.util.List.of())
             .deviceRegistry(java.util.Map.of())
             .build();
@@ -39,7 +39,7 @@ class MissionContextLockReasonsTest {
     void shouldAddAndRemoveLockReasons() {
         var ctx = MissionContext.builder()
             .productMissionId(1L)
-            .shouldSelfLoop(false)
+            
             .boltConfigs(java.util.List.of())
             .deviceRegistry(java.util.Map.of())
             .build();
@@ -57,7 +57,7 @@ class MissionContextLockReasonsTest {
     void shouldSetBoltUnlockOverride() {
         var ctx = MissionContext.builder()
             .productMissionId(1L)
-            .shouldSelfLoop(false)
+            
             .boltConfigs(java.util.List.of())
             .deviceRegistry(java.util.Map.of())
             .build();

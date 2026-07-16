@@ -193,7 +193,6 @@ public class LifecycleEngine {
         ctx.setMissionRecord(record);
         ctx.setCurrentStage(Stage.FINALIZATION);
         ctx.setCurrentSubState(SubState.CLEANING_TASKS);
-        ctx.setShouldSelfLoop(false);
         postMessage(new InboundCommand.AdvancePipeline());
     }
 

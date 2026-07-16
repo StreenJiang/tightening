@@ -58,8 +58,7 @@ class TCPDeviceHandlerTest {
     }
 
     @AfterEach
-    void tearDown() throws Exception {
-        handler.close();
+    void tearDown() {
         group.shutdownGracefully();
     }
 

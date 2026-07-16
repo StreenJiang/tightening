@@ -1,5 +1,6 @@
 package com.tightening.entity;
 
+import com.tightening.constant.InspectionScope;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -20,7 +21,7 @@ class ProductMissionTest {
         original.setMultiDeviceIndependent(0);
         original.setSkipScrew(0);
         original.setIsInspection(0);
-        original.setInspectionScope(3);
+        original.setInspectionScope(InspectionScope.ALL);
 
         String json = mapper.writeValueAsString(original);
         ProductMission restored = mapper.readValue(json, ProductMission.class);
@@ -32,7 +33,7 @@ class ProductMissionTest {
         assertThat(restored.getMultiDeviceIndependent()).isEqualTo(0);
         assertThat(restored.getSkipScrew()).isEqualTo(0);
         assertThat(restored.getIsInspection()).isEqualTo(0);
-        assertThat(restored.getInspectionScope()).isEqualTo(3);
+        assertThat(restored.getInspectionScope()).isEqualTo(InspectionScope.ALL);
     }
 
     @Test

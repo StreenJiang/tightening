@@ -39,7 +39,7 @@ class ExportDataTest {
         MissionContext ctx = MissionContext.builder()
                 .productMissionId(1L).missionData(new ProductMission())
                 .boltConfigs(List.of()).deviceRegistry(Map.of())
-                .shouldSelfLoop(false)
+                
                 .missionRecord(record).build();
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Pass);
         ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
@@ -58,7 +58,7 @@ class ExportDataTest {
         MissionContext ctx = MissionContext.builder()
                 .productMissionId(1L).missionData(new ProductMission())
                 .boltConfigs(List.of()).deviceRegistry(Map.of())
-                .shouldSelfLoop(false).build();
+                .build();
         assertThat(cap.precondition(ctx)).isFalse();
     }
 }

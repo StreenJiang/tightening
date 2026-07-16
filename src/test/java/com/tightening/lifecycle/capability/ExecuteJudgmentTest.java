@@ -37,7 +37,7 @@ class ExecuteJudgmentTest {
         var ctx = MissionContext.builder()
             .productMissionId(1L).missionData(new ProductMission())
             .boltConfigs(List.of()).deviceRegistry(Map.of())
-            .shouldSelfLoop(false).currentOperationData(data).build();
+            .currentOperationData(data).build();
         ctx.setCurrentDeviceType(DeviceType.ATLAS_PF4000);
 
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Pass);
@@ -51,7 +51,7 @@ class ExecuteJudgmentTest {
         var ctx = MissionContext.builder()
             .productMissionId(1L).missionData(new ProductMission())
             .boltConfigs(List.of()).deviceRegistry(Map.of())
-            .shouldSelfLoop(false).build();
+            .build();
 
         assertThat(cap.precondition(ctx)).isFalse();
     }

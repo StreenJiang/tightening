@@ -28,7 +28,7 @@ class WorkstationConfigCheckTest {
                 .missionData(new ProductMission())
                 .boltConfigs(List.of(new ProductBolt()))
                 .deviceRegistry(Map.of(1L, mock(ITool.class)))
-                .shouldSelfLoop(false)
+                
                 .build();
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Pass);
     }
@@ -41,7 +41,7 @@ class WorkstationConfigCheckTest {
                 .missionData(new ProductMission())
                 .boltConfigs(List.of())
                 .deviceRegistry(Map.of(1L, mock(ITool.class)))
-                .shouldSelfLoop(false)
+                
                 .build();
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Fail);
     }
@@ -54,7 +54,7 @@ class WorkstationConfigCheckTest {
                 .missionData(new ProductMission())
                 .boltConfigs(null)
                 .deviceRegistry(Map.of(1L, mock(ITool.class)))
-                .shouldSelfLoop(false)
+                
                 .build();
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Fail);
     }
@@ -67,7 +67,7 @@ class WorkstationConfigCheckTest {
                 .missionData(new ProductMission())
                 .boltConfigs(List.of(new ProductBolt()))
                 .deviceRegistry(Map.of())
-                .shouldSelfLoop(false)
+                
                 .build();
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Fail);
     }
@@ -80,7 +80,7 @@ class WorkstationConfigCheckTest {
                 .missionData(new ProductMission())
                 .boltConfigs(List.of(new ProductBolt()))
                 .deviceRegistry(null)
-                .shouldSelfLoop(false)
+                
                 .build();
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Fail);
     }
@@ -93,7 +93,7 @@ class WorkstationConfigCheckTest {
                 .missionData(null)
                 .boltConfigs(List.of(new ProductBolt()))
                 .deviceRegistry(Map.of(1L, mock(ITool.class)))
-                .shouldSelfLoop(false)
+                
                 .build();
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Fail);
     }

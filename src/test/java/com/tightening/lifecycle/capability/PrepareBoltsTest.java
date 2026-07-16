@@ -43,7 +43,7 @@ class PrepareBoltsTest {
         MissionContext ctx = MissionContext.builder()
             .productMissionId(1L).missionData(new ProductMission())
             .boltConfigs(null).deviceRegistry(Map.of())
-            .shouldSelfLoop(false).build();
+            .build();
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Fail);
     }
 
@@ -54,6 +54,6 @@ class PrepareBoltsTest {
         return MissionContext.builder()
             .productMissionId(1L).missionData(new ProductMission())
             .boltConfigs(bolts).deviceRegistry(Map.of())
-            .shouldSelfLoop(false).build();
+            .build();
     }
 }

@@ -1,5 +1,6 @@
 package com.tightening.controller;
 
+import com.tightening.constant.InspectionScope;
 import com.tightening.dto.ApiResponse;
 import com.tightening.dto.BarCodeMatchingRuleDTO;
 import com.tightening.dto.InspectionMissionBindingDTO;
@@ -71,6 +72,7 @@ public class ProductMissionController {
     @PostMapping
     public ResponseEntity<ApiResponse<String>> create(@RequestBody ProductMissionDTO dto) {
         ProductMission entity = Converter.dto2Entity(dto, ProductMission::new);
+        if (entity.getInspectionScope() == null) entity.setInspectionScope(InspectionScope.NONE);
         try {
             missionService.saveOrUpdate(entity);
             return ResponseEntity.ok(ApiResponse.ok(String.valueOf(entity.getId())));
@@ -78,7 +80,7 @@ public class ProductMissionController {
             return ResponseEntity.ok(ApiResponse.fail("任务名称已存在"));
         } catch (Exception e) {
             log.error("Create mission failed", e);
-            return ResponseEntity.ok(ApiResponse.fail("创建失败"));
+            return ResponseEntity.ok(ApiResponse.fail("更新失败"));
         }
     }
 
@@ -87,6 +89,7 @@ public class ProductMissionController {
         try {
             ProductMission entity = Converter.dto2Entity(dto, ProductMission::new);
             entity.setId(id);
+            if (entity.getInspectionScope() == null) entity.setInspectionScope(InspectionScope.NONE);
             missionService.saveOrUpdate(entity);
             return ResponseEntity.ok(ApiResponse.ok(String.valueOf(entity.getId())));
         } catch (DuplicateKeyException e) {

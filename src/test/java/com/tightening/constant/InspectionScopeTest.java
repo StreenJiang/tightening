@@ -8,6 +8,7 @@ class InspectionScopeTest {
 
     @Test
     void fromCode_shouldReturnCorrectValue() {
+        assertThat(InspectionScope.fromCode(0)).isEqualTo(InspectionScope.NONE);
         assertThat(InspectionScope.fromCode(1)).isEqualTo(InspectionScope.ALL);
         assertThat(InspectionScope.fromCode(2)).isEqualTo(InspectionScope.CHOSEN);
     }
@@ -15,8 +16,6 @@ class InspectionScopeTest {
     @Test
     void fromCode_shouldThrowForInvalidCode() {
         assertThatThrownBy(() -> InspectionScope.fromCode(-1))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> InspectionScope.fromCode(0))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> InspectionScope.fromCode(3))
                 .isInstanceOf(IllegalArgumentException.class);

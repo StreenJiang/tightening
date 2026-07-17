@@ -23,5 +23,5 @@ public class ProductMission extends BaseEntity {
     private Integer multiDeviceIndependent;
     private Integer skipScrew;
     private Integer isInspection;
-    private InspectionScope inspectionScope;
+    private InspectionScope inspectionScope = InspectionScope.NONE;
 }

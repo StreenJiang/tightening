@@ -17,6 +17,13 @@ class InspectionScopeMappingTest {
     }
 
     @Test
+    @DisplayName("NONE → code=0 → fromCode(0) 回 NONE")
+    void noneRoundTrip() {
+        assertThat(InspectionScope.NONE.getCode()).isEqualTo(0);
+        assertThat(InspectionScope.fromCode(0)).isEqualTo(InspectionScope.NONE);
+    }
+
+    @Test
     @DisplayName("CHOSEN → code=2 → fromCode(2) 回 CHOSEN")
     void chosenRoundTrip() {
         assertThat(InspectionScope.CHOSEN.getCode()).isEqualTo(2);

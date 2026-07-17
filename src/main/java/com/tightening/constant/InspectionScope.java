@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 
 @Getter
 public enum InspectionScope {
+    NONE(0),
     ALL(1),
     CHOSEN(2);
 

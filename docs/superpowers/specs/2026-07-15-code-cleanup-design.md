@@ -70,18 +70,18 @@ MyBatis-Plus 全局软删除已配置（`logic-delete-field: deleted`），`Base
 
 `InspectionScope` 枚举加 `@EnumValue` + `@JsonValue` 在 `code` 字段上（MyBatis-Plus 读写 + Jackson 序列化为整数），`@JsonCreator` 在 `fromCode()` 上（Jackson 反序列化）。`application.yaml` 的 `mybatis-plus.configuration` 段增加 `default-enum-type-handler: com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler`，MyBatis-Plus 3.5.16 自动接管所有 `@EnumValue` 枚举。
 
-### 2.4 保留
+### 2.4 保留 → 已删除（2026-07-17 体检后）
 
-- **IoDeviceType** — 预留 ARRANGER/SETTER_SELECTOR，后续 SendArrangerSignal/SendSetterSelector 激活时使用
-- **ReworkStatus** — DB `mission_record.is_rework` 字段已存在（Flyway V1.0.7），实体侧字段待补，枚举后续使用
+- ~~**IoDeviceType**~~ — 已于 2026-07-17 删除。ARRANGER/SETTER_SELECTOR 激活时直接使用 integer 常量即可
+- ~~**ReworkStatus**~~ — 已于 2026-07-17 删除。`mission_record.is_rework` 字段当前用 Integer，无需枚举
 
 ---
 
 ## 3. G6 — 清理死配置
 
-### 3.1 保留 FieldDescription
+### 3.1 保留 FieldDescription → 已删除（2026-07-17 体检后）
 
-后续 i18n 实现时使用，不删。
+零引用且 i18n 方案未定，已于 2026-07-17 删除。后续 i18n 需要时按实际方案重新添加。
 
 ### 3.2 application.yaml
 

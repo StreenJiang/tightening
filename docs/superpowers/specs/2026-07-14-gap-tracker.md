@@ -10,7 +10,7 @@
 
 ---
 
-> **更新 2026-07-17**: T2-T7, G1-G4, G8, N5, N7 纳入 [技术债务清理设计文档](2026-07-17-tech-debt-cleanup-design.md) 和 [实现计划](../plans/2026-07-17-tech-debt-cleanup-plan.md)。T1/T4(部分)/T5(部分)/T8 排除。
+> **更新 2026-07-17**: T2-T7, G1-G4, G8, N5, N7 纳入 [技术债务清理设计文档](2026-07-17-tech-debt-cleanup-design.md) 和 [实现计划](../plans/2026-07-17-tech-debt-cleanup-plan.md)。T1/T4(部分)/T5(部分)/T8 排除。体检后发现 G5/G6 有漏网之鱼（`IoDeviceType`、`ReworkStatus`、`@FieldDescription`），已于同日补充删除。CLAUDE.md 及 [code-cleanup-design](2026-07-15-code-cleanup-design.md) 同步更新。
 
 ## 🐛 Bug
 
@@ -115,21 +115,23 @@ Entity 有 `contextSnapshot` 和 `faultMessage`，DTO 没有。
 | `REASSEMBLY_TIMEOUT_MS` | `FitCurveDataReassembler.java:26` | 10000ms |
 | HeartbeatFuture timeout | `HeartbeatHandler.java:174` | 5000ms |
 
-### G5. 五个未使用的枚举
+### G5. 五个未使用的枚举 ✅
 
 `IoDeviceType`、`ReworkStatus`、`InspectionScope`、`DeleteStatus`、`TCPCommand`
 
 其中 `ReworkStatus`/`InspectionScope` 在实体中用 Integer 而非枚举，不一致。
 
-### G6. 未使用的注解和配置
+**最终处理**: `DeleteStatus`、`TCPCommand` 于 e8a61c9 删除；`IoDeviceType`、`ReworkStatus` 于 2026-07-17 体检后删除；`InspectionScope` 保留（ProductMission/ProductMissionDTO 实际使用）。
 
-| 项目 | 文件 |
-|------|------|
-| `@FieldDescription` 注解 | `annotation/FieldDescription.java` — 零引用 |
-| `monitoring.*` 4 属性 | `application.yaml:84-88` — 无对应 `@ConfigurationProperties` |
-| `spring.jpa.hibernate.ddl-auto` | `application.yaml:28` — MyBatis-Plus 项目，无 JPA |
-| `tool-control.atlas:` 空段 | `application-dev.yml:16` — 无属性、无对应 Java 类 |
-| `com.tightening.repository: DEBUG` | `application.yaml:81` — 包不存在，应为 `com.tightening.mapper` |
+### G6. 未使用的注解和配置 ✅
+
+| 项目 | 文件 | 处理 |
+|------|------|------|
+| `@FieldDescription` 注解 | `annotation/FieldDescription.java` — 零引用 | 于 2026-07-17 删除 |
+| `monitoring.*` 4 属性 | `application.yaml:84-88` — 无对应 `@ConfigurationProperties` | 已删除 |
+| `spring.jpa.hibernate.ddl-auto` | `application.yaml:28` — MyBatis-Plus 项目，无 JPA | 已删除 |
+| `tool-control.atlas:` 空段 | `application-dev.yml:16` — 无属性、无对应 Java 类 | 已删除 |
+| `com.tightening.repository: DEBUG` | `application.yaml:81` — 包不存在，应为 `com.tightening.mapper` | 已修正 |
 
 ### G7. TCPDeviceHandler.close() 空实现
 

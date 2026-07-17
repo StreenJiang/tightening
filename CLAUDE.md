@@ -45,7 +45,6 @@ dto/            数据传输对象
 constant/       枚举常量（设备类型、协议命令码、拧紧结果等）
 config/         配置类（DeviceConfig, FitConfig, ToolCommonConfig）
 util/           工具类（JsonUtils, Converter）
-annotation/     自定义注解（FieldDescription）
 ```
 
 ## 设备处理继承链

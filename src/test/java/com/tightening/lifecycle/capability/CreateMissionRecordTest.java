@@ -35,14 +35,14 @@ class CreateMissionRecordTest {
     void shouldCreateRecordAndSetOnContext() {
         MissionRecord record = new MissionRecord();
         record.setId(42L);
-        when(missionRecordService.createRecord(1L, null, 0)).thenReturn(record);
+        when(missionRecordService.createRecord(1L, null, null, 0)).thenReturn(record);
 
         MissionContext ctx = minimalContext();
         CapabilityResult result = cap.execute(ctx);
 
         assertThat(result).isEqualTo(CapabilityResult.Pass);
         assertThat(ctx.getMissionRecord().getId()).isEqualTo(42L);
-        verify(missionRecordService).createRecord(1L, null, 0);
+        verify(missionRecordService).createRecord(1L, null, null, 0);
     }
 
     private static MissionContext minimalContext() {

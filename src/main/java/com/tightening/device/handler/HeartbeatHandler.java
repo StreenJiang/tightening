@@ -27,7 +27,8 @@ import static com.tightening.device.handler.impl.TCPDeviceHandler.DEVICE_ID;
  * <p>使用示例：
  * <pre>{@code
  * HeartbeatHandler heartbeatHandler = new HeartbeatHandler(
- *     3,   // 最大重试次数
+ *     3,        // 最大重试次数
+ *     5000,     // 心跳响应超时(ms)
  *     deviceId -> sendHeartbeat(deviceId)  // 心跳发送逻辑
  * );
  *
@@ -41,6 +42,7 @@ public class HeartbeatHandler extends ChannelDuplexHandler {
 
     @Getter
     private final int maxRetryCount;
+    private final long timeoutMs;
     @Getter
     private volatile int retryCount = 0;
     @Getter
@@ -51,9 +53,11 @@ public class HeartbeatHandler extends ChannelDuplexHandler {
      * 构造函数
      *
      * @param maxRetryCount 最大重试次数
+     * @param timeoutMs     心跳响应超时（毫秒）
      * @param heartbeatFunc 心跳发送逻辑（返回 CompletableFuture&lt;Boolean&gt;）
      */
-    public HeartbeatHandler(int maxRetryCount, Function<Long, CompletableFuture<Boolean>> heartbeatFunc) {
+    public HeartbeatHandler(int maxRetryCount, long timeoutMs,
+                             Function<Long, CompletableFuture<Boolean>> heartbeatFunc) {
         if (maxRetryCount < 0) {
             throw new IllegalArgumentException("maxRetryCount must be >= 0");
         }
@@ -62,9 +66,10 @@ public class HeartbeatHandler extends ChannelDuplexHandler {
         }
 
         this.maxRetryCount = maxRetryCount;
+        this.timeoutMs = timeoutMs;
         this.heartbeatFunc = heartbeatFunc;
 
-        log.info("HeartbeatHandler initialized: maxRetry={}", maxRetryCount);
+        log.info("HeartbeatHandler initialized: maxRetry={}, timeoutMs={}", maxRetryCount, timeoutMs);
     }
 
     /**
@@ -171,7 +176,7 @@ public class HeartbeatHandler extends ChannelDuplexHandler {
         }
 
         // 设置超时保护（避免 Supplier 返回的 Future 永不完成）
-        future.orTimeout(5, TimeUnit.SECONDS)
+        future.orTimeout(timeoutMs, TimeUnit.MILLISECONDS)
                 .whenComplete((success, ex) -> {
                     // 确保在 EventLoop 线程中处理
                     if (ctx.channel().eventLoop().inEventLoop()) {

@@ -1,5 +1,6 @@
 package com.tightening.controller;
 
+import com.tightening.config.ToolCommonConfig;
 import com.tightening.device.DeviceManager;
 import com.tightening.device.handler.DeviceHandler;
 import com.tightening.device.handler.ToolHandler;
@@ -14,19 +15,19 @@ import org.springframework.web.context.request.async.DeferredResult;
 
 import java.util.concurrent.CompletableFuture;
 
-import static com.tightening.constant.ToolConstants.CMD_TIMEOUT_MS;
-
 @RestController
 @RequestMapping("api/devices")
 public class DeviceController {
 
     @Autowired
     private DeviceManager deviceManager;
+    @Autowired
+    private ToolCommonConfig toolCommonConfig;
 
     @PutMapping("/{id}/enable")
     public DeferredResult<ResponseEntity<Boolean>> enableTool(@PathVariable("id") long deviceId) {
         DeviceHandler handler = deviceManager.getHandler(deviceId);
-        DeferredResult<ResponseEntity<Boolean>> deferredResult = new DeferredResult<>(CMD_TIMEOUT_MS);
+        DeferredResult<ResponseEntity<Boolean>> deferredResult = new DeferredResult<>(toolCommonConfig.getCmdTimeoutMs());
         deferredResult.onTimeout(() -> deferredResult.setResult(ResponseEntity.status(408).body(false)));
 
         if (handler instanceof ToolHandler toolHandler) {
@@ -44,7 +45,7 @@ public class DeviceController {
     @PutMapping("/{id}/disable")
     public DeferredResult<ResponseEntity<Boolean>> disableTool(@PathVariable("id") long deviceId) {
         DeviceHandler handler = deviceManager.getHandler(deviceId);
-        DeferredResult<ResponseEntity<Boolean>> deferredResult = new DeferredResult<>(CMD_TIMEOUT_MS);
+        DeferredResult<ResponseEntity<Boolean>> deferredResult = new DeferredResult<>(toolCommonConfig.getCmdTimeoutMs());
         deferredResult.onTimeout(() -> deferredResult.setResult(ResponseEntity.status(408).body(false)));
 
         if (handler instanceof ToolHandler toolHandler) {
@@ -73,7 +74,7 @@ public class DeviceController {
     public DeferredResult<ResponseEntity<Boolean>> sendPSet(@PathVariable("id") long deviceId,
                                                             @PathVariable int pSet) {
         DeviceHandler handler = deviceManager.getHandler(deviceId);
-        DeferredResult<ResponseEntity<Boolean>> deferredResult = new DeferredResult<>(CMD_TIMEOUT_MS);
+        DeferredResult<ResponseEntity<Boolean>> deferredResult = new DeferredResult<>(toolCommonConfig.getCmdTimeoutMs());
         deferredResult.onTimeout(() -> deferredResult.setResult(ResponseEntity.status(408).body(false)));
 
         if (handler instanceof ToolHandler toolHandler) {

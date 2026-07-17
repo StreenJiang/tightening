@@ -14,10 +14,12 @@ import com.tightening.constant.MissionResult;
 @Service
 public class MissionRecordService extends ServiceImpl<MissionRecordMapper, MissionRecord> {
 
-    public MissionRecord createRecord(Long productMissionId, String productCode, Integer isRework) {
+    public MissionRecord createRecord(Long productMissionId, String productCode,
+                                       String partsCode, Integer isRework) {
         MissionRecord record = new MissionRecord()
                 .setProductMissionId(productMissionId)
                 .setProductCode(productCode)
+                .setPartsCode(partsCode)
                 .setIsRework(isRework)
                 .setMissionResult(MissionResult.NG.getCode());
         save(record);

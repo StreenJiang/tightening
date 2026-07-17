@@ -46,13 +46,11 @@ public class FitSeriesInBoundHandler extends SimpleChannelInboundHandler<FitFram
                     break;
                 case TIGHTEN_FINAL:
                     TighteningDataDTO tighteningDataDTO = FitTighteningDataParser.parse(data);
-                    // TODO: 这里需要对 tighteningDataDTO 中的任务（配方）相关的数据进行补充，包括 mission record
                     deviceHandler.handleTighteningData(tighteningDataDTO, ctx.channel());
                     // TODO: 这里需要 SSE 给前端发送拧紧数据，必须包含结果
                     break;
                 case CURVE:
                     CurveDataDTO curveDataDTO = FitCurveDataParser.parse(data);
-                    // TODO: 这里需要对 curveDataDTO 中的任务（配方）相关的数据进行补充，包括 mission record
                     deviceHandler.handleCurveData(curveDataDTO, ctx.channel());
                     // TODO: 这里需要 SSE 给前端发送拧紧数据，必须包含结果
                     break;

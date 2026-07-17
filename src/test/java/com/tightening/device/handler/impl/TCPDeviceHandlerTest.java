@@ -1,5 +1,7 @@
 package com.tightening.device.handler.impl;
 
+import com.tightening.config.DeviceConfig;
+import com.tightening.config.ToolCommonConfig;
 import com.tightening.constant.DeviceStatus;
 import com.tightening.constant.atlas.AtlasCommandType;
 import com.tightening.device.DeviceHolder;
@@ -38,8 +40,14 @@ class TCPDeviceHandlerTest {
 
     @BeforeEach
     void setUp() {
+        ToolCommonConfig toolCommonConfig = new ToolCommonConfig();
+        toolCommonConfig.setCmdTimeoutMs(5000);
+        DeviceConfig deviceConfig = new DeviceConfig();
+        deviceConfig.setReconnectIntervalMs(3000);
+        deviceConfig.setConnectThread(new DeviceConfig.ConnectThread());
+        deviceConfig.setScanThread(new DeviceConfig.ScanThread());
         group = new NioEventLoopGroup(1);
-        handler = new TCPDeviceHandler(group, deviceService) {
+        handler = new TCPDeviceHandler(group, deviceService, toolCommonConfig, deviceConfig) {
             @Override
             public java.util.Set<com.tightening.constant.DeviceType> getSupportedTypes() {
                 return java.util.Set.of();

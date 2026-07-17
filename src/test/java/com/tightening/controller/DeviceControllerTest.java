@@ -1,8 +1,10 @@
 package com.tightening.controller;
 
+import com.tightening.config.ToolCommonConfig;
 import com.tightening.device.DeviceManager;
 import com.tightening.device.handler.DeviceHandler;
 import com.tightening.device.handler.ToolHandler;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -14,6 +16,7 @@ import org.springframework.web.context.request.async.DeferredResult;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -29,8 +32,16 @@ class DeviceControllerTest {
     @Mock
     private DeviceHandler deviceHandler;
 
+    @Mock
+    private ToolCommonConfig toolCommonConfig;
+
     @InjectMocks
     private DeviceController controller;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(toolCommonConfig.getCmdTimeoutMs()).thenReturn(5000L);
+    }
 
     // ============ enableTool ============
 

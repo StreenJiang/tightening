@@ -10,4 +10,6 @@ import org.springframework.stereotype.Component;
 public class FitConfig {
     private long heartBeatIntervalMs;
     private int heartBeatRetryMax;
+    private long reassemblyTimeoutMs;
+    private long heartBeatTimeoutMs;
 }

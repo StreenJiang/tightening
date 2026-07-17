@@ -7,6 +7,7 @@ public enum LockReason {
     PSET_SENDING("pSetSending", "程序号下发中"),
     ARRANGER_POSITIONING("arrangerPositioning", "送钉中"),
     SOCKET_SELECTING("socketSelecting", "套筒选择中"),
+    BARCODE_REQUIRED("barcodeRequired", "请录入物料码"),
     ADMIN_CONFIRM("adminConfirm", "需管理员确认");
 
     private final String key;

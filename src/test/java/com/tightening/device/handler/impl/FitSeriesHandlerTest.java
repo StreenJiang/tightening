@@ -1,5 +1,6 @@
 package com.tightening.device.handler.impl;
 
+import com.tightening.config.DeviceConfig;
 import com.tightening.config.FitConfig;
 import com.tightening.config.ToolCommonConfig;
 import com.tightening.constant.DeviceType;
@@ -34,15 +35,18 @@ class FitSeriesHandlerTest {
     private final ToolCommonConfig toolCommonConfig = new ToolCommonConfig();
     private final FitConfig fitConfig = new FitConfig();
 
+    @Mock
+    private DeviceConfig deviceConfig;
+
     @Test
     void constructFitSeriesHandler_shouldBeNonNull() {
-        FitSeriesHandler handler = new FitSeriesHandler(group, deviceService, fitConfig, tighteningDataService, curveDataService, toolCommonConfig);
+        FitSeriesHandler handler = new FitSeriesHandler(group, deviceService, fitConfig, tighteningDataService, curveDataService, toolCommonConfig, deviceConfig);
         assertThat(handler).isNotNull();
     }
 
     @Test
     void getSupportedTypes_shouldReturnFitType() {
-        FitSeriesHandler handler = new FitSeriesHandler(group, deviceService, fitConfig, tighteningDataService, curveDataService, toolCommonConfig);
+        FitSeriesHandler handler = new FitSeriesHandler(group, deviceService, fitConfig, tighteningDataService, curveDataService, toolCommonConfig, deviceConfig);
         Set<DeviceType> types = handler.getSupportedTypes();
         assertThat(types).containsExactly(DeviceType.FIT_FTC6);
     }

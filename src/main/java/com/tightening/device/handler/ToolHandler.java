@@ -1,5 +1,6 @@
 package com.tightening.device.handler;
 
+import com.tightening.config.DeviceConfig;
 import com.tightening.config.ToolCommonConfig;
 import com.tightening.device.DeviceHolder;
 import com.tightening.device.contract.ToolAdapter;
@@ -17,7 +18,12 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+
+import static com.tightening.device.handler.impl.TCPDeviceHandler.DEVICE_ID;
 
 @Slf4j
 public abstract class ToolHandler extends TCPDeviceHandler {
@@ -29,13 +35,15 @@ public abstract class ToolHandler extends TCPDeviceHandler {
     private final ToolCommonConfig toolCommonConfig;
 
     private volatile ToolAdapter toolAdapter;
+    private final Map<Long, DeviceTighteningCache> cacheByDevice = new ConcurrentHashMap<>();
 
     public ToolHandler(NioEventLoopGroup group,
                        DeviceService deviceService,
                        TighteningDataService tighteningDataService,
                        CurveDataService curveDataService,
-                       ToolCommonConfig toolCommonConfig) {
-        super(group, deviceService);
+                       ToolCommonConfig toolCommonConfig,
+                       DeviceConfig deviceConfig) {
+        super(group, deviceService, toolCommonConfig, deviceConfig);
         this.tighteningDataService = tighteningDataService;
         this.curveDataService = curveDataService;
         this.toolCommonConfig = toolCommonConfig;
@@ -164,14 +172,41 @@ public abstract class ToolHandler extends TCPDeviceHandler {
         } else {
             log.warn("ToolAdapter not set for device, dropping tightening data: tighteningId={}", dto.getTighteningId());
         }
+
+        long deviceId = channel.attr(DEVICE_ID).get();
+        DeviceTighteningCache cache = cacheByDevice.computeIfAbsent(deviceId, k -> new DeviceTighteningCache());
+        cache.byId.put(dto.getTighteningId(), dto);
+        cache.latest = dto;
     }
 
     public void handleCurveData(CurveDataDTO dto, Channel channel) {
-        if (toolAdapter != null) {
-            toolAdapter.fireCurveData(dto);
-        }
         CurveData data = Converter.dto2Entity(dto, CurveData::new);
+
+        long deviceId = channel.attr(DEVICE_ID).get();
+        DeviceTighteningCache cache = cacheByDevice.get(deviceId);
+        if (cache != null) {
+            TighteningDataDTO matched = cache.byId.get((long) dto.getTighteningId());
+            if (matched == null) {
+                matched = cache.latest;
+            }
+            if (matched != null) {
+                data.setMissionRecordId(matched.getMissionRecordId());
+                data.setBoltSerialNum(matched.getBoltSerialNum());
+                data.setWorkstationName(matched.getWorkstationName());
+                data.setParameterSet(matched.getParameterSet());
+            }
+        }
+
         curveDataService.save(data);
+    }
+
+    private static class DeviceTighteningCache {
+        final Map<Long, TighteningDataDTO> byId = new LinkedHashMap<>(16, 0.75f, true) {
+            protected boolean removeEldestEntry(Map.Entry<Long, TighteningDataDTO> eldest) {
+                return size() > 20;
+            }
+        };
+        volatile TighteningDataDTO latest;
     }
 
     public void handleAlarm(String alarmMsg, long deviceId) {

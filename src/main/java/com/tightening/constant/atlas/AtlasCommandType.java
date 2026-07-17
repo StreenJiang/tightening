@@ -12,7 +12,6 @@ import java.util.Map;
 @Getter
 public enum AtlasCommandType {
 
-    // TODO: need i18n here for String description
     CONNECT(1, "连接设备"),
     CONNECT_ACK(2, "连接设备_成功反馈"),
     DISCONNECT(3, "结束连接"),

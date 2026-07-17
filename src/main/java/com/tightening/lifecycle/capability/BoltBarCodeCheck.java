@@ -1,9 +1,13 @@
 package com.tightening.lifecycle.capability;
 
+import com.tightening.constant.LockReason;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
+import com.tightening.entity.ProductBolt;
 import com.tightening.lifecycle.MissionContext;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class BoltBarCodeCheck implements Capability {
     @Override public String id() { return "BoltBarCodeCheck"; }
     @Override public Stage stage() { return Stage.OPERATION; }
@@ -11,8 +15,25 @@ public class BoltBarCodeCheck implements Capability {
     @Override public int priority() { return 3; }
 
     @Override
-    public boolean precondition(MissionContext ctx) { return false; }
+    public boolean precondition(MissionContext ctx) {
+        ProductBolt bolt = ctx.currentBolt();
+        if (bolt == null) return false;
+        return ctx.getBoltBarcodeRuleIds().containsKey(bolt.getId());
+    }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) { return CapabilityResult.Skip; }
+    public CapabilityResult execute(MissionContext ctx) {
+        ProductBolt bolt = ctx.currentBolt();
+        Long ruleId = ctx.getBoltBarcodeRuleIds().get(bolt.getId());
+
+        if (ctx.getPartsCode() == null || ctx.getPartsCode().isEmpty()) {
+            ctx.getLockReasons().add(LockReason.BARCODE_REQUIRED);
+            log.debug("Bolt {} requires barcode scan (ruleId={})", bolt.getBoltSerialNum(), ruleId);
+            return CapabilityResult.Pass;
+        }
+
+        ctx.getLockReasons().remove(LockReason.BARCODE_REQUIRED);
+        log.debug("Bolt {} barcode check passed", bolt.getBoltSerialNum());
+        return CapabilityResult.Pass;
+    }
 }

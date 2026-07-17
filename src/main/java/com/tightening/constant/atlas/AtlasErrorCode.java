@@ -8,7 +8,6 @@ import java.util.Optional;
 
 public enum AtlasErrorCode {
 
-    // TODO: need i18n here for String description
     NO_ERROR(0, "No Error"),
     INVALID_DATA(1, "Invalid data"),
     PARAMETER_SET_ID_NOT_PRESENT(2, "Parameter set ID not present"),

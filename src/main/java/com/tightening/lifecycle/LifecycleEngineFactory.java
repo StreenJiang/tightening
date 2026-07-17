@@ -10,7 +10,9 @@ import org.springframework.lang.Nullable;
 import com.tightening.lifecycle.capability.*;
 import com.tightening.lifecycle.monitor.LockStateMonitor;
 import com.tightening.lifecycle.monitor.PersistentMonitor;
+import com.tightening.entity.BoltPartsBarcode;
 import com.tightening.service.BarCodeMatchingRuleService;
+import com.tightening.service.BoltPartsBarcodeService;
 import com.tightening.service.ExportTaskService;
 import com.tightening.service.MissionRecordService;
 import com.tightening.service.TighteningDataService;
@@ -20,6 +22,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -31,6 +34,7 @@ public class LifecycleEngineFactory {
     private final LocalSettings settings;
     private final Map<DeviceType, JudgmentStrategy> judgmentStrategies;
     private final BarCodeMatchingRuleService barCodeMatchingRuleService;
+    private final BoltPartsBarcodeService partsBarcodeService;
     private final WorkplaceStatusService workplaceStatusService;
 
     public LifecycleEngine createEngine(
@@ -40,6 +44,12 @@ public class LifecycleEngineFactory {
             @Nullable String productCode,
             @Nullable String partsCode) {
 
+        List<Long> boltIds = bolts.stream().map(ProductBolt::getId).toList();
+        Map<Long, Long> barcodeMap = boltIds.isEmpty() ? Map.of() : partsBarcodeService.lambdaQuery()
+                .in(BoltPartsBarcode::getProductBoltId, boltIds)
+                .list().stream()
+                .collect(Collectors.toMap(BoltPartsBarcode::getProductBoltId, BoltPartsBarcode::getBarCodeMatchingRuleId));
+
         MissionContext ctx = MissionContext.builder()
             .productMissionId(mission.getId())
             .missionData(mission)
@@ -47,6 +57,7 @@ public class LifecycleEngineFactory {
             .deviceRegistry(deviceMap)
             .productCode(productCode)
             .partsCode(partsCode)
+            .boltBarcodeRuleIds(barcodeMap)
             .build();
 
         PipelineDefinition pipeline = PipelineDefinition.createDefault();

@@ -3,7 +3,6 @@ package com.tightening.device.contract;
 import com.tightening.constant.DeviceType;
 import com.tightening.constant.DeviceStatus;
 import com.tightening.device.handler.ToolHandler;
-import com.tightening.dto.CurveDataDTO;
 import com.tightening.dto.TighteningDataDTO;
 import com.tightening.entity.Device;
 
@@ -20,7 +19,6 @@ public class ToolAdapter implements ITool {
     private final ToolHandler handler;
     private final Device device;
     private final List<Consumer<TighteningDataDTO>> tighteningDataListeners = new CopyOnWriteArrayList<>();
-    private final List<Consumer<CurveDataDTO>> curveDataListeners = new CopyOnWriteArrayList<>();
 
     public ToolAdapter(ToolHandler handler, Device device) {
         this.handler = handler;
@@ -67,11 +65,6 @@ public class ToolAdapter implements ITool {
         tighteningDataListeners.add(callback);
     }
 
-    @Override
-    public void onCurveData(Consumer<CurveDataDTO> callback) {
-        curveDataListeners.add(callback);
-    }
-
     public void fireTighteningData(TighteningDataDTO dto) {
         for (Consumer<TighteningDataDTO> l : tighteningDataListeners) {
             try {
@@ -82,13 +75,4 @@ public class ToolAdapter implements ITool {
         }
     }
 
-    public void fireCurveData(CurveDataDTO dto) {
-        for (Consumer<CurveDataDTO> l : curveDataListeners) {
-            try {
-                l.accept(dto);
-            } catch (Exception e) {
-                log.warn("Curve data listener error: handler={}", handler.getClass().getSimpleName(), e);
-            }
-        }
-    }
 }

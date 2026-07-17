@@ -1,5 +1,6 @@
 package com.tightening.device.handler.impl;
 
+import com.tightening.config.DeviceConfig;
 import com.tightening.config.FitConfig;
 import com.tightening.config.ToolCommonConfig;
 import com.tightening.constant.DeviceType;
@@ -42,8 +43,9 @@ public class FitSeriesHandler extends ToolHandler {
                             FitConfig fitConfig,
                             TighteningDataService tighteningDataService,
                             CurveDataService curveDataService,
-                            ToolCommonConfig toolCommonConfig) {
-        super(group, deviceService, tighteningDataService, curveDataService, toolCommonConfig);
+                            ToolCommonConfig toolCommonConfig,
+                            DeviceConfig deviceConfig) {
+        super(group, deviceService, tighteningDataService, curveDataService, toolCommonConfig, deviceConfig);
         this.fitConfig = fitConfig;
     }
 
@@ -67,9 +69,10 @@ public class FitSeriesHandler extends ToolHandler {
                         true));
                 ch.pipeline().addLast(new FitFrameCodec());
                 ch.pipeline().addLast(new IdleStateHandler(0, fitConfig.getHeartBeatIntervalMs(), 0, TimeUnit.MILLISECONDS));
-                ch.pipeline().addLast(new HeartbeatHandler(fitConfig.getHeartBeatRetryMax(), deviceId -> sendHeartbeat(deviceId)));
+                ch.pipeline().addLast(new HeartbeatHandler(fitConfig.getHeartBeatRetryMax(),
+                    fitConfig.getHeartBeatTimeoutMs(), deviceId -> sendHeartbeat(deviceId)));
                 ch.pipeline().addLast(new FitSeriesInitHandler(self));
-                ch.pipeline().addLast(new FitCurveDataReassembler());
+                ch.pipeline().addLast(new FitCurveDataReassembler(fitConfig.getReassemblyTimeoutMs()));
                 ch.pipeline().addLast(new FitSeriesInBoundHandler((ToolHandler) self));
             }
         };

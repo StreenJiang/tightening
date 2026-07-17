@@ -1,5 +1,6 @@
 package com.tightening.device.handler.impl;
 
+import com.tightening.config.DeviceConfig;
 import com.tightening.config.ToolCommonConfig;
 import com.tightening.constant.DeviceType;
 import com.tightening.constant.atlas.AtlasCommandType;
@@ -32,8 +33,9 @@ public class AtlasPFSeriesHandler extends ToolHandler {
                                 DeviceService deviceService,
                                 TighteningDataService tighteningDataService,
                                 CurveDataService curveDataService,
-                                ToolCommonConfig toolCommonConfig) {
-        super(group, deviceService, tighteningDataService, curveDataService, toolCommonConfig);
+                                ToolCommonConfig toolCommonConfig,
+                                DeviceConfig deviceConfig) {
+        super(group, deviceService, tighteningDataService, curveDataService, toolCommonConfig, deviceConfig);
     }
 
     @Override

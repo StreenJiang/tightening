@@ -1,6 +1,5 @@
 package com.tightening.lifecycle.message;
 
-import com.tightening.entity.CurveData;
 import com.tightening.entity.TighteningData;
 
 public sealed interface DeviceEvent extends InboundMessage {
@@ -8,12 +7,6 @@ public sealed interface DeviceEvent extends InboundMessage {
     /** 拧紧数据到达（从 ToolAdapter 监听器转发） */
     record TighteningDataReceived(
         TighteningData data,
-        long deviceId
-    ) implements DeviceEvent {}
-
-    /** 曲线数据到达 */
-    record CurveDataReceived(
-        CurveData data,
         long deviceId
     ) implements DeviceEvent {}
 

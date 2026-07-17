@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Data
 public class DeviceConfig {
+    private int reconnectIntervalMs;
     private ConnectThread connectThread;
     private ScanThread scanThread;
 

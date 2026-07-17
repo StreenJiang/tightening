@@ -25,8 +25,8 @@ class LockReasonTest {
     }
 
     @Test
-    @DisplayName("应包含 4 个枚举值")
-    void shouldHaveFourValues() {
-        assertThat(LockReason.values()).hasSize(4);
+    @DisplayName("应包含 5 个枚举值")
+    void shouldHaveFiveValues() {
+        assertThat(LockReason.values()).hasSize(5);
     }
 }

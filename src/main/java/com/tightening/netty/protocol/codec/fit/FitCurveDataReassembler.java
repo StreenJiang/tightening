@@ -23,7 +23,11 @@ import lombok.extern.slf4j.Slf4j;
 public class FitCurveDataReassembler extends MessageToMessageDecoder<FitFrame> {
 
     private final Map<Long, CurveReassemblyState> reassemblyCache = new ConcurrentHashMap<>();
-    private static final long REASSEMBLY_TIMEOUT_MS = 10000;
+    private final long reassemblyTimeoutMs;
+
+    public FitCurveDataReassembler(long reassemblyTimeoutMs) {
+        this.reassemblyTimeoutMs = reassemblyTimeoutMs;
+    }
 
     @Override
     protected void decode(ChannelHandlerContext ctx, FitFrame msg, List<Object> out) throws Exception {
@@ -110,7 +114,7 @@ public class FitCurveDataReassembler extends MessageToMessageDecoder<FitFrame> {
                 log.warn(errorMsg);
                 ctx.fireExceptionCaught(new TimeoutException(errorMsg));
             }
-        }, REASSEMBLY_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        }, reassemblyTimeoutMs, TimeUnit.MILLISECONDS);
     }
 
     private static class CurveReassemblyState {

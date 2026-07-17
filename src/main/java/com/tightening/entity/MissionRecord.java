@@ -19,6 +19,7 @@ public class MissionRecord extends BaseEntity {
     private String productCode;
     private Integer isRework;
     private Integer missionResult;
+    private String partsCode;
     private String contextSnapshot;
     private String faultMessage;
 }

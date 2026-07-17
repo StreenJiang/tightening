@@ -68,6 +68,13 @@ mybatis-plus:
       logic-not-delete-value: 0         # 未删除值
       logic-delete-value: 1             # 已删除值
 
+# 本地设置（可通过 ${user.home}/tightening_system/settings.yml 覆盖）
+tightening:
+  self-loop-enabled: false
+  export-types:
+    - standard_excel
+    - txt
+
 # 日志配置
 logging:
   level:
@@ -76,4 +83,29 @@ logging:
     io.netty: WARN
     org.apache.plc4x: WARN
     com.tightening.mapper: DEBUG  # 显示 SQL 语句
+
+# 设备连接配置
+device-config:
+  reconnect-interval-ms: 3000
+  connect-thread:
+    core-pool-size: 5
+    max-pool-size: 10
+    keep-alive-time-ms: 30000
+    capacity: 50
+    termination-await-ms: 30000
+  scan-thread:
+    init-delay-ms: 0
+    delay-ms: 5000
+    termination-await-ms: 5000
+
+# 工具控制配置
+tool-control:
+  common:
+    lock_unlock_cooldown_ms: 5000
+    cmd_timeout_ms: 5000
+  fit:
+    heart-beat-interval-ms: 30000
+    heart-beat-retry-max: 3
+    reassembly-timeout-ms: 10000
+    heart-beat-timeout-ms: 5000
 

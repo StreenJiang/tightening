@@ -32,7 +32,7 @@ class FitFrameCodecTest {
         channel = new EmbeddedChannel(
                 new LoggingHandler(LogLevel.DEBUG),
                 codec,
-                new FitCurveDataReassembler(),
+                new FitCurveDataReassembler(10000L),
                 new FitSeriesInBoundHandler(fitSeriesHandler)
         );
 

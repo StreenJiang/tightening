@@ -9,4 +9,5 @@ import org.springframework.stereotype.Component;
 @Data
 public class ToolCommonConfig {
     private long lockUnlockCooldownMs;
+    private long cmdTimeoutMs;
 }

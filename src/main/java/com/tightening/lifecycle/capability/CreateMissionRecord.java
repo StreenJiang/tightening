@@ -21,7 +21,7 @@ public class CreateMissionRecord implements Capability {
     @Override
     public CapabilityResult execute(MissionContext ctx) {
         var record = missionRecordService.createRecord(
-            ctx.getProductMissionId(), null, 0);
+            ctx.getProductMissionId(), ctx.getProductCode(), ctx.getPartsCode(), 0);
         ctx.setMissionRecord(record);
         log.info("MissionRecord created: id={}", record.getId());
         return CapabilityResult.Pass;

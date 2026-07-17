@@ -9,7 +9,10 @@ import com.tightening.entity.ProductBolt;
 import com.tightening.entity.ProductMission;
 import com.tightening.judgment.JudgmentStrategy;
 import com.tightening.lifecycle.message.InboundCommand;
+import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
+import com.tightening.entity.BoltPartsBarcode;
 import com.tightening.service.BarCodeMatchingRuleService;
+import com.tightening.service.BoltPartsBarcodeService;
 import com.tightening.service.ExportTaskService;
 import com.tightening.service.MissionRecordService;
 import com.tightening.service.TighteningDataService;
@@ -28,8 +31,10 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("LifecycleEngineFactory")
@@ -42,20 +47,26 @@ class LifecycleEngineFactoryTest {
     @Mock private JudgmentStrategy judgmentStrategy;
     @Mock private BarCodeMatchingRuleService barCodeMatchingRuleService;
     @Mock private WorkplaceStatusService workplaceStatusService;
+    @Mock private BoltPartsBarcodeService partsBarcodeService;
     @Mock private ITool mockTool;
 
     private LifecycleEngineFactory factory;
     private LifecycleEngine testEngine;
 
     @BeforeEach
+    @SuppressWarnings("unchecked")
     void setUp() {
         lenient().when(settings.exportTypes()).thenReturn(List.of("standard_excel"));
         lenient().when(mockTool.id()).thenReturn(1L);
         lenient().when(mockTool.type()).thenReturn(DeviceType.ATLAS_PF4000);
+        var barcodeChain = (LambdaQueryChainWrapper<BoltPartsBarcode>) mock(LambdaQueryChainWrapper.class);
+        lenient().when(barcodeChain.in(any(), anyCollection())).thenReturn(barcodeChain);
+        lenient().when(barcodeChain.list()).thenReturn(List.of());
+        lenient().when(partsBarcodeService.lambdaQuery()).thenReturn(barcodeChain);
         factory = new LifecycleEngineFactory(
             missionRecordService, tighteningDataService, exportTaskService, settings,
             Map.of(DeviceType.ATLAS_PF4000, judgmentStrategy), barCodeMatchingRuleService,
-            workplaceStatusService);
+            partsBarcodeService, workplaceStatusService);
     }
 
     @AfterEach

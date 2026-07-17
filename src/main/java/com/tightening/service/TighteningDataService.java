@@ -17,6 +17,7 @@ public class TighteningDataService extends ServiceImpl<TighteningDataMapper, Tig
     public List<TighteningData> listByMissionRecordId(Long missionRecordId) {
         return lambdaQuery()
                 .eq(TighteningData::getMissionRecordId, missionRecordId)
+                .orderByAsc(TighteningData::getId)
                 .list();
     }
 }

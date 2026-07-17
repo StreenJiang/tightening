@@ -1,13 +1,17 @@
 package com.tightening.lifecycle;
 
+import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.tightening.constant.DeviceType;
 import com.tightening.device.DeviceRegistry;
 import com.tightening.device.contract.ITool;
+import com.tightening.entity.BoltPartsBarcode;
 import com.tightening.entity.MissionRecord;
 import com.tightening.entity.ProductBolt;
 import com.tightening.entity.ProductMission;
 import com.tightening.judgment.JudgmentStrategy;
 import com.tightening.service.BarCodeMatchingRuleService;
+import com.tightening.service.BoltPartsBarcodeService;
+import com.tightening.service.SseService;
 import com.tightening.service.ExportTaskService;
 import com.tightening.service.MissionRecordService;
 import com.tightening.service.TighteningDataService;
@@ -39,22 +43,28 @@ class MissionOrchestratorTest {
     @Mock private LocalSettings settings;
     @Mock private BarCodeMatchingRuleService barCodeMatchingRuleService;
     @Mock private WorkplaceStatusService workplaceStatusService;
+    @Mock private BoltPartsBarcodeService partsBarcodeService;
     @Mock private ITool mockTool;
 
     private LifecycleEngineFactory factory;
     private MissionOrchestrator orchestrator;
 
     @BeforeEach
+    @SuppressWarnings("unchecked")
     void setUp() {
         lenient().when(settings.exportTypes()).thenReturn(List.of("standard_excel"));
         lenient().when(mockTool.id()).thenReturn(1L);
         lenient().when(mockTool.type()).thenReturn(DeviceType.ATLAS_PF4000);
         lenient().doNothing().when(exportTaskService).createTask(anyString(), anyLong(), anyString());
+        var barcodeChain = (LambdaQueryChainWrapper<BoltPartsBarcode>) mock(LambdaQueryChainWrapper.class);
+        lenient().when(barcodeChain.in(any(), anyCollection())).thenReturn(barcodeChain);
+        lenient().when(barcodeChain.list()).thenReturn(List.of());
+        lenient().when(partsBarcodeService.lambdaQuery()).thenReturn(barcodeChain);
         factory = new LifecycleEngineFactory(
             missionRecordService, tighteningDataService, exportTaskService, settings,
             Map.of(DeviceType.ATLAS_PF4000, judgmentStrategy), barCodeMatchingRuleService,
-            workplaceStatusService);
-        orchestrator = new MissionOrchestrator(factory, deviceRegistry);
+            partsBarcodeService, workplaceStatusService);
+        orchestrator = new MissionOrchestrator(factory, deviceRegistry, mock(SseService.class));
     }
 
     private static MissionRecord missionRecordWithId(long id, Integer missionResult) {
@@ -80,7 +90,7 @@ class MissionOrchestratorTest {
     @Test
     @DisplayName("trigger 成功创建引擎")
     void shouldCreateEngineOnTrigger() {
-        lenient().when(missionRecordService.createRecord(anyLong(), any(), anyInt()))
+        lenient().when(missionRecordService.createRecord(anyLong(), any(), any(), anyInt()))
             .thenReturn(missionRecordWithId(42L, null));
         when(deviceRegistry.getAllTools()).thenReturn(List.of(mockTool));
 
@@ -93,7 +103,7 @@ class MissionOrchestratorTest {
     @Test
     @DisplayName("重复 trigger 同一 mission 返回 null")
     void shouldRejectDuplicateTrigger() {
-        lenient().when(missionRecordService.createRecord(anyLong(), any(), anyInt()))
+        lenient().when(missionRecordService.createRecord(anyLong(), any(), any(), anyInt()))
             .thenReturn(missionRecordWithId(42L, null));
         when(deviceRegistry.getAllTools()).thenReturn(List.of(mockTool));
 

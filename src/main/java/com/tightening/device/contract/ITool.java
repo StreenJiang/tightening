@@ -1,6 +1,5 @@
 package com.tightening.device.contract;
 
-import com.tightening.dto.CurveDataDTO;
 import com.tightening.dto.TighteningDataDTO;
 
 import java.util.concurrent.CompletableFuture;
@@ -16,6 +15,4 @@ public interface ITool extends IDevice {
     CompletableFuture<Boolean> sendPSet(int psetId);
 
     void onTighteningData(Consumer<TighteningDataDTO> callback);
-
-    void onCurveData(Consumer<CurveDataDTO> callback);
 }

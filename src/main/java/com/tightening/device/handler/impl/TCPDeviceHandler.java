@@ -1,8 +1,8 @@
 package com.tightening.device.handler.impl;
 
 import com.tightening.constant.DeviceStatus;
-import com.tightening.constant.TCPDeviceConstants;
-import com.tightening.constant.ToolConstants;
+import com.tightening.config.DeviceConfig;
+import com.tightening.config.ToolCommonConfig;
 import com.tightening.device.DeviceHolder;
 import com.tightening.device.handler.DeviceHandler;
 import com.tightening.util.JsonUtils;
@@ -34,6 +34,8 @@ public abstract class TCPDeviceHandler implements DeviceHandler {
     protected final Bootstrap bootstrap;
     protected final NioEventLoopGroup group;
     protected final DeviceService deviceService;
+    protected final ToolCommonConfig toolCommonConfig;
+    protected final DeviceConfig deviceConfig;
     protected final Map<Long, DeviceHolder> devices;
     protected final Map<String, CompletableFuture<Boolean>> rspFutures;
     protected final Map<String, CompletableFuture<String>> errorMsgFutures;
@@ -56,10 +58,13 @@ public abstract class TCPDeviceHandler implements DeviceHandler {
         }
     }
 
-    public TCPDeviceHandler(NioEventLoopGroup group, DeviceService deviceService) {
+    public TCPDeviceHandler(NioEventLoopGroup group, DeviceService deviceService,
+                             ToolCommonConfig toolCommonConfig, DeviceConfig deviceConfig) {
         self = this;
         this.group = group;
         this.deviceService = deviceService;
+        this.toolCommonConfig = toolCommonConfig;
+        this.deviceConfig = deviceConfig;
 
         devices = new ConcurrentHashMap<>();
         rspFutures = new ConcurrentHashMap<>();
@@ -98,7 +103,6 @@ public abstract class TCPDeviceHandler implements DeviceHandler {
             if (future.isSuccess()) {
                 Channel channel = future.channel();
 
-                // TODO: 思考：如果当前设备已经存过了，已存在的 channelFuture 应该怎么处理？
                 if (deviceHolder.getChannel() != null) {
                     deviceHolder.getChannel().close();
                     deviceHolder.setChannel(null);
@@ -110,12 +114,10 @@ public abstract class TCPDeviceHandler implements DeviceHandler {
 
                 deviceHolder.setChannel(channel);
             } else {
-                // TODO: 完善重连逻辑
                 future.channel().eventLoop().schedule(() -> {
-                    // TODO: need i18n
                     log.info("Reconnecting to server...");
                     connectToChannel(deviceId, device, deviceHolder);
-                }, TCPDeviceConstants.RECONNECT_INTERVAL_MS, TimeUnit.MILLISECONDS);
+                }, deviceConfig.getReconnectIntervalMs(), TimeUnit.MILLISECONDS);
             }
         });
     }
@@ -249,7 +251,7 @@ public abstract class TCPDeviceHandler implements DeviceHandler {
                     // 超时后断开连接，防止迟来的响应干扰后续命令（根据业务需求可选）
                     channel.close();
                 }
-            }, ToolConstants.CMD_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            }, toolCommonConfig.getCmdTimeoutMs(), TimeUnit.MILLISECONDS);
         });
 
         return resultFuture;
@@ -275,6 +277,8 @@ public abstract class TCPDeviceHandler implements DeviceHandler {
     public CompletableFuture<String> getErrorMsgFuture(String key) {
         return errorMsgFutures.remove(key);
     }
+
+    public DeviceConfig getDeviceConfig() { return deviceConfig; }
 
     @Override
     public DeviceStatus getStatus(long deviceId) {

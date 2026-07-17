@@ -14,7 +14,7 @@ class LocalSettingsTest {
     @DisplayName("compact constructor 为 exportTypes 提供默认值")
     void shouldDefaultExportTypes() {
         LocalSettings settings = new LocalSettings(false, null);
-        assertThat(settings.exportTypes()).containsExactly("standard_excel");
+        assertThat(settings.exportTypes()).containsExactly("standard_excel", "txt");
     }
 
     @Test

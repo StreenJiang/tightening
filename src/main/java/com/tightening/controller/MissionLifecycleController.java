@@ -1,5 +1,6 @@
 package com.tightening.controller;
 
+import com.tightening.constant.LockReason;
 import com.tightening.dto.*;
 import com.tightening.entity.ProductBolt;
 import com.tightening.entity.ProductMission;
@@ -45,6 +46,10 @@ public class MissionLifecycleController {
             @RequestBody ValidatePartsBarcodeRequest req) {
         boolean pass = barcodeService.validatePartsCode(id, req.partsCode());
         if (pass) {
+            orchestrator.getActiveEngine(id).ifPresent(engine -> {
+                engine.getContext().setPartsCode(req.partsCode());
+                engine.getContext().getLockReasons().remove(LockReason.BARCODE_REQUIRED);
+            });
             return ResponseEntity.ok(ApiResponse.ok(BarcodeValidationResult.pass()));
         }
         return ResponseEntity.ok(ApiResponse.ok(

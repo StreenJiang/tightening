@@ -1,4 +1,5 @@
 device-config:
+  reconnect-interval-ms: 3000
   connect-thread:
     core-pool-size: 5
     max-pool-size: 10
@@ -13,6 +14,9 @@ device-config:
 tool-control:
   common:
     lock_unlock_cooldown_ms: 5000
+    cmd_timeout_ms: 5000
   fit:
     heart-beat-interval-ms: 30000
     heart-beat-retry-max: 3
+    reassembly-timeout-ms: 10000
+    heart-beat-timeout-ms: 5000

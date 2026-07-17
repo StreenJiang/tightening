@@ -3,7 +3,6 @@ package com.tightening.device.contract;
 import com.tightening.constant.DeviceType;
 import com.tightening.constant.DeviceStatus;
 import com.tightening.device.handler.ToolHandler;
-import com.tightening.dto.CurveDataDTO;
 import com.tightening.dto.TighteningDataDTO;
 import com.tightening.entity.Device;
 import org.junit.jupiter.api.BeforeEach;
@@ -93,18 +92,6 @@ class ToolAdapterTest {
 
         adapter.onTighteningData(d -> count.incrementAndGet());
         adapter.fireTighteningData(dto);
-
-        assertThat(count.get()).isEqualTo(1);
-    }
-
-    @Test
-    @DisplayName("onCurveData() 注册 Consumer，fireCurveData() 通知所有 Consumer")
-    void curveDataCallback() {
-        AtomicInteger count = new AtomicInteger(0);
-        CurveDataDTO dto = new CurveDataDTO();
-
-        adapter.onCurveData(d -> count.incrementAndGet());
-        adapter.fireCurveData(dto);
 
         assertThat(count.get()).isEqualTo(1);
     }

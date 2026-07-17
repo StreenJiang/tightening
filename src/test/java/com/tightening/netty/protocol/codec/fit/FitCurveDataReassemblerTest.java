@@ -16,7 +16,7 @@ class FitCurveDataReassemblerTest {
 
     @Test
     void nonCurveFrame_passesThrough() {
-        EmbeddedChannel channel = new EmbeddedChannel(new FitCurveDataReassembler());
+        EmbeddedChannel channel = new EmbeddedChannel(new FitCurveDataReassembler(10000L));
         try {
             FitFrame input = FitFrame.unlockTool();
 
@@ -33,7 +33,7 @@ class FitCurveDataReassemblerTest {
 
     @Test
     void normalArrival_reassembles() {
-        EmbeddedChannel channel = new EmbeddedChannel(new FitCurveDataReassembler());
+        EmbeddedChannel channel = new EmbeddedChannel(new FitCurveDataReassembler(10000L));
         try {
             long tighteningId = 12345L;
             short totalPackets = 3;
@@ -79,7 +79,7 @@ class FitCurveDataReassemblerTest {
 
     @Test
     void outOfOrder_reassembles() {
-        EmbeddedChannel channel = new EmbeddedChannel(new FitCurveDataReassembler());
+        EmbeddedChannel channel = new EmbeddedChannel(new FitCurveDataReassembler(10000L));
         try {
             long tighteningId = 67890L;
             short totalPackets = 3;
@@ -118,7 +118,7 @@ class FitCurveDataReassemblerTest {
 
     @Test
     void duplicatePacket_ignored() {
-        EmbeddedChannel channel = new EmbeddedChannel(new FitCurveDataReassembler());
+        EmbeddedChannel channel = new EmbeddedChannel(new FitCurveDataReassembler(10000L));
         try {
             long tighteningId = 11111L;
             short totalPackets = 3;

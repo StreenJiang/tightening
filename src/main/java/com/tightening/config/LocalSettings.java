@@ -14,7 +14,7 @@ public record LocalSettings(boolean selfLoopEnabled, List<String> exportTypes) {
 
     public LocalSettings {
         if (exportTypes == null || exportTypes.isEmpty()) {
-            exportTypes = List.of("standard_excel");
+            exportTypes = List.of("standard_excel", "txt");
         }
     }
 }

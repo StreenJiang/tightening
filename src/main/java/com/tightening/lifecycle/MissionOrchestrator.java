@@ -1,7 +1,9 @@
 package com.tightening.lifecycle;
 
+import com.tightening.constant.SseEventType;
 import com.tightening.device.DeviceRegistry;
 import com.tightening.device.contract.ITool;
+import com.tightening.dto.SseEvent;
 import com.tightening.dto.TighteningDataDTO;
 import com.tightening.entity.ProductBolt;
 import com.tightening.entity.ProductMission;
@@ -9,11 +11,13 @@ import com.tightening.entity.TighteningData;
 import com.tightening.lifecycle.message.DeviceEvent;
 import com.tightening.lifecycle.message.InboundCommand;
 import com.tightening.lifecycle.message.InboundMessage;
+import com.tightening.service.SseService;
 import com.tightening.util.Converter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -26,6 +30,7 @@ public class MissionOrchestrator implements DataRouter {
 
     private final LifecycleEngineFactory factory;
     private final DeviceRegistry deviceRegistry;
+    private final SseService sseService;
 
     /** missionId -> 活跃引擎 */
     private final Map<Long, LifecycleEngine> activeEngines = new ConcurrentHashMap<>();
@@ -33,9 +38,11 @@ public class MissionOrchestrator implements DataRouter {
     private final Map<Long, Long> deviceToMissionId = new ConcurrentHashMap<>();
 
     public MissionOrchestrator(LifecycleEngineFactory factory,
-                               @Lazy DeviceRegistry deviceRegistry) {
+                               @Lazy DeviceRegistry deviceRegistry,
+                               SseService sseService) {
         this.factory = factory;
         this.deviceRegistry = deviceRegistry;
+        this.sseService = sseService;
     }
 
     // === DataRouter 接口实现 ===
@@ -83,6 +90,11 @@ public class MissionOrchestrator implements DataRouter {
         engine.onFaulted(reason -> {
             cleanup(missionId);
             log.warn("Mission {} trigger faulted: {}", missionId, reason);
+        });
+
+        engine.onTighteningJudged(data -> {
+            TighteningDataDTO dto = Converter.entity2Dto(data, TighteningDataDTO::new);
+            sseService.emit(new SseEvent(SseEventType.TIGHTENING_DATA, dto, LocalDateTime.now()));
         });
 
         LifecycleEngine prev = activeEngines.putIfAbsent(missionId, engine);

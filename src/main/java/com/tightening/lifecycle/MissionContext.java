@@ -40,6 +40,9 @@ public class MissionContext {
     /** 物料码（触发阶段写入，生命周期内不可变） */
     @Builder.Default @Setter
     private String partsCode = null;
+    /** boltId → barCodeMatchingRuleId（触发阶段预加载，BoltBarCodeCheck 读取） */
+    @Builder.Default
+    private final Map<Long, Long> boltBarcodeRuleIds = new HashMap<>();
     @Builder.Default @Setter private volatile boolean interruptRequested = false;
     @Builder.Default @Setter private volatile String interruptReason = null;
 
@@ -49,7 +52,7 @@ public class MissionContext {
     @Builder.Default @Setter private DeviceType currentDeviceType = null;  // 由 handleTighteningData 从 deviceRegistry 解析
     @Builder.Default @Setter private volatile Integer currentPSet = null;  // SendPSet 写入，仅 SudongX7 等不回传协议使用
     @Builder.Default @Setter private JudgmentResult judgeResult = null;
-    @Builder.Default private final Set<LockReason> lockReasons = new LinkedHashSet<>();
+    @Builder.Default private final Set<LockReason> lockReasons = ConcurrentHashMap.newKeySet();
     @Builder.Default @Setter private volatile boolean boltUnlockOverride = false;
 
     // ═══ 第三层：Capability 间临时数据 ═══

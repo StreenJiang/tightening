@@ -30,7 +30,7 @@ class HeartbeatHandlerTest {
         channel.attr(DEVICE_ID).set(TEST_DEVICE_ID);
 
         // 创建 Handler（心跳逻辑用 lambda 简单模拟）
-        handler = new HeartbeatHandler(3, deviceId -> {
+        handler = new HeartbeatHandler(3, 5000L, deviceId -> {
             // 模拟心跳：总是成功
             return CompletableFuture.completedFuture(true);
         });
@@ -57,7 +57,7 @@ class HeartbeatHandlerTest {
     @DisplayName("心跳失败 → 重试计数累加")
     void testHeartbeatFailed() throws InterruptedException {
         // 替换为失败的心跳逻辑
-        handler = new HeartbeatHandler(3, deviceId ->
+        handler = new HeartbeatHandler(3, 5000L, deviceId ->
                 CompletableFuture.completedFuture(false));
         channel.pipeline().replace(HeartbeatHandler.class, "heartbeat", handler);
 
@@ -89,7 +89,7 @@ class HeartbeatHandlerTest {
     @DisplayName("超过最大重试 → 关闭通道")
     void testExceedMaxRetryClosesChannel() throws InterruptedException {
         // 失败的心跳逻辑
-        handler = new HeartbeatHandler(2, deviceId ->
+        handler = new HeartbeatHandler(2, 5000L, deviceId ->
                 CompletableFuture.completedFuture(false));
         channel.pipeline().replace(HeartbeatHandler.class, "heartbeat", handler);
 

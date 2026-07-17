@@ -1,7 +1,6 @@
 package com.tightening.netty.protocol.handler;
 
 import com.tightening.constant.DeviceStatus;
-import com.tightening.constant.TCPDeviceConstants;
 import com.tightening.device.DeviceHolder;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
 import io.netty.channel.Channel;
@@ -25,7 +24,6 @@ public abstract class DeviceInitHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public final void channelActive(ChannelHandlerContext ctx) throws Exception {
-        // TODO: need i18n
         log.info("Connected to server...");
 
         // Actions before active settings
@@ -45,7 +43,6 @@ public abstract class DeviceInitHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public final void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        // TODO: need i18n
         log.info("Disconnected from server, attempt to reconnect...");
 
         beforeChannelInactive(ctx);
@@ -55,14 +52,13 @@ public abstract class DeviceInitHandler extends ChannelInboundHandlerAdapter {
 
         if (!manuallyClose) {
             channel.eventLoop().schedule(() -> {
-                // TODO: need i18n
                 log.info("Reconnecting to server...");
 
                 Long deviceId = channel.attr(DEVICE_ID).get();
                 DeviceHolder deviceHolder = channel.attr(DEVICE_HOLDER).get();
                 deviceHolder.setStatus(DeviceStatus.CONNECTING);
                 deviceHandler.connectToChannel(deviceId, deviceHolder);
-            }, TCPDeviceConstants.RECONNECT_INTERVAL_MS, TimeUnit.MILLISECONDS);
+            }, deviceHandler.getDeviceConfig().getReconnectIntervalMs(), TimeUnit.MILLISECONDS);
         }
 
         super.channelInactive(ctx);

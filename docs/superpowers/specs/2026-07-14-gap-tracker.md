@@ -10,6 +10,8 @@
 
 ---
 
+> **更新 2026-07-17**: T2-T7, G1-G4, G8, N5, N7 纳入 [技术债务清理设计文档](2026-07-17-tech-debt-cleanup-design.md) 和 [实现计划](../plans/2026-07-17-tech-debt-cleanup-plan.md)。T1/T4(部分)/T5(部分)/T8 排除。
+
 ## 🐛 Bug
 
 （无）
@@ -18,7 +20,7 @@
 
 ## 📋 TODO
 
-### T1. Atlas SUBSCRIBE_DATA ACK 未处理
+### T1. Atlas SUBSCRIBE_DATA ACK 未处理 🔴 排除
 
 **位置**: `AtlasPFSeriesInBoundHandler.java:88-89`
 
@@ -30,42 +32,42 @@ case SUBSCRIBE_DATA:
 
 `subscribeTighteningData()` 的 CompletableFuture 永远等不到 → 超时 → Init pipeline 失败 → 重连反复。
 
-### T2. CurveDataReceived 消息无 Handler
+### T2. CurveDataReceived 消息无 Handler 🔧
 
 **位置**: `DeviceEvent.java:15`, `LifecycleEngine.java:72-79`
 
 `DeviceEvent.CurveDataReceived` 已定义，`registerDefaultHandlers()` 未注册 handler。曲线数据进 inbox 后静默丢弃。
 
-### T3. FIT 初始化忽略 forceLock 结果
+### T3. FIT 初始化忽略 forceLock 结果 🔧
 
 **位置**: `FitSeriesInitHandler.java:16-19`
 
 与 Atlas init handler 不同——FIT 的 `forceLock()` 返回值完全忽略，无错误处理。
 
-### T4. 三个 Capability 为 Stub
+### T4. 三个 Capability 为 Stub 🔧
 
 | Capability | 现状 |
 |------------|------|
-| `SendArrangerSignal` | `precondition=false`, `execute=Skip` |
-| `SendSetterSelector` | `precondition=false`, `execute=Skip` |
-| `BoltBarCodeCheck` | `precondition=false`, `execute=Skip` |
+| `SendArrangerSignal` | `precondition=false`, `execute=Skip` — 🔴 排除 |
+| `SendSetterSelector` | `precondition=false`, `execute=Skip` — 🔴 排除 |
+| `BoltBarCodeCheck` | `precondition=false`, `execute=Skip` — 🔧 本次实现 |
 
-### T5. 三个 Exporter 均为 Stub
+### T5. 三个 Exporter 均为 Stub 🔧
 
 | Exporter | 返回 |
 |----------|------|
-| `StandardExcelExporter` | `ExportResult.ok("stub")` |
-| `OuterDatabaseStorer` | `ExportResult.ok("stub")` |
-| `PlcResultSender` | `ExportResult.ok("stub")` |
+| `StandardExcelExporter` | 🔧 本次实现 |
+| `OuterDatabaseStorer` | 🔴 排除 |
+| `PlcResultSender` | 🔴 排除 |
 
-### T6. MissionContext 预留字段
+### T6. MissionContext 预留字段 📋 记录
 
 | 字段 | 状态 |
 |------|------|
 | `checkpoint` | 写入逻辑在 `saveCheckpoint()`，反序列化恢复未实现 |
 | `lockMsgs` | `LockStateMonitor` 已读取，但无写入方（所有 Capability 绕过了它） |
 
-### T7. 14 处 TODO 注释
+### T7. 14 处 TODO 注释 🔧
 
 | 位置 | 内容 |
 |------|------|
@@ -78,7 +80,7 @@ case SUBSCRIBE_DATA:
 | `AtlasErrorCode.java:11` | i18n |
 | `FitCommandType.java:15` | i18n |
 
-### T8. CheckInspection TriggerCapability 未实现
+### T8. CheckInspection TriggerCapability 未实现 🔴 排除
 
 **设计**: 点检任务运行时强制检查——今日无 inspection_record 则 Interrupt。
 
@@ -86,25 +88,25 @@ case SUBSCRIBE_DATA:
 
 ## ⚠️ Gap
 
-### G1. MissionRecordDTO 缺少字段
+### G1. MissionRecordDTO 缺少字段 🔧
 
 **位置**: `dto/MissionRecordDTO.java`
 
 Entity 有 `contextSnapshot` 和 `faultMessage`，DTO 没有。
 
-### G2. MissionRecord 缺少 partsCode 字段
+### G2. MissionRecord 缺少 partsCode 字段 🔧
 
 **位置**: `entity/MissionRecord.java`, `service/MissionRecordService.java`
 
 `createRecord` 只接收 `productCode`，物料条码无法持久化。
 
-### G3. partsCode 绑定粒度不完整
+### G3. partsCode 绑定粒度不完整 ✅
 
 **位置**: `entity/BoltPartsBarcode.java`, `lifecycle/MissionContext.java`
 
 `MissionContext` 只有一个全局 `partsCode`，但 `BoltPartsBarcode` 表已定义 per-bolt 关联。
 
-### G4. 硬编码常量
+### G4. 硬编码常量 🔧
 
 | 常量 | 文件 | 值 |
 |------|------|-----|
@@ -133,7 +135,7 @@ Entity 有 `contextSnapshot` 和 `faultMessage`，DTO 没有。
 
 **位置**: `TCPDeviceHandler.java:289-291` — 实现 `Closeable` 但 body 为空。
 
-### G8. Flyway V1.0.5 版本号缺失
+### G8. Flyway V1.0.5 版本号缺失 ⏭️ 跳过
 
 序列从 V1.0.4 跳到 V1.0.6。不影响 Flyway（宽松序列检查），但缺少不可逆。
 
@@ -165,7 +167,7 @@ Self-loop 改为纯前端配置，后端不做自动重启。
 
 `MissionContext.boltUnlockOverride` 字段 + `LockStateMonitor` 跳过逻辑 + `AdvanceBolt` SWITCH_BOLT 重置已实现。
 
-### N5. LockStateMonitor lockMsgs 写入方 ✅ 部分完成
+### N5. LockStateMonitor lockMsgs 写入方 🔧 部分完成
 
 `SendPSet` 已改为写入 lockReasons（PSET_SENDING）。`SendArrangerSignal` 和 `SendSetterSelector` 仍为 stub（precondition=false），待激活后同步改造。
 
@@ -173,7 +175,7 @@ Self-loop 改为纯前端配置，后端不做自动重启。
 
 已重写为系统级监控器（`@Component`，独立 `ScheduledExecutorService`），从 `LifecycleEngineFactory` monitors 列表移除。登录启动/登出停止 + SSE 推送状态变更。
 
-### N7. SudongX7 测试缺失
+### N7. SudongX7 测试缺失 🔧
 
 上次提交只覆盖了 3 个类（Crc16Utils、FrameDecoder、Parser），缺失 6 个测试：
 
@@ -194,10 +196,13 @@ Self-loop 改为纯前端配置，后端不做自动重启。
 
 ## 汇总
 
+> **更新 2026-07-17**: 技术债务清理已完成，9 项实现详见 [设计文档](2026-07-17-tech-debt-cleanup-design.md)。
+
 | 分类 | 数量 | 关键项 |
 |------|------|--------|
-| 📋 TODO | 8 | T1 SUBSCRIBE ACK、T2 CurveData handler、T3 FIT forceLock、T4 Stub Cap×3、T5 Stub Exporter×3、T6 Context 预留、T7 14 TODO、T8 CheckInspection |
-| ⚠️ Gap | 8 | G1 DTO 缺字段、G2 MissionRecord 缺 partsCode、G3 partsCode 粒度、G4 硬编码、G5 死枚举、G6 死配置、G7 close() 空、G8 Flyway 版本号 |
-| 🆕 New | 8 | N1 删除 self-loop、N2-N6/N8 SSE/锁/状态 ✅ 已完成、N5 部分(SendArranger/SendSetter待激活)、N7 SudongX7 测试缺失 |
-| **已完成** | **5.5** | N2 LockMessage→LockReason、N3 WorkplaceStatus、N4 boltUnlockOverride、N5 SendPSet lockReasons、N6 DeviceConnectionMonitor 系统级、N8 SSE 框架 |
+| 📋 TODO | 8 | T1 🔴 / T2 ✅ / T3 ✅ / T4 BoltBarCodeCheck ✅ + 2 🔴 / T5 StandardExcel+Txt ✅ + 2 🔴 / T6 📋 / T7 ✅ / T8 🔴 |
+| ⚠️ Gap | 8 | G1 ✅ / G2 ✅ / G3 ✅ / G4 ✅ / G5 ✅ / G6 ✅ / G7 ✅ / G8 ⏭️ |
+| 🆕 New | 8 | N1 ✅ / N2 ✅ / N3 ✅ / N4 ✅ / N5 ✅ / N6 ✅ / N7 ✅ / N8 ✅ |
+| **已完成** | **16.5** | +本次 11 项（9 实现 + 1 记录 + 1 跳过） |
+| **排除** | **5.5** | T1/T4×2/T5×2/T8（业务相关） + N5 部分（SendArranger/SendSetter） |
 | **合计** | **24** | |

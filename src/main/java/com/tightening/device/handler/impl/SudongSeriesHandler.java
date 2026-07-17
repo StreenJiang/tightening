@@ -1,5 +1,6 @@
 package com.tightening.device.handler.impl;
 
+import com.tightening.config.DeviceConfig;
 import com.tightening.config.ToolCommonConfig;
 import com.tightening.constant.DeviceType;
 import com.tightening.device.handler.ToolHandler;
@@ -25,8 +26,9 @@ public abstract class SudongSeriesHandler extends ToolHandler {
                                 DeviceService deviceService,
                                 TighteningDataService tighteningDataService,
                                 CurveDataService curveDataService,
-                                ToolCommonConfig toolCommonConfig) {
-        super(group, deviceService, tighteningDataService, curveDataService, toolCommonConfig);
+                                ToolCommonConfig toolCommonConfig,
+                                DeviceConfig deviceConfig) {
+        super(group, deviceService, tighteningDataService, curveDataService, toolCommonConfig, deviceConfig);
     }
 
     @Override

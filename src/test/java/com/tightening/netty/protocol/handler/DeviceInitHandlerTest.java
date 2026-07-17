@@ -1,5 +1,6 @@
 package com.tightening.netty.protocol.handler;
 
+import com.tightening.config.DeviceConfig;
 import com.tightening.constant.DeviceStatus;
 import com.tightening.device.DeviceHolder;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
@@ -14,6 +15,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("DeviceInitHandler abstract template method")
@@ -23,6 +26,9 @@ class DeviceInitHandlerTest {
 
     @Mock
     private TCPDeviceHandler deviceHandler;
+
+    @Mock
+    private DeviceConfig deviceConfig;
 
     private EmbeddedChannel channel;
     private DeviceHolder deviceHolder;
@@ -51,6 +57,9 @@ class DeviceInitHandlerTest {
         beforeInactiveCalled = false;
         afterInactiveCalled = false;
         cleanUpCalled = false;
+
+        lenient().when(deviceHandler.getDeviceConfig()).thenReturn(deviceConfig);
+        lenient().when(deviceConfig.getReconnectIntervalMs()).thenReturn(3000);
 
         // Anonymous subclass that tracks template method invocations
         handler = new DeviceInitHandler(deviceHandler) {

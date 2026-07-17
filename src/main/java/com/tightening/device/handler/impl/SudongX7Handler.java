@@ -1,5 +1,6 @@
 package com.tightening.device.handler.impl;
 
+import com.tightening.config.DeviceConfig;
 import com.tightening.config.ToolCommonConfig;
 import com.tightening.constant.DeviceType;
 import com.tightening.netty.protocol.codec.sudongx7.SudongX7Frame;
@@ -26,8 +27,9 @@ public class SudongX7Handler extends SudongSeriesHandler {
                             DeviceService deviceService,
                             TighteningDataService tighteningDataService,
                             CurveDataService curveDataService,
-                            ToolCommonConfig toolCommonConfig) {
-        super(group, deviceService, tighteningDataService, curveDataService, toolCommonConfig);
+                            ToolCommonConfig toolCommonConfig,
+                            DeviceConfig deviceConfig) {
+        super(group, deviceService, tighteningDataService, curveDataService, toolCommonConfig, deviceConfig);
     }
 
     @Override

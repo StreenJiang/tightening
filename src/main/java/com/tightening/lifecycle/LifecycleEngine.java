@@ -6,6 +6,7 @@ import com.tightening.constant.SubState;
 import com.tightening.constant.WorkplaceStatus;
 import com.tightening.device.contract.ITool;
 import com.tightening.entity.MissionRecord;
+import com.tightening.entity.TighteningData;
 
 import com.tightening.lifecycle.capability.Capability;
 import com.tightening.lifecycle.capability.CapabilityResult;
@@ -50,6 +51,7 @@ public class LifecycleEngine {
     private Consumer<String> onFaulted;
     private Consumer<Long> onCompleted;
     private Consumer<Long> onTriggered;
+    private Consumer<TighteningData> onTighteningJudged;
 
     private final List<TriggerCapability> triggerCaps;
     private final WorkplaceStatusService wsService;
@@ -74,6 +76,7 @@ public class LifecycleEngine {
     public void onFaulted(Consumer<String> callback) { this.onFaulted = callback; }
     public void onCompleted(Consumer<Long> callback) { this.onCompleted = callback; }
     public void onTriggered(Consumer<Long> callback) { this.onTriggered = callback; }
+    public void onTighteningJudged(Consumer<TighteningData> cb) { this.onTighteningJudged = cb; }
 
     private void registerDefaultHandlers() {
         registerHandler(InboundCommand.TriggerRequest.class, this::handleTriggerRequest);
@@ -188,7 +191,7 @@ public class LifecycleEngine {
     private void startSkipScrewLifecycle(MissionContext ctx) {
         // 创建 OK MissionRecord — createRecord 默认设 missionResult=NG，需后续 markAsOk
         var record = missionRecordService.createRecord(
-                ctx.getProductMissionId(), ctx.getProductCode(), 0);
+                ctx.getProductMissionId(), ctx.getProductCode(), ctx.getPartsCode(), 0);
         missionRecordService.markAsOk(record.getId());
         ctx.setMissionRecord(record);
         ctx.setCurrentStage(Stage.FINALIZATION);
@@ -308,6 +311,13 @@ public class LifecycleEngine {
                     }
                 }
             }
+        }
+
+        if (onTighteningJudged != null
+                && stage == Stage.OPERATION && subState == SubState.JUDGING
+                && context.getJudgeResult() != null
+                && context.getCurrentOperationData() != null) {
+            onTighteningJudged.accept(context.getCurrentOperationData());
         }
 
         // Capability 可能重定向管道（如 AdvanceBolt → FINALIZATION）

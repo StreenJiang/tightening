@@ -1,5 +1,6 @@
 package com.tightening.lifecycle.capability;
 
+import com.tightening.entity.ProductBolt;
 import com.tightening.entity.ProductMission;
 import com.tightening.lifecycle.MissionContext;
 import org.junit.jupiter.api.DisplayName;
@@ -28,9 +29,28 @@ class StubCapabilityTest {
     }
 
     @Test
-    @DisplayName("BoltBarCodeCheck precondition 始终返回 false")
-    void boltBarCodeCheckShouldAlwaysSkip() {
+    @DisplayName("BoltBarCodeCheck precondition=true when bolt has barcode rule")
+    void boltBarCodeCheckShouldPassWhenBoltHasRule() {
         var cap = new BoltBarCodeCheck();
-        assertThat(cap.precondition(null)).isFalse();
+        var bolt = new ProductBolt();
+        bolt.setId(1L);
+        var ctx = MissionContext.builder()
+            .boltConfigs(List.of(bolt))
+            .boltBarcodeRuleIds(Map.of(1L, 100L))
+            .build();
+        assertThat(cap.precondition(ctx)).isTrue();
+    }
+
+    @Test
+    @DisplayName("BoltBarCodeCheck precondition=false when no rule for current bolt")
+    void boltBarCodeCheckShouldSkipWhenBoltHasNoRule() {
+        var cap = new BoltBarCodeCheck();
+        var bolt = new ProductBolt();
+        bolt.setId(1L);
+        var ctx = MissionContext.builder()
+            .boltConfigs(List.of(bolt))
+            .boltBarcodeRuleIds(Map.of())
+            .build();
+        assertThat(cap.precondition(ctx)).isFalse();
     }
 }

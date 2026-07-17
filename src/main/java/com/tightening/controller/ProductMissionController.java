@@ -4,6 +4,7 @@ import com.tightening.dto.ApiResponse;
 import com.tightening.dto.BarCodeMatchingRuleDTO;
 import com.tightening.dto.InspectionMissionBindingDTO;
 import com.tightening.dto.MissionPrerequisiteDTO;
+import com.tightening.dto.PageResult;
 import com.tightening.dto.ProductMissionDTO;
 import com.tightening.entity.BarCodeMatchingRule;
 import com.tightening.entity.InspectionMissionBinding;
@@ -45,11 +46,12 @@ public class ProductMissionController {
     record InspectionBindingRequest(Long boundMissionId) {}
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<ProductMissionDTO>>> list(@RequestParam(defaultValue = "1") int page,
+    public ResponseEntity<ApiResponse<PageResult<ProductMissionDTO>>> list(@RequestParam(defaultValue = "1") int page,
                                                         @RequestParam(defaultValue = "100") int size,
                                                         @RequestParam(required = false) String name) {
         var resultPage = missionService.listByPage(page, size, name);
-        return ResponseEntity.ok(ApiResponse.ok(Converter.entity2Dto(resultPage.getRecords(), ProductMissionDTO::new)));
+        var dtos = Converter.entity2Dto(resultPage.getRecords(), ProductMissionDTO::new);
+        return ResponseEntity.ok(ApiResponse.ok(PageResult.of(resultPage, dtos)));
     }
 
     @GetMapping("/{id}")

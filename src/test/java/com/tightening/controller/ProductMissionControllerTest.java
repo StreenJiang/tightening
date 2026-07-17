@@ -2,6 +2,7 @@ package com.tightening.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tightening.dto.ApiResponse;
+import com.tightening.dto.PageResult;
 import com.tightening.dto.ProductMissionDTO;
 import com.tightening.entity.ProductMission;
 import com.tightening.service.BarCodeMatchingRuleService;
@@ -38,19 +39,25 @@ class ProductMissionControllerTest {
     void list_shouldReturnOk() {
         when(missionService.listByPage(eq(1), eq(100), isNull())).thenReturn(new Page<>(1, 100));
 
-        ResponseEntity<ApiResponse<List<ProductMissionDTO>>> response = controller.list(1, 100, null);
+        ResponseEntity<ApiResponse<PageResult<ProductMissionDTO>>> response = controller.list(1, 100, null);
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().code()).isEqualTo(200);
+        assertThat(response.getBody().data().total()).isEqualTo(0);
+        assertThat(response.getBody().data().size()).isEqualTo(100);
+        assertThat(response.getBody().data().current()).isEqualTo(1);
     }
 
     @Test
     void list_shouldPassNameToService_whenNameProvided() {
         when(missionService.listByPage(1, 100, "Test")).thenReturn(new Page<>(1, 100));
 
-        ResponseEntity<ApiResponse<List<ProductMissionDTO>>> response = controller.list(1, 100, "Test");
+        ResponseEntity<ApiResponse<PageResult<ProductMissionDTO>>> response = controller.list(1, 100, "Test");
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().code()).isEqualTo(200);
+        assertThat(response.getBody().data().total()).isEqualTo(0);
+        assertThat(response.getBody().data().size()).isEqualTo(100);
+        assertThat(response.getBody().data().current()).isEqualTo(1);
     }
 
     @Test

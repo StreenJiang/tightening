@@ -38,5 +38,6 @@ build/
 .zed/
 .codegraph/
 .claude/
+.cursor/
 .agents/
 data/

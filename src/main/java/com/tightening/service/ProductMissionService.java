@@ -55,12 +55,22 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         barcodeRuleService.saveOrUpdate(rule);
     }
 
-    public Page<ProductMission> listByPage(int page, int size) {
+    public boolean isNameDuplicate(String name, Long excludeId) {
+        return lambdaQuery()
+                .eq(ProductMission::getName, name)
+                .ne(excludeId != null, ProductMission::getId, excludeId)
+                .count() > 0;
+    }
+
+    public Page<ProductMission> listByPage(int page, int size, String name) {
         int safePage = Math.min(Math.max(1, page), 1000);
         int safeSize = Math.min(Math.max(1, size), 500);
-        return lambdaQuery()
-                .orderByDesc(ProductMission::getId)
-                .page(new Page<>(safePage, safeSize));
+        var wrapper = lambdaQuery()
+                .orderByDesc(ProductMission::getId);
+        if (name != null && !name.isBlank()) {
+            wrapper.like(ProductMission::getName, name);
+        }
+        return wrapper.page(new Page<>(safePage, safeSize));
     }
 
     @Transactional

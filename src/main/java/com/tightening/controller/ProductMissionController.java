@@ -16,6 +16,7 @@ import com.tightening.service.ProductMissionService;
 import com.tightening.util.Converter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -45,8 +46,9 @@ public class ProductMissionController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<ProductMissionDTO>>> list(@RequestParam(defaultValue = "1") int page,
-                                                        @RequestParam(defaultValue = "100") int size) {
-        var resultPage = missionService.listByPage(page, size);
+                                                        @RequestParam(defaultValue = "100") int size,
+                                                        @RequestParam(required = false) String name) {
+        var resultPage = missionService.listByPage(page, size, name);
         return ResponseEntity.ok(ApiResponse.ok(Converter.entity2Dto(resultPage.getRecords(), ProductMissionDTO::new)));
     }
 
@@ -57,11 +59,25 @@ public class ProductMissionController {
         return ResponseEntity.ok(ApiResponse.ok(Converter.entity2Dto(mission, ProductMissionDTO::new)));
     }
 
+    @GetMapping("/check-name")
+    public ResponseEntity<ApiResponse<Boolean>> checkName(@RequestParam String name,
+                                                           @RequestParam(required = false) Long excludeId) {
+        boolean exists = missionService.isNameDuplicate(name, excludeId);
+        return ResponseEntity.ok(ApiResponse.ok(exists));
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<String>> create(@RequestBody ProductMissionDTO dto) {
         ProductMission entity = Converter.dto2Entity(dto, ProductMission::new);
-        missionService.saveOrUpdate(entity);
-        return ResponseEntity.ok(ApiResponse.ok(String.valueOf(entity.getId())));
+        try {
+            missionService.saveOrUpdate(entity);
+            return ResponseEntity.ok(ApiResponse.ok(String.valueOf(entity.getId())));
+        } catch (DuplicateKeyException e) {
+            return ResponseEntity.ok(ApiResponse.fail("任务名称已存在"));
+        } catch (Exception e) {
+            log.error("Create mission failed", e);
+            return ResponseEntity.ok(ApiResponse.fail("创建失败"));
+        }
     }
 
     @PutMapping("/{id}")
@@ -71,6 +87,8 @@ public class ProductMissionController {
             entity.setId(id);
             missionService.saveOrUpdate(entity);
             return ResponseEntity.ok(ApiResponse.ok(String.valueOf(entity.getId())));
+        } catch (DuplicateKeyException e) {
+            return ResponseEntity.ok(ApiResponse.fail("任务名称已存在"));
         } catch (Exception e) {
             log.error("Update mission failed: id={}", id, e);
             return ResponseEntity.ok(ApiResponse.fail("更新失败"));

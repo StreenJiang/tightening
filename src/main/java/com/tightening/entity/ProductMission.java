@@ -1,6 +1,5 @@
 package com.tightening.entity;
 
-import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.tightening.constant.InspectionScope;
 
@@ -19,7 +18,6 @@ import lombok.experimental.Accessors;
 public class ProductMission extends BaseEntity {
     private String name;
     private Integer maxNgCount;
-    @TableField("password_required_after_ng")
     private Integer passwordRequiredNgCount;
     private Integer enabled;
     private Integer multiDeviceIndependent;

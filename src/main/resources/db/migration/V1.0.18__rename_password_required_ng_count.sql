@@ -1,0 +1,1 @@
+ALTER TABLE product_mission RENAME COLUMN password_required_after_ng TO password_required_ng_count;

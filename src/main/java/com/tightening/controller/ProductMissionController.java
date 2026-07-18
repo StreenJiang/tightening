@@ -13,6 +13,7 @@ import com.tightening.entity.MissionPrerequisite;
 import com.tightening.entity.ProductMission;
 import com.tightening.service.BarCodeMatchingRuleService;
 import com.tightening.service.InspectionMissionBindingService;
+import com.tightening.service.MissionConfigValidator;
 import com.tightening.service.MissionPrerequisiteService;
 import com.tightening.service.ProductMissionService;
 import com.tightening.util.Converter;
@@ -42,6 +43,7 @@ public class ProductMissionController {
     private final MissionPrerequisiteService prerequisiteService;
     private final InspectionMissionBindingService bindingService;
     private final BarCodeMatchingRuleService barcodeRuleService;
+    private final MissionConfigValidator missionValidator;
 
     record PrerequisiteRequest(Long prerequisiteMissionId, Integer prerequisiteType) {}
     record InspectionBindingRequest(Long boundMissionId) {}
@@ -74,10 +76,14 @@ public class ProductMissionController {
         ProductMission entity = Converter.dto2Entity(dto, ProductMission::new);
         if (entity.getInspectionScope() == null) entity.setInspectionScope(InspectionScope.NONE);
         try {
+            missionValidator.validateInspectionScope(entity, dto.getInspectionBoundMissionIds());
             missionService.saveOrUpdate(entity);
+            missionService.syncInspectionBindings(entity.getId(), dto.getInspectionBoundMissionIds());
             return ResponseEntity.ok(ApiResponse.ok(String.valueOf(entity.getId())));
         } catch (DuplicateKeyException e) {
             return ResponseEntity.ok(ApiResponse.fail("任务名称已存在"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.ok(ApiResponse.fail(e.getMessage()));
         } catch (Exception e) {
             log.error("Create mission failed", e);
             return ResponseEntity.ok(ApiResponse.fail("更新失败"));
@@ -90,10 +96,14 @@ public class ProductMissionController {
             ProductMission entity = Converter.dto2Entity(dto, ProductMission::new);
             entity.setId(id);
             if (entity.getInspectionScope() == null) entity.setInspectionScope(InspectionScope.NONE);
+            missionValidator.validateInspectionScope(entity, dto.getInspectionBoundMissionIds());
             missionService.saveOrUpdate(entity);
+            missionService.syncInspectionBindings(entity.getId(), dto.getInspectionBoundMissionIds());
             return ResponseEntity.ok(ApiResponse.ok(String.valueOf(entity.getId())));
         } catch (DuplicateKeyException e) {
             return ResponseEntity.ok(ApiResponse.fail("任务名称已存在"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.ok(ApiResponse.fail(e.getMessage()));
         } catch (Exception e) {
             log.error("Update mission failed: id={}", id, e);
             return ResponseEntity.ok(ApiResponse.fail("更新失败"));

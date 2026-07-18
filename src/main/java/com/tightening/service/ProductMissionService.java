@@ -74,6 +74,17 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
     }
 
     @Transactional
+    public void syncInspectionBindings(Long missionId, List<Long> boundMissionIds) {
+        if (boundMissionIds == null) return;
+        bindingService.lambdaUpdate()
+                .eq(InspectionMissionBinding::getInspectionMissionId, missionId)
+                .remove();
+        for (Long boundId : boundMissionIds) {
+            addInspectionBinding(missionId, boundId);
+        }
+    }
+
+    @Transactional
     public void cascadeDelete(Long missionId) {
         // Collect all side IDs and bolt IDs for batch deletion
         List<Long> sideIds = sideService.lambdaQuery()

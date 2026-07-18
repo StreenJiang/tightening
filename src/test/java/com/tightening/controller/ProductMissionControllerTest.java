@@ -7,6 +7,7 @@ import com.tightening.dto.ProductMissionDTO;
 import com.tightening.entity.ProductMission;
 import com.tightening.service.BarCodeMatchingRuleService;
 import com.tightening.service.InspectionMissionBindingService;
+import com.tightening.service.MissionConfigValidator;
 import com.tightening.service.MissionPrerequisiteService;
 import com.tightening.service.ProductMissionService;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,7 @@ class ProductMissionControllerTest {
     @Mock private MissionPrerequisiteService prerequisiteService;
     @Mock private InspectionMissionBindingService bindingService;
     @Mock private BarCodeMatchingRuleService barcodeRuleService;
+    @Mock private MissionConfigValidator missionValidator;
     @InjectMocks private ProductMissionController controller;
 
     @Test

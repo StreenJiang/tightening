@@ -2,6 +2,8 @@ package com.tightening.dto;
 
 import com.tightening.constant.InspectionScope;
 
+import java.util.List;
+
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -22,4 +24,5 @@ public class ProductMissionDTO extends BaseDTO {
     private Integer skipScrew;
     private Integer isInspection;
     private InspectionScope inspectionScope;
+    private List<Long> inspectionBoundMissionIds;
 }

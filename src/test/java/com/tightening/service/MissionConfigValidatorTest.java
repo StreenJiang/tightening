@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThatNoException;
 
 class MissionConfigValidatorTest {
 
-    private final MissionConfigValidator validator = new MissionConfigValidator(null, null);
+    private final MissionConfigValidator validator = new MissionConfigValidator(null, null, null);
 
     @Test
     @DisplayName("segments: single char passes")

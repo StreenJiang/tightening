@@ -2,8 +2,10 @@ package com.tightening.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.tightening.constant.BarCodeRuleType;
+import com.tightening.constant.InspectionScope;
 import com.tightening.constant.PrerequisiteType;
 import com.tightening.entity.BarCodeMatchingRule;
+import com.tightening.entity.InspectionMissionBinding;
 import com.tightening.entity.MissionPrerequisite;
 import com.tightening.entity.ProductMission;
 import com.tightening.util.BarcodeMatcher;
@@ -22,11 +24,14 @@ import java.util.Set;
 public class MissionConfigValidator {
     private final MissionPrerequisiteService prerequisiteService;
     private final BarCodeMatchingRuleService barcodeRuleService;
+    private final InspectionMissionBindingService bindingService;
 
     public MissionConfigValidator(MissionPrerequisiteService prerequisiteService,
-                                  BarCodeMatchingRuleService barcodeRuleService) {
+                                  BarCodeMatchingRuleService barcodeRuleService,
+                                  InspectionMissionBindingService bindingService) {
         this.prerequisiteService = prerequisiteService;
         this.barcodeRuleService = barcodeRuleService;
+        this.bindingService = bindingService;
     }
 
     public void validateNoCircularDependency(Long missionId, Long prerequisiteMissionId) {
@@ -51,7 +56,7 @@ public class MissionConfigValidator {
 
     public void validatePrerequisiteType(ProductMission target, Integer prerequisiteType) {
         if (target == null) return;
-        boolean isInspection = Integer.valueOf(1).equals(target.getIsInspection());
+        boolean isInspection = isInspectionMission(target);
         if (Integer.valueOf(PrerequisiteType.INSPECTION_CHAIN.getCode()).equals(prerequisiteType) && !isInspection) {
             throw new IllegalArgumentException("INSPECTION_CHAIN 的前置任务必须是点检任务 (is_inspection=1)");
         }
@@ -60,8 +65,37 @@ public class MissionConfigValidator {
         }
     }
 
+    public void validateInspectionScope(ProductMission mission, List<Long> boundMissionIds) {
+        if (!isInspectionMission(mission)) return;
+        if (mission.getInspectionScope() == null || mission.getInspectionScope() == InspectionScope.NONE) {
+            throw new IllegalArgumentException("点检任务必须选择点检范围");
+        }
+        if (mission.getInspectionScope() == InspectionScope.CHOSEN) {
+            boolean hasIncoming = boundMissionIds != null && !boundMissionIds.isEmpty();
+            boolean hasExisting = false;
+            if (!hasIncoming && mission.getId() != null) {
+                hasExisting = bindingService.lambdaQuery()
+                        .eq(InspectionMissionBinding::getInspectionMissionId, mission.getId())
+                        .eq(InspectionMissionBinding::getDeleted, 0)
+                        .count() > 0;
+            }
+            if (!hasIncoming && !hasExisting) {
+                throw new IllegalArgumentException("点检范围为指定任务时，必须选择至少一个被点检任务");
+            }
+        }
+        if (mission.getId() != null) {
+            long count = bindingService.lambdaQuery()
+                    .eq(InspectionMissionBinding::getBoundMissionId, mission.getId())
+                    .eq(InspectionMissionBinding::getDeleted, 0)
+                    .count();
+            if (count > 0) {
+                throw new IllegalArgumentException("该任务已被其他点检任务选中，不能改为点检任务");
+            }
+        }
+    }
+
     public void validateInspectionBinding(ProductMission boundMission) {
-        if (boundMission != null && Integer.valueOf(1).equals(boundMission.getIsInspection())) {
+        if (boundMission != null && isInspectionMission(boundMission)) {
             throw new IllegalArgumentException("点检任务不能绑定到另一个点检任务");
         }
     }
@@ -97,5 +131,9 @@ public class MissionConfigValidator {
         if (count > 0) {
             throw new IllegalArgumentException("该 mission 已存在 PRODUCT_TRACE 规则，每个 mission 最多一条");
         }
+    }
+
+    private boolean isInspectionMission(ProductMission mission) {
+        return Integer.valueOf(1).equals(mission.getIsInspection());
     }
 }

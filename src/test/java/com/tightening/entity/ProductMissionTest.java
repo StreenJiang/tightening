@@ -16,7 +16,7 @@ class ProductMissionTest {
         original.setId(1L);
         original.setName("EngineAssembly");
         original.setMaxNgCount(5);
-        original.setPasswordRequiredAfterNg(1);
+        original.setPasswordRequiredNgCount(1);
         original.setEnabled(1);
         original.setMultiDeviceIndependent(0);
         original.setSkipScrew(0);
@@ -28,7 +28,7 @@ class ProductMissionTest {
 
         assertThat(restored.getName()).isEqualTo("EngineAssembly");
         assertThat(restored.getMaxNgCount()).isEqualTo(5);
-        assertThat(restored.getPasswordRequiredAfterNg()).isEqualTo(1);
+        assertThat(restored.getPasswordRequiredNgCount()).isEqualTo(1);
         assertThat(restored.getEnabled()).isEqualTo(1);
         assertThat(restored.getMultiDeviceIndependent()).isEqualTo(0);
         assertThat(restored.getSkipScrew()).isEqualTo(0);

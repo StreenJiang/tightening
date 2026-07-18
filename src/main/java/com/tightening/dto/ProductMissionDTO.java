@@ -16,7 +16,7 @@ import lombok.experimental.Accessors;
 public class ProductMissionDTO extends BaseDTO {
     private String name;
     private Integer maxNgCount;
-    private Integer passwordRequiredAfterNg;
+    private Integer passwordRequiredNgCount;
     private Integer enabled;
     private Integer multiDeviceIndependent;
     private Integer skipScrew;

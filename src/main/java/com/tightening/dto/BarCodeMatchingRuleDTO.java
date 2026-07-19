@@ -18,4 +18,5 @@ public class BarCodeMatchingRuleDTO extends BaseDTO {
     private String partNumber;
     private Integer expectedLength;
     private String segments;
+    private Integer seq;
 }

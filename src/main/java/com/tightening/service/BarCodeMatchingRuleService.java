@@ -16,6 +16,7 @@ public class BarCodeMatchingRuleService extends ServiceImpl<BarCodeMatchingRuleM
     public List<BarCodeMatchingRule> listByMissionId(Long missionId) {
         return lambdaQuery()
                 .eq(BarCodeMatchingRule::getProductMissionId, missionId)
+                .orderByAsc(BarCodeMatchingRule::getSeq)
                 .list();
     }
 

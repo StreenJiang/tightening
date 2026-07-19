@@ -34,7 +34,7 @@ class ProductMissionControllerTest {
 
     @Test
     void list_shouldReturnOk() {
-        when(missionService.listByPage(eq(1), eq(100), isNull())).thenReturn(new Page<>(1, 100));
+        when(missionService.listByPage(eq(1), eq(100), isNull())).thenReturn(PageResult.of(new Page<>(1, 100), List.of()));
 
         ResponseEntity<ApiResponse<PageResult<ProductMissionDTO>>> response = controller.list(1, 100, null);
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
@@ -44,7 +44,7 @@ class ProductMissionControllerTest {
 
     @Test
     void list_shouldPassNameToService_whenNameProvided() {
-        when(missionService.listByPage(1, 100, "Test")).thenReturn(new Page<>(1, 100));
+        when(missionService.listByPage(1, 100, "Test")).thenReturn(PageResult.of(new Page<>(1, 100), List.of()));
 
         ResponseEntity<ApiResponse<PageResult<ProductMissionDTO>>> response = controller.list(1, 100, "Test");
         assertThat(response.getBody()).isNotNull();

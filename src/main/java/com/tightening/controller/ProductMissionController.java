@@ -45,9 +45,7 @@ public class ProductMissionController {
     public ResponseEntity<ApiResponse<PageResult<ProductMissionDTO>>> list(@RequestParam(defaultValue = "1") int page,
                                                         @RequestParam(defaultValue = "100") int size,
                                                         @RequestParam(required = false) String name) {
-        var resultPage = missionService.listByPage(page, size, name);
-        var dtos = Converter.entity2Dto(resultPage.getRecords(), ProductMissionDTO::new);
-        return ResponseEntity.ok(ApiResponse.ok(PageResult.of(resultPage, dtos)));
+        return ResponseEntity.ok(ApiResponse.ok(missionService.listByPage(page, size, name)));
     }
 
     @GetMapping("/{id}")

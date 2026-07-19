@@ -8,8 +8,10 @@ import com.tightening.constant.PrerequisiteType;
 import com.tightening.dto.BarCodeRuleSaveItem;
 import com.tightening.dto.BoltDeviceBindingSaveItem;
 import com.tightening.dto.BoltPartsBarcodeSaveItem;
+import com.tightening.dto.PageResult;
 import com.tightening.dto.PrerequisiteSaveItem;
 import com.tightening.dto.ProductBoltSaveItem;
+import com.tightening.dto.ProductMissionDTO;
 import com.tightening.dto.ProductMissionDetailDTO;
 import com.tightening.dto.ProductSideSaveItem;
 import com.tightening.entity.BarCodeMatchingRule;
@@ -72,7 +74,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
                 .count() > 0;
     }
 
-    public Page<ProductMission> listByPage(int page, int size, String name) {
+    public PageResult<ProductMissionDTO> listByPage(int page, int size, String name) {
         int safePage = Math.min(Math.max(1, page), 1000);
         int safeSize = Math.min(Math.max(1, size), 500);
         var wrapper = lambdaQuery()
@@ -80,7 +82,28 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         if (name != null && !name.isBlank()) {
             wrapper.like(ProductMission::getName, name);
         }
-        return wrapper.page(new Page<>(safePage, safeSize));
+        Page<ProductMission> resultPage = wrapper.page(new Page<>(safePage, safeSize));
+
+        List<ProductMissionDTO> dtos = Converter.entity2Dto(resultPage.getRecords(), ProductMissionDTO::new);
+
+        List<Long> missionIds = resultPage.getRecords().stream().map(ProductMission::getId).toList();
+        if (!missionIds.isEmpty()) {
+            Map<Long, String> thumbnailMap = loadFirstSideThumbnails(missionIds);
+            for (ProductMissionDTO dto : dtos) {
+                dto.setThumbnail(thumbnailMap.get(dto.getId()));
+            }
+        }
+
+        return PageResult.of(resultPage, dtos);
+    }
+
+    private Map<Long, String> loadFirstSideThumbnails(List<Long> missionIds) {
+        Map<Long, String> result = new HashMap<>();
+        List<ProductSide> sides = sideService.getBaseMapper().selectFirstSidePerMission(missionIds);
+        for (ProductSide side : sides) {
+            result.put(side.getProductMissionId(), encodeBase64(side.getThumbnailData()));
+        }
+        return result;
     }
 
     public ProductMissionDetailDTO getDetail(Long missionId) {

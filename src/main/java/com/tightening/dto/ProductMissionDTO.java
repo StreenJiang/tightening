@@ -25,4 +25,5 @@ public class ProductMissionDTO extends BaseDTO {
     private Integer isInspection;
     private InspectionScope inspectionScope;
     private List<Long> inspectionBoundMissionIds;
+    private String thumbnail;
 }

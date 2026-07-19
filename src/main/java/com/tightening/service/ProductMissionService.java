@@ -10,7 +10,7 @@ import com.tightening.dto.BoltDeviceBindingSaveItem;
 import com.tightening.dto.BoltPartsBarcodeSaveItem;
 import com.tightening.dto.PrerequisiteSaveItem;
 import com.tightening.dto.ProductBoltSaveItem;
-import com.tightening.dto.ProductMissionSaveDTO;
+import com.tightening.dto.ProductMissionDetailDTO;
 import com.tightening.dto.ProductSideSaveItem;
 import com.tightening.entity.BarCodeMatchingRule;
 import com.tightening.entity.BoltDeviceBinding;
@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -82,8 +83,36 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         return wrapper.page(new Page<>(safePage, safeSize));
     }
 
+    public ProductMissionDetailDTO getDetail(Long missionId) {
+        ProductMission mission = getById(missionId);
+        if (mission == null) return null;
+
+        ProductMissionDetailDTO dto = Converter.entity2Dto(mission, ProductMissionDetailDTO::new);
+
+        List<ProductSide> sides = sideService.lambdaQuery()
+                .eq(ProductSide::getProductMissionId, missionId)
+                .eq(ProductSide::getDeleted, 0)
+                .list();
+
+        List<ProductSideSaveItem> sideItems = new ArrayList<>();
+        for (ProductSide side : sides) {
+            ProductSideSaveItem item = Converter.entity2Dto(side, ProductSideSaveItem::new);
+            item.setImage(encodeBase64(side.getImageData()));
+            item.setRenderedImage(encodeBase64(side.getRenderedImageData()));
+            item.setThumbnail(encodeBase64(side.getThumbnailData()));
+            sideItems.add(item);
+        }
+        dto.setSides(sideItems);
+
+        return dto;
+    }
+
+    private static String encodeBase64(byte[] data) {
+        return data != null ? Base64.getEncoder().encodeToString(data) : null;
+    }
+
     @Transactional
-    public ProductMissionSaveDTO saveMission(ProductMissionSaveDTO dto, Map<String, byte[]> imageMap) {
+    public ProductMissionDetailDTO saveMission(ProductMissionDetailDTO dto) {
         ProductMission mission = Converter.dto2Entity(dto, ProductMission::new);
         if (mission.getInspectionScope() == null) mission.setInspectionScope(InspectionScope.NONE);
         saveOrUpdate(mission);
@@ -100,7 +129,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         diffPrerequisites(missionId, dto.getPrerequisites(), barcodeResult);
         validator.validateInspectionChainSelfInspection(mission, dto.getPrerequisites());
 
-        diffSides(missionId, dto.getSides(), imageMap, barcodeResult);
+        diffSides(missionId, dto.getSides(), barcodeResult);
 
         return dto;
     }
@@ -239,11 +268,14 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
     }
 
     private void diffSides(Long missionId, List<ProductSideSaveItem> dtoSides,
-                            Map<String, byte[]> imageMap, BarcodeDiffResult barcodeResult) {
+                            BarcodeDiffResult barcodeResult) {
         List<ProductSide> existingSides = sideService.lambdaQuery()
                 .eq(ProductSide::getProductMissionId, missionId)
                 .eq(ProductSide::getDeleted, 0)
                 .list();
+
+        Map<Long, ProductSide> existingSideMap = existingSides.stream()
+                .collect(Collectors.toMap(ProductSide::getId, s -> s));
 
         Set<Long> dtoSideIds = new HashSet<>();
 
@@ -254,19 +286,20 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
                 sideEntity.setProductMissionId(missionId);
 
                 if (sideItem.getId() != null) {
+                    ProductSide existing = existingSideMap.get(sideItem.getId());
+                    if (existing != null) {
+                        if (sideItem.getImage() == null) sideEntity.setImageData(existing.getImageData());
+                        if (sideItem.getRenderedImage() == null) sideEntity.setRenderedImageData(existing.getRenderedImageData());
+                        if (sideItem.getThumbnail() == null) sideEntity.setThumbnailData(existing.getThumbnailData());
+                    }
                     dtoSideIds.add(sideItem.getId());
+                    applyImageFromBase64(sideItem, sideEntity);
                     sideService.updateById(sideEntity);
                 } else {
+                    applyImageFromBase64(sideItem, sideEntity);
                     sideService.save(sideEntity);
                     sideItem.setId(sideEntity.getId());
                 }
-
-                byte[] image = imageMap != null ? imageMap.get("sides[" + i + "].image") : null;
-                byte[] renderedImage = imageMap != null ? imageMap.get("sides[" + i + "].renderedImage") : null;
-                byte[] thumbnail = imageMap != null ? imageMap.get("sides[" + i + "].thumbnail") : null;
-                if (image != null) sideService.updateImageData(sideEntity.getId(), image);
-                if (renderedImage != null) sideService.updateRenderedImageData(sideEntity.getId(), renderedImage);
-                if (thumbnail != null) sideService.updateThumbnailData(sideEntity.getId(), thumbnail);
 
                 diffBolts(sideEntity.getId(), missionId, sideItem.getBolts(), barcodeResult);
             }
@@ -277,6 +310,16 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
                 sideService.cascadeDelete(ex.getId());
             }
         }
+    }
+
+    private void applyImageFromBase64(ProductSideSaveItem item, ProductSide entity) {
+        if (item.getImage() != null) entity.setImageData(decodeBase64(item.getImage()));
+        if (item.getRenderedImage() != null) entity.setRenderedImageData(decodeBase64(item.getRenderedImage()));
+        if (item.getThumbnail() != null) entity.setThumbnailData(decodeBase64(item.getThumbnail()));
+    }
+
+    private static byte[] decodeBase64(String data) {
+        return data.isEmpty() ? null : Base64.getDecoder().decode(data);
     }
 
     private void diffBolts(Long sideId, Long missionId, List<ProductBoltSaveItem> dtoBolts,

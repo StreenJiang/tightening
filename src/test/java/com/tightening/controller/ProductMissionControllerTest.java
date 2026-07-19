@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tightening.dto.ApiResponse;
 import com.tightening.dto.PageResult;
 import com.tightening.dto.ProductMissionDTO;
-import com.tightening.entity.ProductMission;
+import com.tightening.dto.ProductMissionDetailDTO;
 import com.tightening.service.BarCodeMatchingRuleService;
 import com.tightening.service.InspectionMissionBindingService;
 import com.tightening.service.MissionPrerequisiteService;
@@ -84,7 +84,7 @@ class ProductMissionControllerTest {
 
     @Test
     void get_shouldReturnOk() {
-        when(missionService.getById(1L)).thenReturn(new ProductMission());
+        when(missionService.getDetail(1L)).thenReturn(new ProductMissionDetailDTO());
         assertThat(controller.get(1L).getStatusCode().is2xxSuccessful()).isTrue();
     }
 

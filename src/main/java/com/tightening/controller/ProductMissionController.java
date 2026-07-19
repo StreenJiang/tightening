@@ -6,36 +6,29 @@ import com.tightening.dto.InspectionMissionBindingDTO;
 import com.tightening.dto.MissionPrerequisiteDTO;
 import com.tightening.dto.PageResult;
 import com.tightening.dto.ProductMissionDTO;
-import com.tightening.dto.ProductMissionSaveDTO;
+import com.tightening.dto.ProductMissionDetailDTO;
 import com.tightening.entity.BarCodeMatchingRule;
 import com.tightening.entity.InspectionMissionBinding;
-import com.tightening.entity.ProductMission;
 import com.tightening.service.BarCodeMatchingRuleService;
 import com.tightening.service.InspectionMissionBindingService;
 import com.tightening.service.MissionPrerequisiteService;
 import com.tightening.service.ProductMissionService;
 import com.tightening.util.Converter;
-import com.tightening.util.JsonUtils;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.multipart.MultipartHttpServletRequest;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @RestController
@@ -58,10 +51,10 @@ public class ProductMissionController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<ProductMissionDTO>> get(@PathVariable Long id) {
-        ProductMission mission = missionService.getById(id);
-        if (mission == null) return ResponseEntity.ok(ApiResponse.fail("not found"));
-        return ResponseEntity.ok(ApiResponse.ok(Converter.entity2Dto(mission, ProductMissionDTO::new)));
+    public ResponseEntity<ApiResponse<ProductMissionDetailDTO>> get(@PathVariable Long id) {
+        ProductMissionDetailDTO dto = missionService.getDetail(id);
+        if (dto == null) return ResponseEntity.ok(ApiResponse.fail("not found"));
+        return ResponseEntity.ok(ApiResponse.ok(dto));
     }
 
     @GetMapping("/check-name")
@@ -71,11 +64,10 @@ public class ProductMissionController {
         return ResponseEntity.ok(ApiResponse.ok(exists));
     }
 
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<ProductMissionSaveDTO>> create(HttpServletRequest request) {
+    @PostMapping
+    public ResponseEntity<ApiResponse<ProductMissionDetailDTO>> create(@RequestBody ProductMissionDetailDTO dto) {
         try {
-            ProductMissionSaveDTO dto = parseDto(request);
-            ProductMissionSaveDTO result = missionService.saveMission(dto, extractImages(request));
+            ProductMissionDetailDTO result = missionService.saveMission(dto);
             return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (DuplicateKeyException e) {
             return ResponseEntity.ok(ApiResponse.fail("任务名称已存在"));
@@ -90,12 +82,11 @@ public class ProductMissionController {
         }
     }
 
-    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<ProductMissionSaveDTO>> update(@PathVariable Long id, HttpServletRequest request) {
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<ProductMissionDetailDTO>> update(@PathVariable Long id, @RequestBody ProductMissionDetailDTO dto) {
         try {
-            ProductMissionSaveDTO dto = parseDto(request);
             dto.setId(id);
-            ProductMissionSaveDTO result = missionService.saveMission(dto, extractImages(request));
+            ProductMissionDetailDTO result = missionService.saveMission(dto);
             return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (DuplicateKeyException e) {
             return ResponseEntity.ok(ApiResponse.fail("任务名称已存在"));
@@ -132,31 +123,6 @@ public class ProductMissionController {
     public ResponseEntity<ApiResponse<List<BarCodeMatchingRuleDTO>>> listBarcodeRules(@PathVariable Long missionId) {
         List<BarCodeMatchingRule> rules = barcodeRuleService.listByMissionId(missionId);
         return ResponseEntity.ok(ApiResponse.ok(Converter.entity2Dto(rules, BarCodeMatchingRuleDTO::new)));
-    }
-
-    private static MultipartHttpServletRequest asMultipart(HttpServletRequest request) {
-        if (!(request instanceof MultipartHttpServletRequest mpRequest)) {
-            throw new IllegalArgumentException("请求必须是 multipart/form-data");
-        }
-        return mpRequest;
-    }
-
-    private ProductMissionSaveDTO parseDto(HttpServletRequest request) throws Exception {
-        MultipartHttpServletRequest mpRequest = asMultipart(request);
-        String dtoJson = mpRequest.getParameter("dto");
-        if (dtoJson == null) {
-            throw new IllegalArgumentException("缺少 dto 字段");
-        }
-        return JsonUtils.parse(dtoJson, ProductMissionSaveDTO.class);
-    }
-
-    private Map<String, byte[]> extractImages(HttpServletRequest request) throws Exception {
-        MultipartHttpServletRequest mpRequest = asMultipart(request);
-        Map<String, byte[]> imageMap = new HashMap<>();
-        for (Map.Entry<String, MultipartFile> entry : mpRequest.getFileMap().entrySet()) {
-            imageMap.put(entry.getKey(), entry.getValue().getBytes());
-        }
-        return imageMap;
     }
 
     private static String unwrapCause(RuntimeException e) {

@@ -16,4 +16,7 @@ import lombok.experimental.Accessors;
 public class ProductSideSaveItem extends BaseDTO {
     private String name;
     private List<ProductBoltSaveItem> bolts;
+    private String image;
+    private String renderedImage;
+    private String thumbnail;
 }

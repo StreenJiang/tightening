@@ -19,4 +19,5 @@ public class BarCodeRuleSaveItem extends BaseDTO {
     private Integer expectedLength;
     private String segments;
     private Integer seq;
+    private String clientRef;
 }

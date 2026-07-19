@@ -27,10 +27,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -91,10 +93,10 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
 
         syncInspectionBindings(missionId, dto.getInspectionBoundMissionIds());
 
-        List<BarCodeMatchingRule> finalRules = diffBarcodeRules(missionId, dto.getBarcodeRules());
-        validator.validateBarcodeRules(finalRules);
+        BarcodeDiffResult barcodeResult = diffBarcodeRules(missionId, dto.getBarcodeRules());
+        validator.validateBarcodeRules(barcodeResult.rules());
 
-        diffPrerequisites(missionId, dto.getPrerequisites());
+        diffPrerequisites(missionId, dto.getPrerequisites(), barcodeResult);
         validator.validateInspectionChainSelfInspection(mission, dto.getPrerequisites());
 
         diffSides(missionId, dto.getSides(), imageMap);
@@ -118,7 +120,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         }
     }
 
-    private List<BarCodeMatchingRule> diffBarcodeRules(Long missionId, List<BarCodeRuleSaveItem> dtoItems) {
+    private BarcodeDiffResult diffBarcodeRules(Long missionId, List<BarCodeRuleSaveItem> dtoItems) {
         List<BarCodeMatchingRule> existing = barcodeRuleService.lambdaQuery()
                 .eq(BarCodeMatchingRule::getProductMissionId, missionId)
                 .eq(BarCodeMatchingRule::getDeleted, 0)
@@ -126,6 +128,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
 
         Set<Long> dtoIds = new HashSet<>();
         List<BarCodeMatchingRule> result = new ArrayList<>();
+        Map<String, Long> clientRefMap = new HashMap<>();
 
         if (dtoItems != null) {
             for (BarCodeRuleSaveItem item : dtoItems) {
@@ -136,11 +139,17 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
                 if (BarCodeRuleType.PRODUCT_TRACE.getCode() == entity.getRuleType()) {
                     validator.validateProductTraceUnique(missionId, entity.getId());
                 }
+                if (item.getClientRef() != null && item.getId() != null) {
+                    throw new IllegalArgumentException("clientRef 仅用于新增规则，已有规则不可设置");
+                }
                 if (item.getId() != null) {
                     dtoIds.add(item.getId());
                     barcodeRuleService.updateById(entity);
                 } else {
                     barcodeRuleService.save(entity);
+                    if (item.getClientRef() != null) {
+                        clientRefMap.put(item.getClientRef(), entity.getId());
+                    }
                 }
                 result.add(entity);
             }
@@ -152,10 +161,10 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
             }
         }
 
-        return result;
+        return new BarcodeDiffResult(result, clientRefMap);
     }
 
-    private void diffPrerequisites(Long missionId, List<PrerequisiteSaveItem> dtoItems) {
+    private void diffPrerequisites(Long missionId, List<PrerequisiteSaveItem> dtoItems, BarcodeDiffResult barcodeResult) {
         List<MissionPrerequisite> existing = prerequisiteService.lambdaQuery()
                 .eq(MissionPrerequisite::getMissionId, missionId)
                 .eq(MissionPrerequisite::getDeleted, 0)
@@ -169,7 +178,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
                     .map(PrerequisiteSaveItem::getPrerequisiteMissionId).toList();
             List<ProductMission> targets = lambdaQuery().in(ProductMission::getId, targetIds).list();
             Map<Long, ProductMission> targetMap = targets.stream()
-                    .collect(java.util.stream.Collectors.toMap(ProductMission::getId, m -> m));
+                    .collect(Collectors.toMap(ProductMission::getId, m -> m));
 
             for (PrerequisiteSaveItem item : dtoItems) {
                 MissionPrerequisite entity = Converter.dto2Entity(item, MissionPrerequisite::new);
@@ -177,6 +186,9 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
                 entity.setPrerequisiteType(item.getPrerequisiteType().getCode());
                 validator.validateNoCircularDependency(missionId, item.getPrerequisiteMissionId());
                 validator.validatePrerequisiteType(targetMap.get(item.getPrerequisiteMissionId()), item.getPrerequisiteType());
+
+                resolveAndValidateBarcodeRule(item, entity, barcodeResult);
+
                 if (item.getId() != null) {
                     dtoIds.add(item.getId());
                     prerequisiteService.updateById(entity);
@@ -191,6 +203,29 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
                 prerequisiteService.removeById(ex.getId());
             }
         }
+    }
+
+    private void resolveAndValidateBarcodeRule(PrerequisiteSaveItem item, MissionPrerequisite entity,
+                                               BarcodeDiffResult barcodeResult) {
+        if (item.getBarcodeRuleRef() != null) {
+            if (item.getBarcodeRuleId() != null) {
+                throw new IllegalArgumentException("barcodeRuleRef 和 barcodeRuleId 不能同时存在");
+            }
+            Long resolvedId = barcodeResult.clientRefMap().get(item.getBarcodeRuleRef());
+            if (resolvedId == null) {
+                throw new IllegalArgumentException("找不到 clientRef='" + item.getBarcodeRuleRef() + "' 对应的条码规则");
+            }
+            entity.setBarcodeRuleId(resolvedId);
+        }
+
+        Long ruleId = entity.getBarcodeRuleId();
+        BarCodeMatchingRule rule = null;
+        if (ruleId != null) {
+            rule = barcodeResult.rules().stream()
+                    .filter(r -> ruleId.equals(r.getId()))
+                    .findFirst().orElse(null);
+        }
+        validator.validateBarcodeRuleForPrerequisite(rule, item.getPrerequisiteType());
     }
 
     private void diffSides(Long missionId, List<ProductSideSaveItem> dtoSides, Map<String, byte[]> imageMap) {
@@ -344,5 +379,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
                 .eq(BarCodeMatchingRule::getProductMissionId, missionId).remove();
         removeById(missionId);
     }
+
+    private record BarcodeDiffResult(List<BarCodeMatchingRule> rules, Map<String, Long> clientRefMap) {}
 
 }

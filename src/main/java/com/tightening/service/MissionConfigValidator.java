@@ -150,6 +150,21 @@ public class MissionConfigValidator {
         return Integer.valueOf(1).equals(mission.getIsInspection());
     }
 
+    public void validateBarcodeRuleForPrerequisite(BarCodeMatchingRule rule, PrerequisiteType prerequisiteType) {
+        if (PrerequisiteType.MATERIAL_TRACE == prerequisiteType) {
+            if (rule == null) {
+                throw new IllegalArgumentException("MATERIAL_TRACE 前置必须关联条码规则");
+            }
+            if (BarCodeRuleType.MATERIAL_BARCODE.getCode() != rule.getRuleType()) {
+                throw new IllegalArgumentException("前置关联的条码规则必须是 MATERIAL_BARCODE 类型");
+            }
+        } else {
+            if (rule != null) {
+                throw new IllegalArgumentException("只有 MATERIAL_TRACE 前置可以关联条码规则");
+            }
+        }
+    }
+
     public void validateProductTraceUnique(Long productMissionId, Long ruleId) {
         long count = barcodeRuleService.lambdaQuery()
                 .eq(BarCodeMatchingRule::getProductMissionId, productMissionId)

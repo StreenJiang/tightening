@@ -51,7 +51,7 @@ _Avoid_: 零件码、部件码
 _Avoid_: 条码校验规则、码规则
 
 **MissionPrerequisite（前置任务）**:
-定义任务之间的依赖关系。类型分为 SAME_TRACE（产品码前置，两个任务共用同一产品码）、MATERIAL_TRACE（物料码前置，前置任务的产品码 = 当前任务的物料码值）、INSPECTION_CHAIN（点检链，当前和前置任务都必须是点检任务）。新增前置关系时须通过 BFS 检测循环依赖。
+定义任务之间的依赖关系。类型分为 SAME_TRACE（产品码前置，两个任务共用同一产品码）、MATERIAL_TRACE（物料码前置，前置任务的产品码 = 当前任务的物料码值）、INSPECTION_CHAIN（点检链，当前和前置任务都必须是点检任务）。新增前置关系时须通过 BFS 检测循环依赖。MATERIAL_TRACE 必须通过 barcodeRuleId 关联当前任务的一条 MATERIAL_BARCODE 规则——因为一个任务可有多个物料码规则，须明确指定用哪个来匹配前置任务的产品码。SAME_TRACE 和 INSPECTION_CHAIN 不需要 barcodeRuleId（前者每个任务至多一个产品码规则可通过任务定位，后者是纯任务-任务依赖不涉及条码匹配）。
 _Avoid_: 前置条件、依赖任务
 
 **Rework（返工）**:

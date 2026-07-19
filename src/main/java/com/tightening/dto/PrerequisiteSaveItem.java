@@ -16,4 +16,5 @@ public class PrerequisiteSaveItem extends BaseDTO {
     private Long prerequisiteMissionId;
     private PrerequisiteType prerequisiteType;
     private Long barcodeRuleId;
+    private String barcodeRuleRef;
 }

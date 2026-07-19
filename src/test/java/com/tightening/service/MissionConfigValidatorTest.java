@@ -145,4 +145,60 @@ class MissionConfigValidatorTest {
                 .doesNotThrowAnyException();
         }
     }
+
+    @Nested
+    @DisplayName("validateBarcodeRuleForPrerequisite")
+    class ValidateBarcodeRuleForPrerequisite {
+
+        @Test
+        @DisplayName("MATERIAL_TRACE + null 规则 -> 抛异常")
+        void shouldRejectMaterialTraceWithNullRule() {
+            assertThatThrownBy(() -> validator.validateBarcodeRuleForPrerequisite(null, PrerequisiteType.MATERIAL_TRACE))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("MATERIAL_TRACE 前置必须关联条码规则");
+        }
+
+        @Test
+        @DisplayName("MATERIAL_TRACE + PRODUCT_TRACE 规则 -> 抛异常")
+        void shouldRejectMaterialTraceWithNonMaterialRule() {
+            BarCodeMatchingRule rule = new BarCodeMatchingRule()
+                    .setRuleType(BarCodeRuleType.PRODUCT_TRACE.getCode());
+            assertThatThrownBy(() -> validator.validateBarcodeRuleForPrerequisite(rule, PrerequisiteType.MATERIAL_TRACE))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("必须是 MATERIAL_BARCODE 类型");
+        }
+
+        @Test
+        @DisplayName("非 MATERIAL_TRACE + 非 null 规则 -> 抛异常")
+        void shouldRejectNonMaterialTraceWithRule() {
+            BarCodeMatchingRule rule = new BarCodeMatchingRule()
+                    .setRuleType(BarCodeRuleType.MATERIAL_BARCODE.getCode());
+            assertThatThrownBy(() -> validator.validateBarcodeRuleForPrerequisite(rule, PrerequisiteType.SAME_TRACE))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("只有 MATERIAL_TRACE 前置可以关联条码规则");
+        }
+
+        @Test
+        @DisplayName("SAME_TRACE + null 规则 -> 通过")
+        void shouldAllowNonMaterialTraceWithNullRule() {
+            assertThatCode(() -> validator.validateBarcodeRuleForPrerequisite(null, PrerequisiteType.SAME_TRACE))
+                .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("MATERIAL_TRACE + MATERIAL_BARCODE 规则 -> 通过")
+        void shouldAllowMaterialTraceWithMaterialRule() {
+            BarCodeMatchingRule rule = new BarCodeMatchingRule()
+                    .setRuleType(BarCodeRuleType.MATERIAL_BARCODE.getCode());
+            assertThatCode(() -> validator.validateBarcodeRuleForPrerequisite(rule, PrerequisiteType.MATERIAL_TRACE))
+                .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("INSPECTION_CHAIN + null 规则 -> 通过")
+        void shouldAllowInspectionChainWithNullRule() {
+            assertThatCode(() -> validator.validateBarcodeRuleForPrerequisite(null, PrerequisiteType.INSPECTION_CHAIN))
+                .doesNotThrowAnyException();
+        }
+    }
 }

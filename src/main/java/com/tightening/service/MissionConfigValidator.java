@@ -55,13 +55,13 @@ public class MissionConfigValidator {
         }
     }
 
-    public void validatePrerequisiteType(ProductMission target, Integer prerequisiteType) {
+    public void validatePrerequisiteType(ProductMission target, PrerequisiteType prerequisiteType) {
         if (target == null) return;
         boolean isInspection = isInspectionMission(target);
-        if (Integer.valueOf(PrerequisiteType.INSPECTION_CHAIN.getCode()).equals(prerequisiteType) && !isInspection) {
+        if (PrerequisiteType.INSPECTION_CHAIN == prerequisiteType && !isInspection) {
             throw new IllegalArgumentException("INSPECTION_CHAIN 的前置任务必须是点检任务 (is_inspection=1)");
         }
-        if (!Integer.valueOf(PrerequisiteType.INSPECTION_CHAIN.getCode()).equals(prerequisiteType) && isInspection) {
+        if (PrerequisiteType.INSPECTION_CHAIN != prerequisiteType && isInspection) {
             throw new IllegalArgumentException("SAME_TRACE/MATERIAL_TRACE 的前置任务必须是普通任务 (is_inspection=0)");
         }
     }
@@ -111,7 +111,7 @@ public class MissionConfigValidator {
     public void validateInspectionChainSelfInspection(ProductMission mission, List<PrerequisiteSaveItem> items) {
         if (items == null || items.isEmpty()) return;
         boolean hasInspectionChain = items.stream()
-                .anyMatch(i -> PrerequisiteType.INSPECTION_CHAIN.getCode() == i.getPrerequisiteType());
+                .anyMatch(i -> PrerequisiteType.INSPECTION_CHAIN == i.getPrerequisiteType());
         if (hasInspectionChain && !isInspectionMission(mission)) {
             throw new IllegalArgumentException("INSPECTION_CHAIN 的前置类型要求当前任务必须是点检任务 (is_inspection=1)");
         }

@@ -9,7 +9,6 @@ import com.tightening.dto.ProductMissionDTO;
 import com.tightening.dto.ProductMissionSaveDTO;
 import com.tightening.entity.BarCodeMatchingRule;
 import com.tightening.entity.InspectionMissionBinding;
-import com.tightening.entity.MissionPrerequisite;
 import com.tightening.entity.ProductMission;
 import com.tightening.service.BarCodeMatchingRuleService;
 import com.tightening.service.InspectionMissionBindingService;
@@ -113,8 +112,8 @@ public class ProductMissionController {
 
     @GetMapping("/{missionId}/prerequisites")
     public ResponseEntity<ApiResponse<List<MissionPrerequisiteDTO>>> listPrerequisites(@PathVariable Long missionId) {
-        List<MissionPrerequisite> prerequisites = prerequisiteService.listByMissionId(missionId);
-        return ResponseEntity.ok(ApiResponse.ok(Converter.entity2Dto(prerequisites, MissionPrerequisiteDTO::new)));
+        List<MissionPrerequisiteDTO> prerequisites = prerequisiteService.listByMissionId(missionId);
+        return ResponseEntity.ok(ApiResponse.ok(prerequisites));
     }
 
     @GetMapping("/{missionId}/inspection-bindings")

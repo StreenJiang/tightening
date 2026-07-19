@@ -1,5 +1,6 @@
 package com.tightening.dto;
 
+import com.tightening.constant.PrerequisiteType;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -14,5 +15,6 @@ import lombok.experimental.Accessors;
 public class MissionPrerequisiteDTO extends BaseDTO {
     private Long missionId;
     private Long prerequisiteMissionId;
-    private Integer prerequisiteType;
+    private PrerequisiteType prerequisiteType;
+    private String prerequisiteMissionName;
 }

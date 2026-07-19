@@ -131,6 +131,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
             for (BarCodeRuleSaveItem item : dtoItems) {
                 BarCodeMatchingRule entity = Converter.dto2Entity(item, BarCodeMatchingRule::new);
                 entity.setProductMissionId(missionId);
+                entity.setRuleType(item.getRuleType().getCode());
                 validator.validateKeyCharLength(entity);
                 if (BarCodeRuleType.PRODUCT_TRACE.getCode() == entity.getRuleType()) {
                     validator.validateProductTraceUnique(missionId, entity.getId());
@@ -173,6 +174,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
             for (PrerequisiteSaveItem item : dtoItems) {
                 MissionPrerequisite entity = Converter.dto2Entity(item, MissionPrerequisite::new);
                 entity.setMissionId(missionId);
+                entity.setPrerequisiteType(item.getPrerequisiteType().getCode());
                 validator.validateNoCircularDependency(missionId, item.getPrerequisiteMissionId());
                 validator.validatePrerequisiteType(targetMap.get(item.getPrerequisiteMissionId()), item.getPrerequisiteType());
                 if (item.getId() != null) {

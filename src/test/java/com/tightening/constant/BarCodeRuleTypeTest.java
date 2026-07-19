@@ -2,20 +2,24 @@ package com.tightening.constant;
 
 import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class BarCodeRuleTypeTest {
 
     @Test
     void fromCode_shouldReturnCorrectValue() {
-        assertThat(BarCodeRuleType.fromCode(1)).contains(BarCodeRuleType.PRODUCT_TRACE);
-        assertThat(BarCodeRuleType.fromCode(2)).contains(BarCodeRuleType.MATERIAL_BARCODE);
+        assertThat(BarCodeRuleType.fromCode(1)).isEqualTo(BarCodeRuleType.PRODUCT_TRACE);
+        assertThat(BarCodeRuleType.fromCode(2)).isEqualTo(BarCodeRuleType.MATERIAL_BARCODE);
     }
 
     @Test
-    void fromCode_shouldReturnEmptyForInvalidCode() {
-        assertThat(BarCodeRuleType.fromCode(-1)).isEmpty();
-        assertThat(BarCodeRuleType.fromCode(0)).isEmpty();
-        assertThat(BarCodeRuleType.fromCode(3)).isEmpty();
+    void fromCode_shouldThrowForInvalidCode() {
+        assertThatThrownBy(() -> BarCodeRuleType.fromCode(-1))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> BarCodeRuleType.fromCode(0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> BarCodeRuleType.fromCode(3))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

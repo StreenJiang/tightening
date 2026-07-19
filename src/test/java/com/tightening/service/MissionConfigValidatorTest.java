@@ -118,7 +118,7 @@ class MissionConfigValidatorTest {
         void shouldRejectWhenSelfIsNotInspection() {
             ProductMission mission = new ProductMission().setIsInspection(0);
             List<PrerequisiteSaveItem> items = List.of(
-                new PrerequisiteSaveItem().setPrerequisiteType(PrerequisiteType.INSPECTION_CHAIN.getCode())
+                new PrerequisiteSaveItem().setPrerequisiteType(PrerequisiteType.INSPECTION_CHAIN)
             );
 
             assertThatThrownBy(() -> validator.validateInspectionChainSelfInspection(mission, items))
@@ -131,7 +131,7 @@ class MissionConfigValidatorTest {
         void shouldSkipWhenNoInspectionChain() {
             ProductMission mission = new ProductMission().setIsInspection(0);
             List<PrerequisiteSaveItem> items = List.of(
-                new PrerequisiteSaveItem().setPrerequisiteType(PrerequisiteType.SAME_TRACE.getCode())
+                new PrerequisiteSaveItem().setPrerequisiteType(PrerequisiteType.SAME_TRACE)
             );
 
             assertThatCode(() -> validator.validateInspectionChainSelfInspection(mission, items))

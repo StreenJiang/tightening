@@ -1,5 +1,6 @@
 package com.tightening.dto;
 
+import com.tightening.constant.BarCodeRuleType;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -13,7 +14,7 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class BarCodeRuleSaveItem extends BaseDTO {
     private String name;
-    private Integer ruleType;
+    private BarCodeRuleType ruleType;
     private String partNumber;
     private Integer expectedLength;
     private String segments;

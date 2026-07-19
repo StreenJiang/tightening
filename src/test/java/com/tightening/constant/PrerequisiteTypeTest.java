@@ -3,21 +3,25 @@ package com.tightening.constant;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class PrerequisiteTypeTest {
 
     @Test
     void fromCode_shouldReturnCorrectValue() {
-        assertThat(PrerequisiteType.fromCode(1)).contains(PrerequisiteType.SAME_TRACE);
-        assertThat(PrerequisiteType.fromCode(2)).contains(PrerequisiteType.MATERIAL_TRACE);
-        assertThat(PrerequisiteType.fromCode(3)).contains(PrerequisiteType.INSPECTION_CHAIN);
+        assertThat(PrerequisiteType.fromCode(1)).isEqualTo(PrerequisiteType.SAME_TRACE);
+        assertThat(PrerequisiteType.fromCode(2)).isEqualTo(PrerequisiteType.MATERIAL_TRACE);
+        assertThat(PrerequisiteType.fromCode(3)).isEqualTo(PrerequisiteType.INSPECTION_CHAIN);
     }
 
     @Test
-    void fromCode_shouldReturnEmptyForInvalidCode() {
-        assertThat(PrerequisiteType.fromCode(-1)).isEmpty();
-        assertThat(PrerequisiteType.fromCode(0)).isEmpty();
-        assertThat(PrerequisiteType.fromCode(4)).isEmpty();
+    void fromCode_shouldThrowForInvalidCode() {
+        assertThatThrownBy(() -> PrerequisiteType.fromCode(-1))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> PrerequisiteType.fromCode(0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> PrerequisiteType.fromCode(4))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

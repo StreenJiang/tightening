@@ -5,9 +5,6 @@ import com.tightening.dto.ApiResponse;
 import com.tightening.dto.PageResult;
 import com.tightening.dto.ProductMissionDTO;
 import com.tightening.dto.ProductMissionDetailDTO;
-import com.tightening.service.BarCodeMatchingRuleService;
-import com.tightening.service.InspectionMissionBindingService;
-import com.tightening.service.MissionPrerequisiteService;
 import com.tightening.service.ProductMissionService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,9 +24,6 @@ import static org.mockito.Mockito.when;
 class ProductMissionControllerTest {
 
     @Mock private ProductMissionService missionService;
-    @Mock private MissionPrerequisiteService prerequisiteService;
-    @Mock private InspectionMissionBindingService bindingService;
-    @Mock private BarCodeMatchingRuleService barcodeRuleService;
     @InjectMocks private ProductMissionController controller;
 
     @Test
@@ -91,26 +85,5 @@ class ProductMissionControllerTest {
     @Test
     void delete_shouldReturnOk() {
         assertThat(controller.delete(1L).getStatusCode().is2xxSuccessful()).isTrue();
-    }
-
-    @Test
-    void listPrerequisites_shouldReturnOk() {
-        when(prerequisiteService.listByMissionId(1L)).thenReturn(List.of());
-
-        assertThat(controller.listPrerequisites(1L).getStatusCode().is2xxSuccessful()).isTrue();
-    }
-
-    @Test
-    void listInspectionBindings_shouldReturnOk() {
-        when(bindingService.listByInspectionMissionId(1L)).thenReturn(List.of());
-
-        assertThat(controller.listInspectionBindings(1L).getStatusCode().is2xxSuccessful()).isTrue();
-    }
-
-    @Test
-    void listBarcodeRules_shouldReturnOk() {
-        when(barcodeRuleService.listByMissionId(1L)).thenReturn(List.of());
-
-        assertThat(controller.listBarcodeRules(1L).getStatusCode().is2xxSuccessful()).isTrue();
     }
 }

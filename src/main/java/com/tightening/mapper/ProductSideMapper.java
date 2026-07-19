@@ -2,6 +2,7 @@ package com.tightening.mapper;
 
 import com.tightening.entity.ProductSide;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.ResultMap;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
@@ -12,6 +13,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 public interface ProductSideMapper extends BaseMapper<ProductSide> {
 
     @Select("""
+        <script>
         SELECT id, product_mission_id, thumbnail_data
         FROM product_side ps
         WHERE ps.product_mission_id IN
@@ -20,6 +22,8 @@ public interface ProductSideMapper extends BaseMapper<ProductSide> {
           AND ps.id = (SELECT MIN(ps2.id) FROM product_side ps2
                        WHERE ps2.product_mission_id = ps.product_mission_id
                          AND ps2.deleted = 0)
+        </script>
         """)
+    @ResultMap("mybatis-plus_ProductSide")
     List<ProductSide> selectFirstSidePerMission(List<Long> missionIds);
 }

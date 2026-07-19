@@ -1,19 +1,10 @@
 package com.tightening.controller;
 
 import com.tightening.dto.ApiResponse;
-import com.tightening.dto.BarCodeMatchingRuleDTO;
-import com.tightening.dto.InspectionMissionBindingDTO;
-import com.tightening.dto.MissionPrerequisiteDTO;
 import com.tightening.dto.PageResult;
 import com.tightening.dto.ProductMissionDTO;
 import com.tightening.dto.ProductMissionDetailDTO;
-import com.tightening.entity.BarCodeMatchingRule;
-import com.tightening.entity.InspectionMissionBinding;
-import com.tightening.service.BarCodeMatchingRuleService;
-import com.tightening.service.InspectionMissionBindingService;
-import com.tightening.service.MissionPrerequisiteService;
 import com.tightening.service.ProductMissionService;
-import com.tightening.util.Converter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
@@ -28,8 +19,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 @Slf4j
 @RestController
 @RequestMapping("api/missions")
@@ -37,9 +26,6 @@ import java.util.List;
 public class ProductMissionController {
 
     private final ProductMissionService missionService;
-    private final MissionPrerequisiteService prerequisiteService;
-    private final InspectionMissionBindingService bindingService;
-    private final BarCodeMatchingRuleService barcodeRuleService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResult<ProductMissionDTO>>> list(@RequestParam(defaultValue = "1") int page,
@@ -103,24 +89,6 @@ public class ProductMissionController {
     public ResponseEntity<ApiResponse<String>> delete(@PathVariable Long id) {
         missionService.cascadeDelete(id);
         return ResponseEntity.ok(ApiResponse.ok());
-    }
-
-    @GetMapping("/{missionId}/prerequisites")
-    public ResponseEntity<ApiResponse<List<MissionPrerequisiteDTO>>> listPrerequisites(@PathVariable Long missionId) {
-        List<MissionPrerequisiteDTO> prerequisites = prerequisiteService.listByMissionId(missionId);
-        return ResponseEntity.ok(ApiResponse.ok(prerequisites));
-    }
-
-    @GetMapping("/{missionId}/inspection-bindings")
-    public ResponseEntity<ApiResponse<List<InspectionMissionBindingDTO>>> listInspectionBindings(@PathVariable Long missionId) {
-        List<InspectionMissionBinding> bindings = bindingService.listByInspectionMissionId(missionId);
-        return ResponseEntity.ok(ApiResponse.ok(Converter.entity2Dto(bindings, InspectionMissionBindingDTO::new)));
-    }
-
-    @GetMapping("/{missionId}/barcode-rules")
-    public ResponseEntity<ApiResponse<List<BarCodeMatchingRuleDTO>>> listBarcodeRules(@PathVariable Long missionId) {
-        List<BarCodeMatchingRule> rules = barcodeRuleService.listByMissionId(missionId);
-        return ResponseEntity.ok(ApiResponse.ok(Converter.entity2Dto(rules, BarCodeMatchingRuleDTO::new)));
     }
 
     private static String unwrapCause(RuntimeException e) {

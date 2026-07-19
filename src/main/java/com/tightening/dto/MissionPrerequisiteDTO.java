@@ -17,4 +17,5 @@ public class MissionPrerequisiteDTO extends BaseDTO {
     private Long prerequisiteMissionId;
     private PrerequisiteType prerequisiteType;
     private String prerequisiteMissionName;
+    private Long barcodeRuleId;
 }

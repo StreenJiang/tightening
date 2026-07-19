@@ -15,4 +15,5 @@ import lombok.experimental.Accessors;
 public class PrerequisiteSaveItem extends BaseDTO {
     private Long prerequisiteMissionId;
     private PrerequisiteType prerequisiteType;
+    private Long barcodeRuleId;
 }

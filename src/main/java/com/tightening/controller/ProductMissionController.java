@@ -81,6 +81,9 @@ public class ProductMissionController {
             return ResponseEntity.ok(ApiResponse.fail("任务名称已存在"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.ok(ApiResponse.fail(e.getMessage()));
+        } catch (RuntimeException e) {
+            log.error("Create mission failed", e);
+            return ResponseEntity.ok(ApiResponse.fail("新增失败: " + unwrapCause(e)));
         } catch (Exception e) {
             log.error("Create mission failed", e);
             return ResponseEntity.ok(ApiResponse.fail("新增失败"));
@@ -98,6 +101,9 @@ public class ProductMissionController {
             return ResponseEntity.ok(ApiResponse.fail("任务名称已存在"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.ok(ApiResponse.fail(e.getMessage()));
+        } catch (RuntimeException e) {
+            log.error("Update mission failed: id={}", id, e);
+            return ResponseEntity.ok(ApiResponse.fail("更新失败: " + unwrapCause(e)));
         } catch (Exception e) {
             log.error("Update mission failed: id={}", id, e);
             return ResponseEntity.ok(ApiResponse.fail("更新失败"));
@@ -151,5 +157,9 @@ public class ProductMissionController {
             imageMap.put(entry.getKey(), entry.getValue().getBytes());
         }
         return imageMap;
+    }
+
+    private static String unwrapCause(RuntimeException e) {
+        return e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
     }
 }

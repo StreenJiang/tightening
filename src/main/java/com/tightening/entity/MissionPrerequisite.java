@@ -18,4 +18,5 @@ public class MissionPrerequisite extends BaseEntity {
     private Long missionId;
     private Long prerequisiteMissionId;
     private Integer prerequisiteType;
+    private Long barcodeRuleId;
 }

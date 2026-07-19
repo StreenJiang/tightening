@@ -13,4 +13,5 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class BoltPartsBarcodeSaveItem extends BaseDTO {
     private Long barCodeMatchingRuleId;
+    private String barcodeRuleRef;
 }

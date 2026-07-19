@@ -83,11 +83,12 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
     }
 
     @Transactional
-    public Long saveMission(ProductMissionSaveDTO dto, Map<String, byte[]> imageMap) {
+    public ProductMissionSaveDTO saveMission(ProductMissionSaveDTO dto, Map<String, byte[]> imageMap) {
         ProductMission mission = Converter.dto2Entity(dto, ProductMission::new);
         if (mission.getInspectionScope() == null) mission.setInspectionScope(InspectionScope.NONE);
         saveOrUpdate(mission);
         Long missionId = mission.getId();
+        dto.setId(missionId);
 
         validator.validateInspectionScope(mission, dto.getInspectionBoundMissionIds());
 
@@ -99,9 +100,9 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         diffPrerequisites(missionId, dto.getPrerequisites(), barcodeResult);
         validator.validateInspectionChainSelfInspection(mission, dto.getPrerequisites());
 
-        diffSides(missionId, dto.getSides(), imageMap);
+        diffSides(missionId, dto.getSides(), imageMap, barcodeResult);
 
-        return missionId;
+        return dto;
     }
 
     @Transactional
@@ -147,6 +148,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
                     barcodeRuleService.updateById(entity);
                 } else {
                     barcodeRuleService.save(entity);
+                    item.setId(entity.getId());
                     if (item.getClientRef() != null) {
                         clientRefMap.put(item.getClientRef(), entity.getId());
                     }
@@ -194,6 +196,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
                     prerequisiteService.updateById(entity);
                 } else {
                     prerequisiteService.save(entity);
+                    item.setId(entity.getId());
                 }
             }
         }
@@ -205,18 +208,25 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         }
     }
 
-    private void resolveAndValidateBarcodeRule(PrerequisiteSaveItem item, MissionPrerequisite entity,
-                                               BarcodeDiffResult barcodeResult) {
-        if (item.getBarcodeRuleRef() != null) {
-            if (item.getBarcodeRuleId() != null) {
+    private Long resolveBarcodeRef(String barcodeRuleRef, Long barcodeRuleId,
+                                    BarcodeDiffResult barcodeResult) {
+        if (barcodeRuleRef != null) {
+            if (barcodeRuleId != null) {
                 throw new IllegalArgumentException("barcodeRuleRef 和 barcodeRuleId 不能同时存在");
             }
-            Long resolvedId = barcodeResult.clientRefMap().get(item.getBarcodeRuleRef());
+            Long resolvedId = barcodeResult.clientRefMap().get(barcodeRuleRef);
             if (resolvedId == null) {
-                throw new IllegalArgumentException("找不到 clientRef='" + item.getBarcodeRuleRef() + "' 对应的条码规则");
+                throw new IllegalArgumentException("找不到 clientRef='" + barcodeRuleRef + "' 对应的条码规则");
             }
-            entity.setBarcodeRuleId(resolvedId);
+            return resolvedId;
         }
+        return barcodeRuleId;
+    }
+
+    private void resolveAndValidateBarcodeRule(PrerequisiteSaveItem item, MissionPrerequisite entity,
+                                               BarcodeDiffResult barcodeResult) {
+        Long resolvedId = resolveBarcodeRef(item.getBarcodeRuleRef(), item.getBarcodeRuleId(), barcodeResult);
+        entity.setBarcodeRuleId(resolvedId);
 
         Long ruleId = entity.getBarcodeRuleId();
         BarCodeMatchingRule rule = null;
@@ -228,7 +238,8 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         validator.validateBarcodeRuleForPrerequisite(rule, item.getPrerequisiteType());
     }
 
-    private void diffSides(Long missionId, List<ProductSideSaveItem> dtoSides, Map<String, byte[]> imageMap) {
+    private void diffSides(Long missionId, List<ProductSideSaveItem> dtoSides,
+                            Map<String, byte[]> imageMap, BarcodeDiffResult barcodeResult) {
         List<ProductSide> existingSides = sideService.lambdaQuery()
                 .eq(ProductSide::getProductMissionId, missionId)
                 .eq(ProductSide::getDeleted, 0)
@@ -247,6 +258,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
                     sideService.updateById(sideEntity);
                 } else {
                     sideService.save(sideEntity);
+                    sideItem.setId(sideEntity.getId());
                 }
 
                 byte[] image = imageMap != null ? imageMap.get("sides[" + i + "].image") : null;
@@ -256,8 +268,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
                 if (renderedImage != null) sideService.updateRenderedImageData(sideEntity.getId(), renderedImage);
                 if (thumbnail != null) sideService.updateThumbnailData(sideEntity.getId(), thumbnail);
 
-                // Diff bolts for this side
-                diffBolts(sideEntity.getId(), missionId, sideItem.getBolts());
+                diffBolts(sideEntity.getId(), missionId, sideItem.getBolts(), barcodeResult);
             }
         }
 
@@ -268,7 +279,8 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         }
     }
 
-    private void diffBolts(Long sideId, Long missionId, List<ProductBoltSaveItem> dtoBolts) {
+    private void diffBolts(Long sideId, Long missionId, List<ProductBoltSaveItem> dtoBolts,
+                            BarcodeDiffResult barcodeResult) {
         List<ProductBolt> existingBolts = boltService.lambdaQuery()
                 .eq(ProductBolt::getProductSideId, sideId)
                 .eq(ProductBolt::getDeleted, 0)
@@ -286,10 +298,11 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
                     boltService.updateById(boltEntity);
                 } else {
                     boltService.saveBolt(boltEntity, missionId);
+                    boltItem.setId(boltEntity.getId());
                 }
 
                 diffDeviceBindings(boltEntity.getId(), boltItem.getDeviceBindings());
-                diffPartsBarcodes(boltEntity.getId(), boltItem.getPartsBarcodes());
+                diffPartsBarcodes(boltEntity.getId(), boltItem.getPartsBarcodes(), barcodeResult);
             }
         }
 
@@ -317,6 +330,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
                     deviceBindingService.updateById(entity);
                 } else {
                     deviceBindingService.save(entity);
+                    item.setId(entity.getId());
                 }
             }
         }
@@ -328,7 +342,8 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         }
     }
 
-    private void diffPartsBarcodes(Long boltId, List<BoltPartsBarcodeSaveItem> dtoItems) {
+    private void diffPartsBarcodes(Long boltId, List<BoltPartsBarcodeSaveItem> dtoItems,
+                                    BarcodeDiffResult barcodeResult) {
         List<BoltPartsBarcode> existing = partsBarcodeService.lambdaQuery()
                 .eq(BoltPartsBarcode::getProductBoltId, boltId)
                 .eq(BoltPartsBarcode::getDeleted, 0)
@@ -338,6 +353,12 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
 
         if (dtoItems != null) {
             for (BoltPartsBarcodeSaveItem item : dtoItems) {
+                Long resolvedId = resolveBarcodeRef(item.getBarcodeRuleRef(),
+                        item.getBarCodeMatchingRuleId(), barcodeResult);
+                if (resolvedId != null) {
+                    item.setBarCodeMatchingRuleId(resolvedId);
+                }
+
                 BoltPartsBarcode entity = Converter.dto2Entity(item, BoltPartsBarcode::new);
                 entity.setProductBoltId(boltId);
                 if (item.getId() != null) {
@@ -345,6 +366,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
                     partsBarcodeService.updateById(entity);
                 } else {
                     partsBarcodeService.save(entity);
+                    item.setId(entity.getId());
                 }
             }
         }

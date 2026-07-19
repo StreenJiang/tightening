@@ -72,11 +72,11 @@ public class ProductMissionController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<String>> create(HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<ProductMissionSaveDTO>> create(HttpServletRequest request) {
         try {
             ProductMissionSaveDTO dto = parseDto(request);
-            Long missionId = missionService.saveMission(dto, extractImages(request));
-            return ResponseEntity.ok(ApiResponse.ok(String.valueOf(missionId)));
+            ProductMissionSaveDTO result = missionService.saveMission(dto, extractImages(request));
+            return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (DuplicateKeyException e) {
             return ResponseEntity.ok(ApiResponse.fail("任务名称已存在"));
         } catch (IllegalArgumentException e) {
@@ -91,12 +91,12 @@ public class ProductMissionController {
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<String>> update(@PathVariable Long id, HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<ProductMissionSaveDTO>> update(@PathVariable Long id, HttpServletRequest request) {
         try {
             ProductMissionSaveDTO dto = parseDto(request);
             dto.setId(id);
-            Long missionId = missionService.saveMission(dto, extractImages(request));
-            return ResponseEntity.ok(ApiResponse.ok(String.valueOf(missionId)));
+            ProductMissionSaveDTO result = missionService.saveMission(dto, extractImages(request));
+            return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (DuplicateKeyException e) {
             return ResponseEntity.ok(ApiResponse.fail("任务名称已存在"));
         } catch (IllegalArgumentException e) {

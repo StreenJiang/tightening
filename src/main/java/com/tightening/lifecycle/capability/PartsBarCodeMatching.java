@@ -26,17 +26,17 @@ public class PartsBarCodeMatching implements TriggerCapability {
     @Override
     public CapabilityResult execute(MissionContext ctx) {
         List<BarCodeMatchingRule> rules = ruleService.listByMissionId(ctx.getProductMissionId()).stream()
-                .filter(r -> r.getRuleType() == BarCodeRuleType.PARTS_BARCODE.getCode())
+                .filter(r -> r.getRuleType() == BarCodeRuleType.MATERIAL_BARCODE.getCode())
                 .toList();
 
         if (rules.isEmpty()) {
-            log.debug("No PARTS_BARCODE rule for mission {}", ctx.getProductMissionId());
+            log.debug("No MATERIAL_BARCODE rule for mission {}", ctx.getProductMissionId());
             return CapabilityResult.Skip;
         }
 
         String code = ctx.getPartsCode();
         if (code == null || code.isEmpty()) {
-            log.warn("PARTS_BARCODE rule configured but no partsCode provided");
+            log.warn("MATERIAL_BARCODE rule configured but no partsCode provided");
             return CapabilityResult.Fail;
         }
 

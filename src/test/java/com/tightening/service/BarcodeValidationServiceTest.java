@@ -83,7 +83,7 @@ class BarcodeValidationServiceTest {
     class ValidatePartsCode {
 
         @Test
-        @DisplayName("无 PARTS_BARCODE 规则 → true")
+        @DisplayName("无 MATERIAL_BARCODE 规则 → true")
         void noPartsRule() {
             when(ruleService.listByMissionId(1L)).thenReturn(List.of());
 
@@ -94,7 +94,7 @@ class BarcodeValidationServiceTest {
         @DisplayName("有规则且匹配 → true")
         void match() {
             var rule = new BarCodeMatchingRule()
-                    .setRuleType(BarCodeRuleType.PARTS_BARCODE.getCode())
+                    .setRuleType(BarCodeRuleType.MATERIAL_BARCODE.getCode())
                     .setSegments("[{\"s\":0,\"e\":2,\"v\":\"MA\"}]")
                     .setExpectedLength(6).setProductMissionId(1L);
             when(ruleService.listByMissionId(1L)).thenReturn(List.of(rule));
@@ -106,7 +106,7 @@ class BarcodeValidationServiceTest {
         @DisplayName("有规则但不匹配 → false")
         void noMatch() {
             var rule = new BarCodeMatchingRule()
-                    .setRuleType(BarCodeRuleType.PARTS_BARCODE.getCode())
+                    .setRuleType(BarCodeRuleType.MATERIAL_BARCODE.getCode())
                     .setSegments("[{\"s\":0,\"e\":2,\"v\":\"XX\"}]")
                     .setExpectedLength(6).setProductMissionId(1L);
             when(ruleService.listByMissionId(1L)).thenReturn(List.of(rule));

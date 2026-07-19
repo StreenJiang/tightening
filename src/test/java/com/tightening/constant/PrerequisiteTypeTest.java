@@ -9,7 +9,7 @@ class PrerequisiteTypeTest {
     @Test
     void fromCode_shouldReturnCorrectValue() {
         assertThat(PrerequisiteType.fromCode(1)).contains(PrerequisiteType.SAME_TRACE);
-        assertThat(PrerequisiteType.fromCode(2)).contains(PrerequisiteType.PARTS_TRACE);
+        assertThat(PrerequisiteType.fromCode(2)).contains(PrerequisiteType.MATERIAL_TRACE);
         assertThat(PrerequisiteType.fromCode(3)).contains(PrerequisiteType.INSPECTION_CHAIN);
     }
 

@@ -40,7 +40,7 @@ public class BarcodeValidationService {
 
     public boolean validatePartsCode(Long missionId, String partsCode) {
         List<BarCodeMatchingRule> rules = ruleService.listByMissionId(missionId).stream()
-                .filter(r -> r.getRuleType() == BarCodeRuleType.PARTS_BARCODE.getCode())
+                .filter(r -> r.getRuleType() == BarCodeRuleType.MATERIAL_BARCODE.getCode())
                 .toList();
 
         if (rules.isEmpty()) return true;

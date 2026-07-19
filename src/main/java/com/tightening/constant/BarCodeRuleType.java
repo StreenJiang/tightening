@@ -10,7 +10,7 @@ import java.util.stream.Collectors;
 @Getter
 public enum BarCodeRuleType {
     PRODUCT_TRACE(1),
-    PARTS_BARCODE(2);
+    MATERIAL_BARCODE(2);
 
     private final int code;
     private static final Map<Integer, BarCodeRuleType> BY_CODE =

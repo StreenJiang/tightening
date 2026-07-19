@@ -1,58 +1,65 @@
 package com.tightening.service;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tightening.constant.BarCodeRuleType;
+import com.tightening.constant.InspectionScope;
+import com.tightening.constant.PrerequisiteType;
+import com.tightening.dto.BarCodeRuleSaveItem;
+import com.tightening.dto.BoltDeviceBindingSaveItem;
+import com.tightening.dto.BoltPartsBarcodeSaveItem;
+import com.tightening.dto.PrerequisiteSaveItem;
+import com.tightening.dto.ProductBoltSaveItem;
+import com.tightening.dto.ProductMissionSaveDTO;
+import com.tightening.dto.ProductSideSaveItem;
 import com.tightening.entity.BarCodeMatchingRule;
+import com.tightening.entity.BoltDeviceBinding;
+import com.tightening.entity.BoltPartsBarcode;
 import com.tightening.entity.InspectionMissionBinding;
 import com.tightening.entity.MissionPrerequisite;
+import com.tightening.entity.ProductBolt;
 import com.tightening.entity.ProductMission;
 import com.tightening.entity.ProductSide;
 import com.tightening.mapper.ProductMissionMapper;
-import lombok.RequiredArgsConstructor;
+import com.tightening.util.Converter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ProductMissionService extends ServiceImpl<ProductMissionMapper, ProductMission> {
     private final MissionConfigValidator validator;
     private final ProductSideService sideService;
     private final MissionPrerequisiteService prerequisiteService;
     private final InspectionMissionBindingService bindingService;
     private final BarCodeMatchingRuleService barcodeRuleService;
+    private final ProductBoltService boltService;
+    private final BoltDeviceBindingService deviceBindingService;
+    private final BoltPartsBarcodeService partsBarcodeService;
 
-    public void addPrerequisite(Long missionId, Long prerequisiteMissionId, Integer prerequisiteType) {
-        validator.validateNoCircularDependency(missionId, prerequisiteMissionId);
-        ProductMission target = getById(prerequisiteMissionId);
-        validator.validatePrerequisiteType(target, prerequisiteType);
-        MissionPrerequisite mp = new MissionPrerequisite()
-                .setMissionId(missionId)
-                .setPrerequisiteMissionId(prerequisiteMissionId)
-                .setPrerequisiteType(prerequisiteType);
-        prerequisiteService.save(mp);
-    }
-
-    public void addInspectionBinding(Long inspectionMissionId, Long boundMissionId) {
-        ProductMission bound = getById(boundMissionId);
-        validator.validateInspectionBinding(bound);
-        InspectionMissionBinding binding = new InspectionMissionBinding()
-                .setInspectionMissionId(inspectionMissionId)
-                .setBoundMissionId(boundMissionId);
-        bindingService.save(binding);
-    }
-
-    public void addBarcodeRule(BarCodeMatchingRule rule) {
-        validator.validateKeyCharLength(rule);
-        if (BarCodeRuleType.PRODUCT_TRACE.getCode() == rule.getRuleType()) {
-            validator.validateProductTraceUnique(rule.getProductMissionId(), rule.getId());
-        }
-        barcodeRuleService.saveOrUpdate(rule);
+    public ProductMissionService(MissionConfigValidator validator,
+            ProductSideService sideService,
+            MissionPrerequisiteService prerequisiteService,
+            InspectionMissionBindingService bindingService,
+            BarCodeMatchingRuleService barcodeRuleService,
+            ProductBoltService boltService,
+            BoltDeviceBindingService deviceBindingService,
+            BoltPartsBarcodeService partsBarcodeService) {
+        this.validator = validator;
+        this.sideService = sideService;
+        this.prerequisiteService = prerequisiteService;
+        this.bindingService = bindingService;
+        this.barcodeRuleService = barcodeRuleService;
+        this.boltService = boltService;
+        this.deviceBindingService = deviceBindingService;
+        this.partsBarcodeService = partsBarcodeService;
     }
 
     public boolean isNameDuplicate(String name, Long excludeId) {
@@ -74,13 +81,241 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
     }
 
     @Transactional
+    public Long saveMission(ProductMissionSaveDTO dto, Map<String, byte[]> imageMap) {
+        ProductMission mission = Converter.dto2Entity(dto, ProductMission::new);
+        if (mission.getInspectionScope() == null) mission.setInspectionScope(InspectionScope.NONE);
+        saveOrUpdate(mission);
+        Long missionId = mission.getId();
+
+        validator.validateInspectionScope(mission, dto.getInspectionBoundMissionIds());
+
+        syncInspectionBindings(missionId, dto.getInspectionBoundMissionIds());
+
+        List<BarCodeMatchingRule> finalRules = diffBarcodeRules(missionId, dto.getBarcodeRules());
+        validator.validateBarcodeRules(finalRules);
+
+        diffPrerequisites(missionId, dto.getPrerequisites());
+        validator.validateInspectionChainSelfInspection(mission, dto.getPrerequisites());
+
+        diffSides(missionId, dto.getSides(), imageMap);
+
+        return missionId;
+    }
+
+    @Transactional
     public void syncInspectionBindings(Long missionId, List<Long> boundMissionIds) {
-        if (boundMissionIds == null) return;
+        if (boundMissionIds == null || boundMissionIds.isEmpty()) return;
         bindingService.lambdaUpdate()
                 .eq(InspectionMissionBinding::getInspectionMissionId, missionId)
                 .remove();
-        for (Long boundId : boundMissionIds) {
-            addInspectionBinding(missionId, boundId);
+        List<ProductMission> bounds = lambdaQuery().in(ProductMission::getId, boundMissionIds).list();
+        for (ProductMission bound : bounds) {
+            validator.validateInspectionBinding(bound);
+            InspectionMissionBinding binding = new InspectionMissionBinding()
+                    .setInspectionMissionId(missionId)
+                    .setBoundMissionId(bound.getId());
+            bindingService.save(binding);
+        }
+    }
+
+    private List<BarCodeMatchingRule> diffBarcodeRules(Long missionId, List<BarCodeRuleSaveItem> dtoItems) {
+        List<BarCodeMatchingRule> existing = barcodeRuleService.lambdaQuery()
+                .eq(BarCodeMatchingRule::getProductMissionId, missionId)
+                .eq(BarCodeMatchingRule::getDeleted, 0)
+                .list();
+
+        Set<Long> dtoIds = new HashSet<>();
+        List<BarCodeMatchingRule> result = new ArrayList<>();
+
+        if (dtoItems != null) {
+            for (BarCodeRuleSaveItem item : dtoItems) {
+                BarCodeMatchingRule entity = Converter.dto2Entity(item, BarCodeMatchingRule::new);
+                entity.setProductMissionId(missionId);
+                validator.validateKeyCharLength(entity);
+                if (BarCodeRuleType.PRODUCT_TRACE.getCode() == entity.getRuleType()) {
+                    validator.validateProductTraceUnique(missionId, entity.getId());
+                }
+                if (item.getId() != null) {
+                    dtoIds.add(item.getId());
+                    barcodeRuleService.updateById(entity);
+                } else {
+                    barcodeRuleService.save(entity);
+                }
+                result.add(entity);
+            }
+        }
+
+        for (BarCodeMatchingRule ex : existing) {
+            if (!dtoIds.contains(ex.getId())) {
+                barcodeRuleService.removeById(ex.getId());
+            }
+        }
+
+        return result;
+    }
+
+    private void diffPrerequisites(Long missionId, List<PrerequisiteSaveItem> dtoItems) {
+        List<MissionPrerequisite> existing = prerequisiteService.lambdaQuery()
+                .eq(MissionPrerequisite::getMissionId, missionId)
+                .eq(MissionPrerequisite::getDeleted, 0)
+                .list();
+
+        Set<Long> dtoIds = new HashSet<>();
+
+        if (dtoItems != null && !dtoItems.isEmpty()) {
+            // Batch load all target missions
+            List<Long> targetIds = dtoItems.stream()
+                    .map(PrerequisiteSaveItem::getPrerequisiteMissionId).toList();
+            List<ProductMission> targets = lambdaQuery().in(ProductMission::getId, targetIds).list();
+            Map<Long, ProductMission> targetMap = targets.stream()
+                    .collect(java.util.stream.Collectors.toMap(ProductMission::getId, m -> m));
+
+            for (PrerequisiteSaveItem item : dtoItems) {
+                MissionPrerequisite entity = Converter.dto2Entity(item, MissionPrerequisite::new);
+                entity.setMissionId(missionId);
+                validator.validateNoCircularDependency(missionId, item.getPrerequisiteMissionId());
+                validator.validatePrerequisiteType(targetMap.get(item.getPrerequisiteMissionId()), item.getPrerequisiteType());
+                if (item.getId() != null) {
+                    dtoIds.add(item.getId());
+                    prerequisiteService.updateById(entity);
+                } else {
+                    prerequisiteService.save(entity);
+                }
+            }
+        }
+
+        for (MissionPrerequisite ex : existing) {
+            if (!dtoIds.contains(ex.getId())) {
+                prerequisiteService.removeById(ex.getId());
+            }
+        }
+    }
+
+    private void diffSides(Long missionId, List<ProductSideSaveItem> dtoSides, Map<String, byte[]> imageMap) {
+        List<ProductSide> existingSides = sideService.lambdaQuery()
+                .eq(ProductSide::getProductMissionId, missionId)
+                .eq(ProductSide::getDeleted, 0)
+                .list();
+
+        Set<Long> dtoSideIds = new HashSet<>();
+
+        if (dtoSides != null) {
+            for (int i = 0; i < dtoSides.size(); i++) {
+                ProductSideSaveItem sideItem = dtoSides.get(i);
+                ProductSide sideEntity = Converter.dto2Entity(sideItem, ProductSide::new);
+                sideEntity.setProductMissionId(missionId);
+
+                if (sideItem.getId() != null) {
+                    dtoSideIds.add(sideItem.getId());
+                    sideService.updateById(sideEntity);
+                } else {
+                    sideService.save(sideEntity);
+                }
+
+                byte[] image = imageMap != null ? imageMap.get("sides[" + i + "].image") : null;
+                byte[] renderedImage = imageMap != null ? imageMap.get("sides[" + i + "].renderedImage") : null;
+                byte[] thumbnail = imageMap != null ? imageMap.get("sides[" + i + "].thumbnail") : null;
+                if (image != null) sideService.updateImageData(sideEntity.getId(), image);
+                if (renderedImage != null) sideService.updateRenderedImageData(sideEntity.getId(), renderedImage);
+                if (thumbnail != null) sideService.updateThumbnailData(sideEntity.getId(), thumbnail);
+
+                // Diff bolts for this side
+                diffBolts(sideEntity.getId(), missionId, sideItem.getBolts());
+            }
+        }
+
+        for (ProductSide ex : existingSides) {
+            if (!dtoSideIds.contains(ex.getId())) {
+                sideService.cascadeDelete(ex.getId());
+            }
+        }
+    }
+
+    private void diffBolts(Long sideId, Long missionId, List<ProductBoltSaveItem> dtoBolts) {
+        List<ProductBolt> existingBolts = boltService.lambdaQuery()
+                .eq(ProductBolt::getProductSideId, sideId)
+                .eq(ProductBolt::getDeleted, 0)
+                .list();
+
+        Set<Long> dtoBoltIds = new HashSet<>();
+
+        if (dtoBolts != null) {
+            for (ProductBoltSaveItem boltItem : dtoBolts) {
+                ProductBolt boltEntity = Converter.dto2Entity(boltItem, ProductBolt::new);
+                boltEntity.setProductSideId(sideId);
+
+                if (boltItem.getId() != null) {
+                    dtoBoltIds.add(boltItem.getId());
+                    boltService.updateById(boltEntity);
+                } else {
+                    boltService.saveBolt(boltEntity, missionId);
+                }
+
+                diffDeviceBindings(boltEntity.getId(), boltItem.getDeviceBindings());
+                diffPartsBarcodes(boltEntity.getId(), boltItem.getPartsBarcodes());
+            }
+        }
+
+        for (ProductBolt ex : existingBolts) {
+            if (!dtoBoltIds.contains(ex.getId())) {
+                boltService.cascadeDelete(ex.getId());
+            }
+        }
+    }
+
+    private void diffDeviceBindings(Long boltId, List<BoltDeviceBindingSaveItem> dtoBindings) {
+        List<BoltDeviceBinding> existing = deviceBindingService.lambdaQuery()
+                .eq(BoltDeviceBinding::getProductBoltId, boltId)
+                .eq(BoltDeviceBinding::getDeleted, 0)
+                .list();
+
+        Set<Long> dtoIds = new HashSet<>();
+
+        if (dtoBindings != null) {
+            for (BoltDeviceBindingSaveItem item : dtoBindings) {
+                BoltDeviceBinding entity = Converter.dto2Entity(item, BoltDeviceBinding::new);
+                entity.setProductBoltId(boltId);
+                if (item.getId() != null) {
+                    dtoIds.add(item.getId());
+                    deviceBindingService.updateById(entity);
+                } else {
+                    deviceBindingService.save(entity);
+                }
+            }
+        }
+
+        for (BoltDeviceBinding ex : existing) {
+            if (!dtoIds.contains(ex.getId())) {
+                deviceBindingService.removeById(ex.getId());
+            }
+        }
+    }
+
+    private void diffPartsBarcodes(Long boltId, List<BoltPartsBarcodeSaveItem> dtoItems) {
+        List<BoltPartsBarcode> existing = partsBarcodeService.lambdaQuery()
+                .eq(BoltPartsBarcode::getProductBoltId, boltId)
+                .eq(BoltPartsBarcode::getDeleted, 0)
+                .list();
+
+        Set<Long> dtoIds = new HashSet<>();
+
+        if (dtoItems != null) {
+            for (BoltPartsBarcodeSaveItem item : dtoItems) {
+                BoltPartsBarcode entity = Converter.dto2Entity(item, BoltPartsBarcode::new);
+                entity.setProductBoltId(boltId);
+                if (item.getId() != null) {
+                    dtoIds.add(item.getId());
+                    partsBarcodeService.updateById(entity);
+                } else {
+                    partsBarcodeService.save(entity);
+                }
+            }
+        }
+
+        for (BoltPartsBarcode ex : existing) {
+            if (!dtoIds.contains(ex.getId())) {
+                partsBarcodeService.removeById(ex.getId());
+            }
         }
     }
 

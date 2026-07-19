@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.tightening.constant.BarCodeRuleType;
 import com.tightening.constant.InspectionScope;
 import com.tightening.constant.PrerequisiteType;
+import com.tightening.dto.PrerequisiteSaveItem;
 import com.tightening.entity.BarCodeMatchingRule;
 import com.tightening.entity.InspectionMissionBinding;
 import com.tightening.entity.MissionPrerequisite;
@@ -61,7 +62,58 @@ public class MissionConfigValidator {
             throw new IllegalArgumentException("INSPECTION_CHAIN 的前置任务必须是点检任务 (is_inspection=1)");
         }
         if (!Integer.valueOf(PrerequisiteType.INSPECTION_CHAIN.getCode()).equals(prerequisiteType) && isInspection) {
-            throw new IllegalArgumentException("SAME_TRACE/PARTS_TRACE 的前置任务必须是普通任务 (is_inspection=0)");
+            throw new IllegalArgumentException("SAME_TRACE/MATERIAL_TRACE 的前置任务必须是普通任务 (is_inspection=0)");
+        }
+    }
+
+    public void validateInspectionBinding(ProductMission boundMission) {
+        if (boundMission != null && isInspectionMission(boundMission)) {
+            throw new IllegalArgumentException("点检任务不能绑定到另一个点检任务");
+        }
+    }
+
+    public void validateKeyCharLength(BarCodeMatchingRule rule) {
+        String segmentsJson = rule.getSegments();
+        if (segmentsJson == null || segmentsJson.isEmpty()) return;
+
+        try {
+            var segments = JsonUtils.OBJECT_MAPPER.readValue(segmentsJson,
+                    new TypeReference<List<BarcodeMatcher.Segment>>() {});
+            for (var seg : segments) {
+                int expectedLen = seg.e() - seg.s();
+                if (seg.v() != null && seg.v().length() != expectedLen) {
+                    throw new IllegalArgumentException(
+                            "segments value 长度(" + seg.v().length() + ")与位置范围(" + expectedLen + ")不匹配");
+                }
+            }
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Failed to parse segments JSON for validation", e);
+        }
+    }
+
+    public void validateBarcodeRules(List<BarCodeMatchingRule> finalRules) {
+        if (finalRules == null || finalRules.isEmpty()) return;
+        long productCount = finalRules.stream()
+                .filter(r -> BarCodeRuleType.PRODUCT_TRACE.getCode() == r.getRuleType())
+                .count();
+        if (productCount > 1) {
+            throw new IllegalArgumentException("产品码规则最多 1 条");
+        }
+        boolean hasMaterial = finalRules.stream()
+                .anyMatch(r -> BarCodeRuleType.MATERIAL_BARCODE.getCode() == r.getRuleType());
+        if (hasMaterial && productCount == 0) {
+            throw new IllegalArgumentException("必须先有产品码规则才能添加物料码规则");
+        }
+    }
+
+    public void validateInspectionChainSelfInspection(ProductMission mission, List<PrerequisiteSaveItem> items) {
+        if (items == null || items.isEmpty()) return;
+        boolean hasInspectionChain = items.stream()
+                .anyMatch(i -> PrerequisiteType.INSPECTION_CHAIN.getCode() == i.getPrerequisiteType());
+        if (hasInspectionChain && !isInspectionMission(mission)) {
+            throw new IllegalArgumentException("INSPECTION_CHAIN 的前置类型要求当前任务必须是点检任务 (is_inspection=1)");
         }
     }
 
@@ -94,31 +146,8 @@ public class MissionConfigValidator {
         }
     }
 
-    public void validateInspectionBinding(ProductMission boundMission) {
-        if (boundMission != null && isInspectionMission(boundMission)) {
-            throw new IllegalArgumentException("点检任务不能绑定到另一个点检任务");
-        }
-    }
-
-    public void validateKeyCharLength(BarCodeMatchingRule rule) {
-        String segmentsJson = rule.getSegments();
-        if (segmentsJson == null || segmentsJson.isEmpty()) return;
-
-        try {
-            var segments = JsonUtils.OBJECT_MAPPER.readValue(segmentsJson,
-                    new TypeReference<List<BarcodeMatcher.Segment>>() {});
-            for (var seg : segments) {
-                int expectedLen = seg.e() - seg.s();
-                if (seg.v() != null && seg.v().length() != expectedLen) {
-                    throw new IllegalArgumentException(
-                            "segments value 长度(" + seg.v().length() + ")与位置范围(" + expectedLen + ")不匹配");
-                }
-            }
-        } catch (IllegalArgumentException e) {
-            throw e;
-        } catch (Exception e) {
-            log.warn("Failed to parse segments JSON for validation", e);
-        }
+    private boolean isInspectionMission(ProductMission mission) {
+        return Integer.valueOf(1).equals(mission.getIsInspection());
     }
 
     public void validateProductTraceUnique(Long productMissionId, Long ruleId) {
@@ -131,9 +160,5 @@ public class MissionConfigValidator {
         if (count > 0) {
             throw new IllegalArgumentException("该 mission 已存在 PRODUCT_TRACE 规则，每个 mission 最多一条");
         }
-    }
-
-    private boolean isInspectionMission(ProductMission mission) {
-        return Integer.valueOf(1).equals(mission.getIsInspection());
     }
 }

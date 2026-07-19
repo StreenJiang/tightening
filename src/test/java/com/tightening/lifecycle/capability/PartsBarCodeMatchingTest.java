@@ -33,7 +33,7 @@ class PartsBarCodeMatchingTest {
     void id() { assertThat(cap.id()).isEqualTo("PartsBarCodeMatching"); }
 
     @Test
-    @DisplayName("无 PARTS_BARCODE 规则 → Skip")
+    @DisplayName("无 MATERIAL_BARCODE 规则 → Skip")
     void noRule() {
         var ctx = MissionContext.builder()
                 .productMissionId(1L).missionData(new ProductMission())
@@ -51,7 +51,7 @@ class PartsBarCodeMatchingTest {
                 .partsCode(null).build();
         when(ruleService.listByMissionId(1L))
                 .thenReturn(List.of(new BarCodeMatchingRule()
-                        .setRuleType(BarCodeRuleType.PARTS_BARCODE.getCode())
+                        .setRuleType(BarCodeRuleType.MATERIAL_BARCODE.getCode())
                         .setSegments("[{\"s\":0,\"e\":3,\"v\":\"MAT\"}]")));
 
         assertThat(cap.execute(ctx)).isEqualTo(Fail);
@@ -65,7 +65,7 @@ class PartsBarCodeMatchingTest {
                 .partsCode("MAT456").build();
         when(ruleService.listByMissionId(1L))
                 .thenReturn(List.of(new BarCodeMatchingRule()
-                        .setRuleType(BarCodeRuleType.PARTS_BARCODE.getCode())
+                        .setRuleType(BarCodeRuleType.MATERIAL_BARCODE.getCode())
                         .setSegments("[{\"s\":0,\"e\":3,\"v\":\"MAT\"}]")));
 
         assertThat(cap.execute(ctx)).isEqualTo(Pass);

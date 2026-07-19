@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 @Getter
 public enum PrerequisiteType {
     SAME_TRACE(1),
-    PARTS_TRACE(2),
+    MATERIAL_TRACE(2),
     INSPECTION_CHAIN(3);
 
     private final int code;

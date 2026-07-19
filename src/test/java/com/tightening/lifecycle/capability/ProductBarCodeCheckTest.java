@@ -42,7 +42,7 @@ class ProductBarCodeCheckTest {
                 .productCode("ABC").build();
         when(ruleService.listByMissionId(1L))
                 .thenReturn(List.of(new BarCodeMatchingRule()
-                        .setRuleType(BarCodeRuleType.PARTS_BARCODE.getCode())));
+                        .setRuleType(BarCodeRuleType.MATERIAL_BARCODE.getCode())));
 
         assertThat(cap.execute(ctx)).isEqualTo(Skip);
     }

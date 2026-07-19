@@ -42,6 +42,18 @@ _Avoid_: 任务记录、执行日志
 产品的唯一标识字符串，由上层系统下发，贯穿整个任务生命周期。作为服务级追溯码，独立于 Atlas 协议层的 VIN 字段。
 _Avoid_: 条码、VIN、序列号
 
+**MaterialCode（物料码）**:
+物料的标识字符串，用于追溯装配过程中使用的零部件批次。区别于 ProductCode 的产品级追溯，MaterialCode 是零部件级。
+_Avoid_: 零件码、部件码
+
+**BarCodeMatchingRule（条码匹配规则）**:
+用于验证 ProductCode 或 MaterialCode 是否格式合规的规则。按类型分为 PRODUCT_TRACE（产品码规则，每任务最多 1 条）和 MATERIAL_BARCODE（物料码规则，0-n 条）。规则通过 segments 定义码的位置匹配条件。创建物料码规则前必须先有产品码规则。
+_Avoid_: 条码校验规则、码规则
+
+**MissionPrerequisite（前置任务）**:
+定义任务之间的依赖关系。类型分为 SAME_TRACE（产品码前置，两个任务共用同一产品码）、MATERIAL_TRACE（物料码前置，前置任务的产品码 = 当前任务的物料码值）、INSPECTION_CHAIN（点检链，当前和前置任务都必须是点检任务）。新增前置关系时须通过 BFS 检测循环依赖。
+_Avoid_: 前置条件、依赖任务
+
 **Rework（返工）**:
 对已完成任务的重新执行。MissionRecord.isRework 标记该记录是否为返工任务（0=正常首次执行，1=返工）。默认创建为 NORMAL(0)。
 _Avoid_: 重做、重试

@@ -8,7 +8,7 @@ class BarCodeRuleTypeTest {
     @Test
     void fromCode_shouldReturnCorrectValue() {
         assertThat(BarCodeRuleType.fromCode(1)).contains(BarCodeRuleType.PRODUCT_TRACE);
-        assertThat(BarCodeRuleType.fromCode(2)).contains(BarCodeRuleType.PARTS_BARCODE);
+        assertThat(BarCodeRuleType.fromCode(2)).contains(BarCodeRuleType.MATERIAL_BARCODE);
     }
 
     @Test

@@ -61,23 +61,23 @@ public class MissionLifecycleController {
             @PathVariable Long id,
             @RequestBody TriggerRequestDto req) {
         if (orchestrator.getActiveEngine(id).isPresent()) {
-            return ResponseEntity.badRequest()
+            return ResponseEntity.ok()
                     .body(ApiResponse.fail("mission already active: " + id));
         }
         ProductMission mission = missionService.getById(id);
         if (mission == null) {
-            return ResponseEntity.badRequest()
+            return ResponseEntity.ok()
                     .body(ApiResponse.fail("mission not found: " + id));
         }
         List<ProductBolt> bolts = boltService.listByMissionId(id);
         if (bolts.isEmpty()) {
-            return ResponseEntity.badRequest()
+            return ResponseEntity.ok()
                     .body(ApiResponse.fail("mission has no bolts: " + id));
         }
         var engine = orchestrator.trigger(mission, bolts,
                 req.productCode(), req.partsCode());
         if (engine == null) {
-            return ResponseEntity.badRequest()
+            return ResponseEntity.ok()
                     .body(ApiResponse.fail("mission already active: " + id));
         }
         return ResponseEntity.accepted()
@@ -89,7 +89,7 @@ public class MissionLifecycleController {
     public ResponseEntity<ApiResponse<String>> interruptMission(@PathVariable Long id) {
         var engine = orchestrator.getActiveEngine(id);
         if (engine.isEmpty()) {
-            return ResponseEntity.badRequest()
+            return ResponseEntity.ok()
                     .body(ApiResponse.fail("no active mission: " + id));
         }
         engine.get().interrupt("user interrupt");

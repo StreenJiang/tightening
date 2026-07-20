@@ -13,9 +13,9 @@ import lombok.experimental.Accessors;
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
 @Accessors(chain = true)
-public class ProductSideSaveItem extends BaseDTO {
+public class ProductSideDetailItem extends BaseDTO {
     private String name;
-    private List<ProductBoltSaveItem> bolts;
+    private List<ProductBoltDetailItem> bolts;
     private String image;
     private String renderedImage;
     private String thumbnail;

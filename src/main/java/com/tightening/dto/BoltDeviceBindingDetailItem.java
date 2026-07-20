@@ -11,7 +11,9 @@ import lombok.experimental.Accessors;
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
 @Accessors(chain = true)
-public class BoltPartsBarcodeSaveItem extends BaseDTO {
-    private Long barCodeMatchingRuleId;
-    private String barcodeRuleRef;
+public class BoltDeviceBindingDetailItem extends BaseDTO {
+    private Long deviceId;
+    private Integer deviceRole;
+    private Double deviceSpec;
+    private Integer sortOrder;
 }

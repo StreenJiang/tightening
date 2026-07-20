@@ -24,7 +24,7 @@ public class ProductMissionDetailDTO extends BaseDTO {
     private InspectionScope inspectionScope;
 
     private List<Long> inspectionBoundMissionIds;
-    private List<PrerequisiteSaveItem> prerequisites;
-    private List<BarCodeRuleSaveItem> barcodeRules;
-    private List<ProductSideSaveItem> sides;
+    private List<PrerequisiteDetailItem> prerequisites;
+    private List<BarCodeRuleDetailItem> barcodeRules;
+    private List<ProductSideDetailItem> sides;
 }

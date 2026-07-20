@@ -13,7 +13,7 @@ import lombok.experimental.Accessors;
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
 @Accessors(chain = true)
-public class ProductBoltSaveItem extends BaseDTO {
+public class ProductBoltDetailItem extends BaseDTO {
     private Integer boltSerialNum;
     private String boltName;
     private Long parameterSetId;
@@ -25,6 +25,6 @@ public class ProductBoltSaveItem extends BaseDTO {
     private Double locationXPercent;
     private Double locationYPercent;
     private Integer enabled;
-    private List<BoltDeviceBindingSaveItem> deviceBindings;
-    private List<BoltPartsBarcodeSaveItem> partsBarcodes;
+    private List<BoltDeviceBindingDetailItem> deviceBindings;
+    private BoltPartsBarcodeDetailItem partsBarcode;
 }

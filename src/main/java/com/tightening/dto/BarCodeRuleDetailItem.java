@@ -12,7 +12,7 @@ import lombok.experimental.Accessors;
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
 @Accessors(chain = true)
-public class BarCodeRuleSaveItem extends BaseDTO {
+public class BarCodeRuleDetailItem extends BaseDTO {
     private String name;
     private BarCodeRuleType ruleType;
     private String partNumber;

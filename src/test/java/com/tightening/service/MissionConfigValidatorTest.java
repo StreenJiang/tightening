@@ -2,7 +2,7 @@ package com.tightening.service;
 
 import com.tightening.constant.BarCodeRuleType;
 import com.tightening.constant.PrerequisiteType;
-import com.tightening.dto.PrerequisiteSaveItem;
+import com.tightening.dto.PrerequisiteDetailItem;
 import com.tightening.entity.BarCodeMatchingRule;
 import com.tightening.entity.ProductMission;
 import org.junit.jupiter.api.DisplayName;
@@ -117,8 +117,8 @@ class MissionConfigValidatorTest {
         @DisplayName("INSPECTION_CHAIN 前置但当前任务不是点检 -> 抛异常")
         void shouldRejectWhenSelfIsNotInspection() {
             ProductMission mission = new ProductMission().setIsInspection(0);
-            List<PrerequisiteSaveItem> items = List.of(
-                new PrerequisiteSaveItem().setPrerequisiteType(PrerequisiteType.INSPECTION_CHAIN)
+            List<PrerequisiteDetailItem> items = List.of(
+                new PrerequisiteDetailItem().setPrerequisiteType(PrerequisiteType.INSPECTION_CHAIN)
             );
 
             assertThatThrownBy(() -> validator.validateInspectionChainSelfInspection(mission, items))
@@ -130,8 +130,8 @@ class MissionConfigValidatorTest {
         @DisplayName("无 INSPECTION_CHAIN 时不校验")
         void shouldSkipWhenNoInspectionChain() {
             ProductMission mission = new ProductMission().setIsInspection(0);
-            List<PrerequisiteSaveItem> items = List.of(
-                new PrerequisiteSaveItem().setPrerequisiteType(PrerequisiteType.SAME_TRACE)
+            List<PrerequisiteDetailItem> items = List.of(
+                new PrerequisiteDetailItem().setPrerequisiteType(PrerequisiteType.SAME_TRACE)
             );
 
             assertThatCode(() -> validator.validateInspectionChainSelfInspection(mission, items))

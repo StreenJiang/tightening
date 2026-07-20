@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.tightening.constant.BarCodeRuleType;
 import com.tightening.constant.InspectionScope;
 import com.tightening.constant.PrerequisiteType;
-import com.tightening.dto.PrerequisiteSaveItem;
+import com.tightening.dto.PrerequisiteDetailItem;
 import com.tightening.entity.BarCodeMatchingRule;
 import com.tightening.entity.InspectionMissionBinding;
 import com.tightening.entity.MissionPrerequisite;
@@ -108,7 +108,7 @@ public class MissionConfigValidator {
         }
     }
 
-    public void validateInspectionChainSelfInspection(ProductMission mission, List<PrerequisiteSaveItem> items) {
+    public void validateInspectionChainSelfInspection(ProductMission mission, List<PrerequisiteDetailItem> items) {
         if (items == null || items.isEmpty()) return;
         boolean hasInspectionChain = items.stream()
                 .anyMatch(i -> PrerequisiteType.INSPECTION_CHAIN == i.getPrerequisiteType());

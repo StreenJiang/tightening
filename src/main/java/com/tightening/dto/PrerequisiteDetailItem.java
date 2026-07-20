@@ -12,7 +12,7 @@ import lombok.experimental.Accessors;
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
 @Accessors(chain = true)
-public class PrerequisiteSaveItem extends BaseDTO {
+public class PrerequisiteDetailItem extends BaseDTO {
     private Long prerequisiteMissionId;
     private PrerequisiteType prerequisiteType;
     private Long barcodeRuleId;

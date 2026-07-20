@@ -5,15 +5,15 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tightening.constant.BarCodeRuleType;
 import com.tightening.constant.InspectionScope;
 import com.tightening.constant.PrerequisiteType;
-import com.tightening.dto.BarCodeRuleSaveItem;
-import com.tightening.dto.BoltDeviceBindingSaveItem;
-import com.tightening.dto.BoltPartsBarcodeSaveItem;
+import com.tightening.dto.BarCodeRuleDetailItem;
+import com.tightening.dto.BoltDeviceBindingDetailItem;
+import com.tightening.dto.BoltPartsBarcodeDetailItem;
 import com.tightening.dto.PageResult;
-import com.tightening.dto.PrerequisiteSaveItem;
-import com.tightening.dto.ProductBoltSaveItem;
+import com.tightening.dto.PrerequisiteDetailItem;
+import com.tightening.dto.ProductBoltDetailItem;
 import com.tightening.dto.ProductMissionDTO;
 import com.tightening.dto.ProductMissionDetailDTO;
-import com.tightening.dto.ProductSideSaveItem;
+import com.tightening.dto.ProductSideDetailItem;
 import com.tightening.entity.BarCodeMatchingRule;
 import com.tightening.entity.BoltDeviceBinding;
 import com.tightening.entity.BoltPartsBarcode;
@@ -142,23 +142,40 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
                         .list()
                         .stream().collect(Collectors.groupingBy(BoltPartsBarcode::getProductBoltId));
 
-        List<ProductSideSaveItem> sideItems = new ArrayList<>();
+        List<BarCodeMatchingRule> rules = barcodeRuleService.listByMissionId(missionId);
+        Map<Long, BarCodeRuleDetailItem> ruleItemMap = new HashMap<>();
+        for (BarCodeMatchingRule rule : rules) {
+            BarCodeRuleDetailItem item = Converter.entity2Dto(rule, BarCodeRuleDetailItem::new);
+            item.setRuleType(BarCodeRuleType.fromCode(rule.getRuleType()));
+            ruleItemMap.put(item.getId(), item);
+        }
+
+        List<ProductSideDetailItem> sideItems = new ArrayList<>();
+        Set<Long> boltRuleIds = new HashSet<>();
         for (ProductSide side : sides) {
-            ProductSideSaveItem item = Converter.entity2Dto(side, ProductSideSaveItem::new);
+            ProductSideDetailItem item = Converter.entity2Dto(side, ProductSideDetailItem::new);
             item.setImage(encodeBase64(side.getImageData()));
             item.setRenderedImage(encodeBase64(side.getRenderedImageData()));
             item.setThumbnail(encodeBase64(side.getThumbnailData()));
 
             List<ProductBolt> sideBolts = boltsBySide.getOrDefault(side.getId(), List.of());
-            List<ProductBoltSaveItem> boltItems = new ArrayList<>();
+            List<ProductBoltDetailItem> boltItems = new ArrayList<>();
             for (ProductBolt bolt : sideBolts) {
-                ProductBoltSaveItem boltItem = Converter.entity2Dto(bolt, ProductBoltSaveItem::new);
+                ProductBoltDetailItem boltItem = Converter.entity2Dto(bolt, ProductBoltDetailItem::new);
                 boltItem.setDeviceBindings(Converter.entity2Dto(
                         bindingsByBolt.getOrDefault(bolt.getId(), List.of()),
-                        BoltDeviceBindingSaveItem::new));
-                boltItem.setPartsBarcodes(Converter.entity2Dto(
-                        barcodesByBolt.getOrDefault(bolt.getId(), List.of()),
-                        BoltPartsBarcodeSaveItem::new));
+                        BoltDeviceBindingDetailItem::new));
+                List<BoltPartsBarcode> boltBarcodes = barcodesByBolt.getOrDefault(bolt.getId(), List.of());
+                BoltPartsBarcodeDetailItem bpItem = null;
+                if (!boltBarcodes.isEmpty()) {
+                    BoltPartsBarcode bpEntity = boltBarcodes.get(0);
+                    bpItem = Converter.entity2Dto(bpEntity, BoltPartsBarcodeDetailItem::new);
+                    bpItem.setBarcodeRule(ruleItemMap.get(bpEntity.getBarCodeMatchingRuleId()));
+                    if (bpItem.getBarcodeRule() != null) {
+                        boltRuleIds.add(bpEntity.getBarCodeMatchingRuleId());
+                    }
+                }
+                boltItem.setPartsBarcode(bpItem);
                 boltItems.add(boltItem);
             }
             item.setBolts(boltItems);
@@ -171,21 +188,16 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
                 .eq(MissionPrerequisite::getMissionId, missionId)
                 .eq(MissionPrerequisite::getDeleted, 0)
                 .list();
-        List<PrerequisiteSaveItem> prerequisiteItems = new ArrayList<>();
+        List<PrerequisiteDetailItem> prerequisiteItems = new ArrayList<>();
         for (MissionPrerequisite p : prerequisites) {
-            PrerequisiteSaveItem item = Converter.entity2Dto(p, PrerequisiteSaveItem::new);
+            PrerequisiteDetailItem item = Converter.entity2Dto(p, PrerequisiteDetailItem::new);
             item.setPrerequisiteType(PrerequisiteType.fromCode(p.getPrerequisiteType()));
             prerequisiteItems.add(item);
         }
         dto.setPrerequisites(prerequisiteItems);
 
-        List<BarCodeMatchingRule> rules = barcodeRuleService.listByMissionId(missionId);
-        List<BarCodeRuleSaveItem> ruleItems = new ArrayList<>();
-        for (BarCodeMatchingRule rule : rules) {
-            BarCodeRuleSaveItem item = Converter.entity2Dto(rule, BarCodeRuleSaveItem::new);
-            item.setRuleType(BarCodeRuleType.fromCode(rule.getRuleType()));
-            ruleItems.add(item);
-        }
+        List<BarCodeRuleDetailItem> ruleItems = new ArrayList<>(ruleItemMap.values());
+        ruleItems.removeIf(r -> boltRuleIds.contains(r.getId()));
         dto.setBarcodeRules(ruleItems);
 
         List<InspectionMissionBinding> bindings = bindingService.listByInspectionMissionId(missionId);
@@ -211,7 +223,9 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
 
         syncInspectionBindings(missionId, dto.getInspectionBoundMissionIds());
 
-        BarcodeDiffResult barcodeResult = diffBarcodeRules(missionId, dto.getBarcodeRules());
+        List<BarCodeRuleDetailItem> allRules = collectAllBarcodeRules(dto);
+        validateNoDuplicateBarcodeRules(dto);
+        BarcodeDiffResult barcodeResult = diffBarcodeRules(missionId, allRules);
         validator.validateBarcodeRules(barcodeResult.rules());
 
         diffPrerequisites(missionId, dto.getPrerequisites(), barcodeResult);
@@ -238,7 +252,73 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         }
     }
 
-    private BarcodeDiffResult diffBarcodeRules(Long missionId, List<BarCodeRuleSaveItem> dtoItems) {
+    private void forEachBoltBarcodeRule(ProductMissionDetailDTO dto,
+                                         java.util.function.Consumer<BarCodeRuleDetailItem> consumer) {
+        if (dto.getSides() == null) return;
+        for (ProductSideDetailItem side : dto.getSides()) {
+            if (side.getBolts() == null) continue;
+            for (ProductBoltDetailItem bolt : side.getBolts()) {
+                BoltPartsBarcodeDetailItem bp = bolt.getPartsBarcode();
+                if (bp != null && bp.getBarcodeRule() != null) {
+                    consumer.accept(bp.getBarcodeRule());
+                }
+            }
+        }
+    }
+
+    private void validateNoDuplicateBarcodeRules(ProductMissionDetailDTO dto) {
+        Set<Long> boltRuleIds = new HashSet<>();
+        Set<String> boltRefs = new HashSet<>();
+        forEachBoltBarcodeRule(dto, rule -> {
+            if (rule.getId() != null) boltRuleIds.add(rule.getId());
+            if (rule.getClientRef() != null) boltRefs.add(rule.getClientRef());
+        });
+        if (dto.getBarcodeRules() != null) {
+            for (BarCodeRuleDetailItem r : dto.getBarcodeRules()) {
+                if (r.getId() != null && boltRuleIds.contains(r.getId())) {
+                    throw new IllegalArgumentException("Rule id=" + r.getId()
+                            + " 已绑定在 bolt 上，不应出现在顶层 barcodeRules 中");
+                }
+                if (r.getClientRef() != null && boltRefs.contains(r.getClientRef())) {
+                    throw new IllegalArgumentException("Rule clientRef=" + r.getClientRef()
+                            + " 已绑定在 bolt 上，不应出现在顶层 barcodeRules 中");
+                }
+            }
+        }
+    }
+
+    private List<BarCodeRuleDetailItem> collectAllBarcodeRules(ProductMissionDetailDTO dto) {
+        List<BarCodeRuleDetailItem> all = new ArrayList<>();
+        Set<String> seenRefs = new HashSet<>();
+        Set<Long> seenIds = new HashSet<>();
+
+        if (dto.getBarcodeRules() != null) {
+            for (BarCodeRuleDetailItem r : dto.getBarcodeRules()) {
+                addRuleIfNotDuplicate(r, all, seenRefs, seenIds);
+            }
+        }
+
+        forEachBoltBarcodeRule(dto, rule -> addRuleIfNotDuplicate(rule, all, seenRefs, seenIds));
+
+        return all;
+    }
+
+    private void addRuleIfNotDuplicate(BarCodeRuleDetailItem rule, List<BarCodeRuleDetailItem> all,
+                                        Set<String> seenRefs, Set<Long> seenIds) {
+        if (rule.getClientRef() != null) {
+            if (seenRefs.add(rule.getClientRef())) {
+                all.add(rule);
+            }
+        } else if (rule.getId() != null) {
+            if (seenIds.add(rule.getId())) {
+                all.add(rule);
+            }
+        } else {
+            all.add(rule);
+        }
+    }
+
+    private BarcodeDiffResult diffBarcodeRules(Long missionId, List<BarCodeRuleDetailItem> dtoItems) {
         List<BarCodeMatchingRule> existing = barcodeRuleService.lambdaQuery()
                 .eq(BarCodeMatchingRule::getProductMissionId, missionId)
                 .eq(BarCodeMatchingRule::getDeleted, 0)
@@ -249,7 +329,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         Map<String, Long> clientRefMap = new HashMap<>();
 
         if (dtoItems != null) {
-            for (BarCodeRuleSaveItem item : dtoItems) {
+            for (BarCodeRuleDetailItem item : dtoItems) {
                 BarCodeMatchingRule entity = Converter.dto2Entity(item, BarCodeMatchingRule::new);
                 entity.setProductMissionId(missionId);
                 entity.setRuleType(item.getRuleType().getCode());
@@ -283,7 +363,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         return new BarcodeDiffResult(result, clientRefMap);
     }
 
-    private void diffPrerequisites(Long missionId, List<PrerequisiteSaveItem> dtoItems, BarcodeDiffResult barcodeResult) {
+    private void diffPrerequisites(Long missionId, List<PrerequisiteDetailItem> dtoItems, BarcodeDiffResult barcodeResult) {
         List<MissionPrerequisite> existing = prerequisiteService.lambdaQuery()
                 .eq(MissionPrerequisite::getMissionId, missionId)
                 .eq(MissionPrerequisite::getDeleted, 0)
@@ -294,12 +374,12 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         if (dtoItems != null && !dtoItems.isEmpty()) {
             // Batch load all target missions
             List<Long> targetIds = dtoItems.stream()
-                    .map(PrerequisiteSaveItem::getPrerequisiteMissionId).toList();
+                    .map(PrerequisiteDetailItem::getPrerequisiteMissionId).toList();
             List<ProductMission> targets = lambdaQuery().in(ProductMission::getId, targetIds).list();
             Map<Long, ProductMission> targetMap = targets.stream()
                     .collect(Collectors.toMap(ProductMission::getId, m -> m));
 
-            for (PrerequisiteSaveItem item : dtoItems) {
+            for (PrerequisiteDetailItem item : dtoItems) {
                 MissionPrerequisite entity = Converter.dto2Entity(item, MissionPrerequisite::new);
                 entity.setMissionId(missionId);
                 entity.setPrerequisiteType(item.getPrerequisiteType().getCode());
@@ -340,7 +420,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         return barcodeRuleId;
     }
 
-    private void resolveAndValidateBarcodeRule(PrerequisiteSaveItem item, MissionPrerequisite entity,
+    private void resolveAndValidateBarcodeRule(PrerequisiteDetailItem item, MissionPrerequisite entity,
                                                BarcodeDiffResult barcodeResult) {
         Long resolvedId = resolveBarcodeRef(item.getBarcodeRuleRef(), item.getBarcodeRuleId(), barcodeResult);
         entity.setBarcodeRuleId(resolvedId);
@@ -355,7 +435,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         validator.validateBarcodeRuleForPrerequisite(rule, item.getPrerequisiteType());
     }
 
-    private void diffSides(Long missionId, List<ProductSideSaveItem> dtoSides,
+    private void diffSides(Long missionId, List<ProductSideDetailItem> dtoSides,
                             BarcodeDiffResult barcodeResult) {
         List<ProductSide> existingSides = sideService.lambdaQuery()
                 .eq(ProductSide::getProductMissionId, missionId)
@@ -369,7 +449,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
 
         if (dtoSides != null) {
             for (int i = 0; i < dtoSides.size(); i++) {
-                ProductSideSaveItem sideItem = dtoSides.get(i);
+                ProductSideDetailItem sideItem = dtoSides.get(i);
                 ProductSide sideEntity = Converter.dto2Entity(sideItem, ProductSide::new);
                 sideEntity.setProductMissionId(missionId);
 
@@ -400,7 +480,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         }
     }
 
-    private void applyImageFromBase64(ProductSideSaveItem item, ProductSide entity) {
+    private void applyImageFromBase64(ProductSideDetailItem item, ProductSide entity) {
         if (item.getImage() != null) entity.setImageData(decodeBase64(item.getImage()));
         if (item.getRenderedImage() != null) entity.setRenderedImageData(decodeBase64(item.getRenderedImage()));
         if (item.getThumbnail() != null) entity.setThumbnailData(decodeBase64(item.getThumbnail()));
@@ -410,7 +490,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         return data.isEmpty() ? null : Base64.getDecoder().decode(data);
     }
 
-    private void diffBolts(Long sideId, Long missionId, List<ProductBoltSaveItem> dtoBolts,
+    private void diffBolts(Long sideId, Long missionId, List<ProductBoltDetailItem> dtoBolts,
                             BarcodeDiffResult barcodeResult) {
         List<ProductBolt> existingBolts = boltService.lambdaQuery()
                 .eq(ProductBolt::getProductSideId, sideId)
@@ -420,7 +500,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         Set<Long> dtoBoltIds = new HashSet<>();
 
         if (dtoBolts != null) {
-            for (ProductBoltSaveItem boltItem : dtoBolts) {
+            for (ProductBoltDetailItem boltItem : dtoBolts) {
                 ProductBolt boltEntity = Converter.dto2Entity(boltItem, ProductBolt::new);
                 boltEntity.setProductSideId(sideId);
 
@@ -433,7 +513,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
                 }
 
                 diffDeviceBindings(boltEntity.getId(), boltItem.getDeviceBindings());
-                diffPartsBarcodes(boltEntity.getId(), boltItem.getPartsBarcodes(), barcodeResult);
+                diffPartsBarcode(boltEntity.getId(), boltItem.getPartsBarcode(), barcodeResult);
             }
         }
 
@@ -444,7 +524,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         }
     }
 
-    private void diffDeviceBindings(Long boltId, List<BoltDeviceBindingSaveItem> dtoBindings) {
+    private void diffDeviceBindings(Long boltId, List<BoltDeviceBindingDetailItem> dtoBindings) {
         List<BoltDeviceBinding> existing = deviceBindingService.lambdaQuery()
                 .eq(BoltDeviceBinding::getProductBoltId, boltId)
                 .eq(BoltDeviceBinding::getDeleted, 0)
@@ -453,7 +533,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         Set<Long> dtoIds = new HashSet<>();
 
         if (dtoBindings != null) {
-            for (BoltDeviceBindingSaveItem item : dtoBindings) {
+            for (BoltDeviceBindingDetailItem item : dtoBindings) {
                 BoltDeviceBinding entity = Converter.dto2Entity(item, BoltDeviceBinding::new);
                 entity.setProductBoltId(boltId);
                 if (item.getId() != null) {
@@ -473,37 +553,37 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         }
     }
 
-    private void diffPartsBarcodes(Long boltId, List<BoltPartsBarcodeSaveItem> dtoItems,
-                                    BarcodeDiffResult barcodeResult) {
+    private void diffPartsBarcode(Long boltId, BoltPartsBarcodeDetailItem dtoItem,
+                                   BarcodeDiffResult barcodeResult) {
         List<BoltPartsBarcode> existing = partsBarcodeService.lambdaQuery()
                 .eq(BoltPartsBarcode::getProductBoltId, boltId)
                 .eq(BoltPartsBarcode::getDeleted, 0)
                 .list();
 
-        Set<Long> dtoIds = new HashSet<>();
-
-        if (dtoItems != null) {
-            for (BoltPartsBarcodeSaveItem item : dtoItems) {
-                Long resolvedId = resolveBarcodeRef(item.getBarcodeRuleRef(),
-                        item.getBarCodeMatchingRuleId(), barcodeResult);
-                if (resolvedId != null) {
-                    item.setBarCodeMatchingRuleId(resolvedId);
-                }
-
-                BoltPartsBarcode entity = Converter.dto2Entity(item, BoltPartsBarcode::new);
-                entity.setProductBoltId(boltId);
-                if (item.getId() != null) {
-                    dtoIds.add(item.getId());
-                    partsBarcodeService.updateById(entity);
-                } else {
-                    partsBarcodeService.save(entity);
-                    item.setId(entity.getId());
-                }
+        if (dtoItem == null) {
+            for (BoltPartsBarcode ex : existing) {
+                partsBarcodeService.removeById(ex.getId());
             }
+            return;
+        }
+
+        Long ruleId = resolveBarcodeRef(dtoItem.getBarcodeRuleRef(),
+                dtoItem.getBarcodeRule() != null ? dtoItem.getBarcodeRule().getId() : null,
+                barcodeResult);
+
+        BoltPartsBarcode entity = Converter.dto2Entity(dtoItem, BoltPartsBarcode::new);
+        entity.setProductBoltId(boltId);
+        entity.setBarCodeMatchingRuleId(ruleId);
+
+        if (dtoItem.getId() != null) {
+            partsBarcodeService.updateById(entity);
+        } else {
+            partsBarcodeService.save(entity);
+            dtoItem.setId(entity.getId());
         }
 
         for (BoltPartsBarcode ex : existing) {
-            if (!dtoIds.contains(ex.getId())) {
+            if (!ex.getId().equals(dtoItem.getId())) {
                 partsBarcodeService.removeById(ex.getId());
             }
         }

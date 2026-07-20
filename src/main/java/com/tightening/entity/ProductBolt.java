@@ -15,8 +15,8 @@ import lombok.experimental.Accessors;
 @TableName("product_bolt")
 public class ProductBolt extends BaseEntity {
     private Long productSideId;
-    private Integer boltSerialNum;
-    private String boltName;
+    private Integer serialNum;
+    private String name;
     private Long parameterSetId;
     private Double torqueMin;
     private Double torqueMax;

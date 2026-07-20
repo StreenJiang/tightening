@@ -27,7 +27,7 @@ public class SendPSet implements Capability {
         ProductBolt bolt = ctx.currentBolt();
         ITool tool = resolveTool(ctx);
         if (tool == null) {
-            log.warn("No tool found for bolt {}", bolt.getBoltSerialNum());
+            log.warn("No tool found for bolt {}", bolt.getSerialNum());
             return CapabilityResult.Fail;
         }
         ctx.getLockReasons().add(LockReason.PSET_SENDING);
@@ -35,7 +35,7 @@ public class SendPSet implements Capability {
             .whenComplete((ok, ex) -> {
                 try {
                     if (ex != null || !Boolean.TRUE.equals(ok)) {
-                        log.warn("SendPSet failed for bolt {}: ok={}", bolt.getBoltSerialNum(), ok, ex);
+                        log.warn("SendPSet failed for bolt {}: ok={}", bolt.getSerialNum(), ok, ex);
                     } else {
                         ctx.setCurrentPSet(bolt.getParameterSetId().intValue());
                     }
@@ -43,7 +43,7 @@ public class SendPSet implements Capability {
                     ctx.getLockReasons().remove(LockReason.PSET_SENDING);
                 }
             });
-        log.info("PSet {} sent for bolt {}", bolt.getParameterSetId(), bolt.getBoltSerialNum());
+        log.info("PSet {} sent for bolt {}", bolt.getParameterSetId(), bolt.getSerialNum());
         return CapabilityResult.Pass;
     }
 

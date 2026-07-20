@@ -123,7 +123,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
                 : boltService.lambdaQuery()
                         .in(ProductBolt::getProductSideId, sideIds)
                         .eq(ProductBolt::getDeleted, 0)
-                        .orderByAsc(ProductBolt::getBoltSerialNum)
+                        .orderByAsc(ProductBolt::getSerialNum)
                         .list()
                         .stream().collect(Collectors.groupingBy(ProductBolt::getProductSideId));
 

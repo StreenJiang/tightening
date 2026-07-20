@@ -46,7 +46,7 @@ class SendPSetTest {
     @Test
     @DisplayName("precondition 不满足时返回 false（parameterSetId 为 null）")
     void preconditionShouldReturnFalseWhenNoPSet() {
-        ProductBolt bolt = new ProductBolt().setBoltSerialNum(1);
+        ProductBolt bolt = new ProductBolt().setSerialNum(1);
         MissionContext ctx = MissionContext.builder()
             .productMissionId(1L).missionData(new ProductMission())
             .boltConfigs(List.of(bolt)).deviceRegistry(Map.of())
@@ -57,7 +57,7 @@ class SendPSetTest {
     @Test
     @DisplayName("execute 应在发送前添加 PSET_SENDING 到 lockReasons，完成后移除")
     void shouldAddAndRemovePsetSwitchingLockReason() {
-        ProductBolt bolt = new ProductBolt().setBoltSerialNum(1).setParameterSetId(2L);
+        ProductBolt bolt = new ProductBolt().setSerialNum(1).setParameterSetId(2L);
         MissionContext ctx = MissionContext.builder()
             .productMissionId(1L).missionData(new ProductMission())
             .boltConfigs(List.of(bolt)).deviceRegistry(Map.of(1L, tool))

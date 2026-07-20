@@ -24,7 +24,7 @@ public class MissionContext {
     /** 不可变 — Workstation 就绪时注入 */
     private final Long productMissionId;
     private final ProductMission missionData;
-    private final List<ProductBolt> boltConfigs;       // 按 boltSerialNum 排序（调用方保证）
+    private final List<ProductBolt> boltConfigs;       // 按 serialNum 排序（调用方保证）
     private final Map<Long, ITool> deviceRegistry;
     /** 可变 — 引擎核心代码维护 (volatile 确保 HTTP 线程读取可见性) */
     @Builder.Default @Setter private volatile Stage currentStage = Stage.VALIDATION;

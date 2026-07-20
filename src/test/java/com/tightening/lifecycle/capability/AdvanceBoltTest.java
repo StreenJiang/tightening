@@ -91,7 +91,7 @@ class AdvanceBoltTest {
 
     private static MissionContext ctxWithBolts(int count) {
         List<ProductBolt> bolts = IntStream.range(0, count)
-            .mapToObj(i -> new ProductBolt().setBoltSerialNum(i + 1))
+            .mapToObj(i -> new ProductBolt().setSerialNum(i + 1))
             .toList();
         return MissionContext.builder()
             .productMissionId(1L).missionData(new ProductMission())

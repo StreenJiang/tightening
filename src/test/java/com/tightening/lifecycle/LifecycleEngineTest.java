@@ -127,7 +127,7 @@ class LifecycleEngineTest {
 
         ProductMission pm = new ProductMission();
         pm.setId(1L);
-        ProductBolt bolt = new ProductBolt().setBoltSerialNum(1);
+        ProductBolt bolt = new ProductBolt().setSerialNum(1);
         MissionContext ctx = MissionContext.builder()
             .productMissionId(1L)
             .missionData(pm)
@@ -168,7 +168,7 @@ class LifecycleEngineTest {
         MissionContext ctx = MissionContext.builder()
             .productMissionId(1L)
             .missionData(pm2)
-            .boltConfigs(List.of(new ProductBolt().setBoltSerialNum(1)))
+            .boltConfigs(List.of(new ProductBolt().setSerialNum(1)))
             .deviceRegistry(Map.of())
             
             .missionRecord(record)

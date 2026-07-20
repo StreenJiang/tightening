@@ -98,7 +98,7 @@ class LifecycleEngineFactoryTest {
         var mission = new ProductMission();
         mission.setId(1L);
         var bolt = new ProductBolt();
-        bolt.setBoltSerialNum(1);
+        bolt.setSerialNum(1);
         bolt.setTorqueMin(1.0);
         bolt.setTorqueMax(10.0);
 

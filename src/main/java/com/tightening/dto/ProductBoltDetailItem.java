@@ -14,8 +14,8 @@ import lombok.experimental.Accessors;
 @EqualsAndHashCode(callSuper = true)
 @Accessors(chain = true)
 public class ProductBoltDetailItem extends BaseDTO {
-    private Integer boltSerialNum;
-    private String boltName;
+    private Integer serialNum;
+    private String name;
     private Long parameterSetId;
     private Double torqueMin;
     private Double torqueMax;

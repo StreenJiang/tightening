@@ -28,12 +28,12 @@ public class BoltBarCodeCheck implements Capability {
 
         if (ctx.getPartsCode() == null || ctx.getPartsCode().isEmpty()) {
             ctx.getLockReasons().add(LockReason.BARCODE_REQUIRED);
-            log.debug("Bolt {} requires barcode scan (ruleId={})", bolt.getBoltSerialNum(), ruleId);
+            log.debug("Bolt {} requires barcode scan (ruleId={})", bolt.getSerialNum(), ruleId);
             return CapabilityResult.Pass;
         }
 
         ctx.getLockReasons().remove(LockReason.BARCODE_REQUIRED);
-        log.debug("Bolt {} barcode check passed", bolt.getBoltSerialNum());
+        log.debug("Bolt {} barcode check passed", bolt.getSerialNum());
         return CapabilityResult.Pass;
     }
 }

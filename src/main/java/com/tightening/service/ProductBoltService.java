@@ -30,28 +30,28 @@ public class ProductBoltService extends ServiceImpl<ProductBoltMapper, ProductBo
     }
 
     public void saveBolt(ProductBolt entity) {
-        validateBoltSerialNumUnique(entity);
+        validateSerialNumUnique(entity);
         saveOrUpdate(entity);
     }
 
-    private void validateBoltSerialNumUnique(ProductBolt entity) {
+    private void validateSerialNumUnique(ProductBolt entity) {
         Long sideId = entity.getProductSideId();
         if (sideId == null) return;
         long count = lambdaQuery()
                 .eq(ProductBolt::getProductSideId, sideId)
-                .eq(ProductBolt::getBoltSerialNum, entity.getBoltSerialNum())
+                .eq(ProductBolt::getSerialNum, entity.getSerialNum())
                 .eq(ProductBolt::getDeleted, 0)
                 .ne(entity.getId() != null, ProductBolt::getId, entity.getId())
                 .count();
         if (count > 0) throw new IllegalArgumentException(
-                "bolt_serial_num " + entity.getBoltSerialNum() + " 在当前面中已存在");
+                "serial_num " + entity.getSerialNum() + " 在当前面中已存在");
     }
 
     public List<ProductBolt> listBySideId(Long sideId) {
         return lambdaQuery()
                 .eq(ProductBolt::getProductSideId, sideId)
                 .eq(ProductBolt::getDeleted, 0)
-                .orderByAsc(ProductBolt::getBoltSerialNum)
+                .orderByAsc(ProductBolt::getSerialNum)
                 .list();
     }
 
@@ -85,7 +85,7 @@ public class ProductBoltService extends ServiceImpl<ProductBoltMapper, ProductBo
         if (sideIds.isEmpty()) return List.of();
         return lambdaQuery()
                 .in(ProductBolt::getProductSideId, sideIds)
-                .orderByAsc(ProductBolt::getBoltSerialNum)
+                .orderByAsc(ProductBolt::getSerialNum)
                 .list();
     }
 }

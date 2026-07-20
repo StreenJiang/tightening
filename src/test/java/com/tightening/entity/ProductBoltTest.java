@@ -14,8 +14,8 @@ class ProductBoltTest {
         ProductBolt original = new ProductBolt();
         original.setId(1L);
         original.setProductSideId(100L);
-        original.setBoltSerialNum(1);
-        original.setBoltName("Main Bolt A");
+        original.setSerialNum(1);
+        original.setName("Main Bolt A");
         original.setParameterSetId(500L);
         original.setTorqueMin(10.5);
         original.setTorqueMax(50.0);
@@ -30,8 +30,8 @@ class ProductBoltTest {
         ProductBolt restored = mapper.readValue(json, ProductBolt.class);
 
         assertThat(restored.getProductSideId()).isEqualTo(100L);
-        assertThat(restored.getBoltSerialNum()).isEqualTo(1);
-        assertThat(restored.getBoltName()).isEqualTo("Main Bolt A");
+        assertThat(restored.getSerialNum()).isEqualTo(1);
+        assertThat(restored.getName()).isEqualTo("Main Bolt A");
         assertThat(restored.getParameterSetId()).isEqualTo(500L);
         assertThat(restored.getTorqueMin()).isEqualTo(10.5);
         assertThat(restored.getTorqueMax()).isEqualTo(50.0);

@@ -83,7 +83,7 @@ class MissionOrchestratorTest {
     private static ProductBolt boltWithId(long id, int serialNum) {
         ProductBolt b = new ProductBolt();
         b.setId(id);
-        b.setBoltSerialNum(serialNum);
+        b.setSerialNum(serialNum);
         return b;
     }
 

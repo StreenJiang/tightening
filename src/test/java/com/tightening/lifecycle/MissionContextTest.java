@@ -37,15 +37,15 @@ class MissionContextTest {
     @Test
     @DisplayName("currentBolt() 返回当前索引的螺栓")
     void currentBoltShouldReturnCorrectBolt() {
-        ProductBolt b1 = new ProductBolt().setBoltSerialNum(1).setBoltName("Bolt1");
-        ProductBolt b2 = new ProductBolt().setBoltSerialNum(2).setBoltName("Bolt2");
+        ProductBolt b1 = new ProductBolt().setSerialNum(1).setName("Bolt1");
+        ProductBolt b2 = new ProductBolt().setSerialNum(2).setName("Bolt2");
         MissionContext ctx = MissionContext.builder()
             .productMissionId(1L).missionData(missionWithId(1L))
             .boltConfigs(List.of(b1, b2)).deviceRegistry(Map.of())
             
             .currentBoltIndex(1).build();
 
-        assertThat(ctx.currentBolt().getBoltName()).isEqualTo("Bolt2");
+        assertThat(ctx.currentBolt().getName()).isEqualTo("Bolt2");
     }
 
     @Test
@@ -59,8 +59,8 @@ class MissionContextTest {
     @Test
     @DisplayName("hasMoreBolts() 正确判断")
     void hasMoreBoltsShouldWork() {
-        ProductBolt b1 = new ProductBolt().setBoltSerialNum(1);
-        ProductBolt b2 = new ProductBolt().setBoltSerialNum(2);
+        ProductBolt b1 = new ProductBolt().setSerialNum(1);
+        ProductBolt b2 = new ProductBolt().setSerialNum(2);
         MissionContext ctx = MissionContext.builder()
             .productMissionId(1L).missionData(missionWithId(1L))
             .boltConfigs(List.of(b1, b2)).deviceRegistry(Map.of())

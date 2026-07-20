@@ -4,6 +4,7 @@ import com.tightening.dto.ApiResponse;
 import com.tightening.dto.PageResult;
 import com.tightening.dto.ProductMissionDTO;
 import com.tightening.dto.ProductMissionDetailDTO;
+import com.tightening.constant.EnabledStatus;
 import com.tightening.service.ProductMissionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -83,6 +84,13 @@ public class ProductMissionController {
             log.error("Update mission failed: id={}", id, e);
             return ResponseEntity.ok(ApiResponse.fail("更新失败"));
         }
+    }
+
+    @PutMapping("/{id}/enabled")
+    public ResponseEntity<ApiResponse<String>> setEnabled(@PathVariable Long id,
+                                                           @RequestBody EnabledStatus status) {
+        missionService.updateEnabled(id, status.getCode());
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 
     @DeleteMapping("/{id}")

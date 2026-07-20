@@ -1,6 +1,7 @@
 package com.tightening.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.tightening.constant.EnabledStatus;
 import com.tightening.dto.ApiResponse;
 import com.tightening.dto.PageResult;
 import com.tightening.dto.ProductMissionDTO;
@@ -8,6 +9,8 @@ import com.tightening.dto.ProductMissionDetailDTO;
 import com.tightening.service.ProductMissionService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -18,6 +21,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -85,5 +89,15 @@ class ProductMissionControllerTest {
     @Test
     void delete_shouldReturnOk() {
         assertThat(controller.delete(1L).getStatusCode().is2xxSuccessful()).isTrue();
+    }
+
+    @ParameterizedTest
+    @EnumSource(EnabledStatus.class)
+    void setEnabled_shouldReturnOk(EnabledStatus status) {
+        ResponseEntity<ApiResponse<String>> response = controller.setEnabled(1L, status);
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().code()).isEqualTo(200);
+        verify(missionService).updateEnabled(1L, status.getCode());
     }
 }

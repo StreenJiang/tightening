@@ -589,6 +589,13 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         }
     }
 
+    public void updateEnabled(Long id, int enabled) {
+        lambdaUpdate()
+                .eq(ProductMission::getId, id)
+                .set(ProductMission::getEnabled, enabled)
+                .update();
+    }
+
     @Transactional
     public void cascadeDelete(Long missionId) {
         // Collect all side IDs and bolt IDs for batch deletion

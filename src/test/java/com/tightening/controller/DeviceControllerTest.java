@@ -4,6 +4,7 @@ import com.tightening.config.ToolCommonConfig;
 import com.tightening.device.DeviceManager;
 import com.tightening.device.handler.DeviceHandler;
 import com.tightening.device.handler.ToolHandler;
+import com.tightening.dto.ApiResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,38 +51,47 @@ class DeviceControllerTest {
         when(deviceManager.getHandler(1L)).thenReturn(toolHandler);
         when(toolHandler.unlock(1L)).thenReturn(CompletableFuture.completedFuture(true));
 
-        DeferredResult<ResponseEntity<Boolean>> result = controller.enableTool(1L);
+        DeferredResult<ResponseEntity<ApiResponse<Boolean>>> result = controller.enableTool(1L);
 
         assertThat(result.getResult()).isNotNull();
-        ResponseEntity<Boolean> response = (ResponseEntity<Boolean>) result.getResult();
+        @SuppressWarnings("unchecked")
+        ResponseEntity<ApiResponse<Boolean>> response =
+                (ResponseEntity<ApiResponse<Boolean>>) result.getResult();
         assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).isTrue();
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().data()).isTrue();
         verify(toolHandler).unlock(1L);
     }
 
     @Test
-    void enableTool_withToolHandlerAndException_shouldReturn500() {
+    void enableTool_withToolHandlerAndException_shouldReturnFailInBody() {
         when(deviceManager.getHandler(1L)).thenReturn(toolHandler);
         when(toolHandler.unlock(1L)).thenReturn(CompletableFuture.failedFuture(new RuntimeException("fail")));
 
-        DeferredResult<ResponseEntity<Boolean>> result = controller.enableTool(1L);
+        DeferredResult<ResponseEntity<ApiResponse<Boolean>>> result = controller.enableTool(1L);
 
         assertThat(result.getResult()).isNotNull();
-        ResponseEntity<Boolean> response = (ResponseEntity<Boolean>) result.getResult();
-        assertThat(response.getStatusCode().value()).isEqualTo(500);
-        assertThat(response.getBody()).isFalse();
+        @SuppressWarnings("unchecked")
+        ResponseEntity<ApiResponse<Boolean>> response =
+                (ResponseEntity<ApiResponse<Boolean>>) result.getResult();
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().code()).isEqualTo(500);
     }
 
     @Test
     void enableTool_withNonToolHandler_shouldReturnOkFalse() {
         when(deviceManager.getHandler(1L)).thenReturn(deviceHandler);
 
-        DeferredResult<ResponseEntity<Boolean>> result = controller.enableTool(1L);
+        DeferredResult<ResponseEntity<ApiResponse<Boolean>>> result = controller.enableTool(1L);
 
         assertThat(result.getResult()).isNotNull();
-        ResponseEntity<Boolean> response = (ResponseEntity<Boolean>) result.getResult();
+        @SuppressWarnings("unchecked")
+        ResponseEntity<ApiResponse<Boolean>> response =
+                (ResponseEntity<ApiResponse<Boolean>>) result.getResult();
         assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).isFalse();
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().data()).isFalse();
     }
 
     // ============ disableTool ============
@@ -91,12 +101,15 @@ class DeviceControllerTest {
         when(deviceManager.getHandler(1L)).thenReturn(toolHandler);
         when(toolHandler.lock(1L)).thenReturn(CompletableFuture.completedFuture(true));
 
-        DeferredResult<ResponseEntity<Boolean>> result = controller.disableTool(1L);
+        DeferredResult<ResponseEntity<ApiResponse<Boolean>>> result = controller.disableTool(1L);
 
         assertThat(result.getResult()).isNotNull();
-        ResponseEntity<Boolean> response = (ResponseEntity<Boolean>) result.getResult();
+        @SuppressWarnings("unchecked")
+        ResponseEntity<ApiResponse<Boolean>> response =
+                (ResponseEntity<ApiResponse<Boolean>>) result.getResult();
         assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).isTrue();
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().data()).isTrue();
         verify(toolHandler).lock(1L);
     }
 
@@ -104,12 +117,15 @@ class DeviceControllerTest {
     void disableTool_withNonToolHandler_shouldReturnOkFalse() {
         when(deviceManager.getHandler(1L)).thenReturn(deviceHandler);
 
-        DeferredResult<ResponseEntity<Boolean>> result = controller.disableTool(1L);
+        DeferredResult<ResponseEntity<ApiResponse<Boolean>>> result = controller.disableTool(1L);
 
         assertThat(result.getResult()).isNotNull();
-        ResponseEntity<Boolean> response = (ResponseEntity<Boolean>) result.getResult();
+        @SuppressWarnings("unchecked")
+        ResponseEntity<ApiResponse<Boolean>> response =
+                (ResponseEntity<ApiResponse<Boolean>>) result.getResult();
         assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).isFalse();
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().data()).isFalse();
     }
 
     // ============ getEnabled ============
@@ -119,10 +135,11 @@ class DeviceControllerTest {
         when(deviceManager.getHandler(1L)).thenReturn(toolHandler);
         when(toolHandler.isUnlocked(1L)).thenReturn(true);
 
-        ResponseEntity<Boolean> response = controller.getEnabled(1L);
+        ResponseEntity<ApiResponse<Boolean>> response = controller.getEnabled(1L);
 
         assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).isTrue();
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().data()).isTrue();
     }
 
     @Test
@@ -130,20 +147,22 @@ class DeviceControllerTest {
         when(deviceManager.getHandler(1L)).thenReturn(toolHandler);
         when(toolHandler.isUnlocked(1L)).thenReturn(false);
 
-        ResponseEntity<Boolean> response = controller.getEnabled(1L);
+        ResponseEntity<ApiResponse<Boolean>> response = controller.getEnabled(1L);
 
         assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).isFalse();
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().data()).isFalse();
     }
 
     @Test
     void getEnabled_withNonToolHandler_shouldReturnFalse() {
         when(deviceManager.getHandler(1L)).thenReturn(deviceHandler);
 
-        ResponseEntity<Boolean> response = controller.getEnabled(1L);
+        ResponseEntity<ApiResponse<Boolean>> response = controller.getEnabled(1L);
 
         assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).isFalse();
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().data()).isFalse();
     }
 
     // ============ sendPSet ============
@@ -153,37 +172,46 @@ class DeviceControllerTest {
         when(deviceManager.getHandler(1L)).thenReturn(toolHandler);
         when(toolHandler.sendPSetOp(1L, 5)).thenReturn(CompletableFuture.completedFuture(true));
 
-        DeferredResult<ResponseEntity<Boolean>> result = controller.sendPSet(1L, 5);
+        DeferredResult<ResponseEntity<ApiResponse<Boolean>>> result = controller.sendPSet(1L, 5);
 
         assertThat(result.getResult()).isNotNull();
-        ResponseEntity<Boolean> response = (ResponseEntity<Boolean>) result.getResult();
+        @SuppressWarnings("unchecked")
+        ResponseEntity<ApiResponse<Boolean>> response =
+                (ResponseEntity<ApiResponse<Boolean>>) result.getResult();
         assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).isTrue();
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().data()).isTrue();
         verify(toolHandler).sendPSetOp(1L, 5);
     }
 
     @Test
-    void sendPSet_withToolHandlerAndException_shouldReturn500() {
+    void sendPSet_withToolHandlerAndException_shouldReturnFailInBody() {
         when(deviceManager.getHandler(1L)).thenReturn(toolHandler);
         when(toolHandler.sendPSetOp(1L, 5)).thenReturn(CompletableFuture.failedFuture(new RuntimeException("fail")));
 
-        DeferredResult<ResponseEntity<Boolean>> result = controller.sendPSet(1L, 5);
+        DeferredResult<ResponseEntity<ApiResponse<Boolean>>> result = controller.sendPSet(1L, 5);
 
         assertThat(result.getResult()).isNotNull();
-        ResponseEntity<Boolean> response = (ResponseEntity<Boolean>) result.getResult();
-        assertThat(response.getStatusCode().value()).isEqualTo(500);
-        assertThat(response.getBody()).isFalse();
+        @SuppressWarnings("unchecked")
+        ResponseEntity<ApiResponse<Boolean>> response =
+                (ResponseEntity<ApiResponse<Boolean>>) result.getResult();
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().code()).isEqualTo(500);
     }
 
     @Test
     void sendPSet_withNonToolHandler_shouldReturnOkFalse() {
         when(deviceManager.getHandler(1L)).thenReturn(deviceHandler);
 
-        DeferredResult<ResponseEntity<Boolean>> result = controller.sendPSet(1L, 5);
+        DeferredResult<ResponseEntity<ApiResponse<Boolean>>> result = controller.sendPSet(1L, 5);
 
         assertThat(result.getResult()).isNotNull();
-        ResponseEntity<Boolean> response = (ResponseEntity<Boolean>) result.getResult();
+        @SuppressWarnings("unchecked")
+        ResponseEntity<ApiResponse<Boolean>> response =
+                (ResponseEntity<ApiResponse<Boolean>>) result.getResult();
         assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).isFalse();
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().data()).isFalse();
     }
 }

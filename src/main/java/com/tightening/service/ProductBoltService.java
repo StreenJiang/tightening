@@ -29,23 +29,22 @@ public class ProductBoltService extends ServiceImpl<ProductBoltMapper, ProductBo
         this.sideService = sideService;
     }
 
-    public void saveBolt(ProductBolt entity, Long productMissionId) {
-        validateBoltSerialNumUnique(entity, productMissionId);
+    public void saveBolt(ProductBolt entity) {
+        validateBoltSerialNumUnique(entity);
         saveOrUpdate(entity);
     }
 
-    private void validateBoltSerialNumUnique(ProductBolt entity, Long productMissionId) {
-        Set<Long> sideIds = new java.util.HashSet<>(sideService.listSideIdsByMissionId(productMissionId));
-        if (entity.getProductSideId() != null) sideIds.add(entity.getProductSideId());
-        if (sideIds.isEmpty()) return;
+    private void validateBoltSerialNumUnique(ProductBolt entity) {
+        Long sideId = entity.getProductSideId();
+        if (sideId == null) return;
         long count = lambdaQuery()
-                .in(ProductBolt::getProductSideId, sideIds)
+                .eq(ProductBolt::getProductSideId, sideId)
                 .eq(ProductBolt::getBoltSerialNum, entity.getBoltSerialNum())
                 .eq(ProductBolt::getDeleted, 0)
                 .ne(entity.getId() != null, ProductBolt::getId, entity.getId())
                 .count();
         if (count > 0) throw new IllegalArgumentException(
-                "bolt_serial_num " + entity.getBoltSerialNum() + " 在当前 mission 中已存在");
+                "bolt_serial_num " + entity.getBoltSerialNum() + " 在当前面中已存在");
     }
 
     public List<ProductBolt> listBySideId(Long sideId) {

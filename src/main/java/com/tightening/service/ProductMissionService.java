@@ -24,6 +24,7 @@ import com.tightening.entity.ProductMission;
 import com.tightening.entity.ProductSide;
 import com.tightening.mapper.ProductMissionMapper;
 import com.tightening.util.Converter;
+import com.tightening.util.JsonUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -213,6 +214,14 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
 
     @Transactional
     public ProductMissionDetailDTO saveMission(ProductMissionDetailDTO dto) {
+        log.info("saveMission id={}, name={}, sides={}, rules={}, prerequisites={}",
+                dto.getId(), dto.getName(),
+                dto.getSides() != null ? dto.getSides().size() : 0,
+                dto.getBarcodeRules() != null ? dto.getBarcodeRules().size() : 0,
+                dto.getPrerequisites() != null ? dto.getPrerequisites().size() : 0);
+        if (log.isDebugEnabled()) {
+            log.debug("saveMission full request: {}", JsonUtils.toJson(snapshotForLog(dto)));
+        }
         ProductMission mission = Converter.dto2Entity(dto, ProductMission::new);
         if (mission.getInspectionScope() == null) mission.setInspectionScope(InspectionScope.NONE);
         saveOrUpdate(mission);
@@ -233,7 +242,36 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
 
         diffSides(missionId, dto.getSides(), barcodeResult);
 
+        clearAllTempRefs(dto);
         return dto;
+    }
+
+    private void clearAllTempRefs(ProductMissionDetailDTO dto) {
+        if (dto.getBarcodeRules() != null) {
+            for (BarCodeRuleDetailItem rule : dto.getBarcodeRules()) {
+                rule.setClientRef(null);
+            }
+        }
+        if (dto.getPrerequisites() != null) {
+            for (PrerequisiteDetailItem p : dto.getPrerequisites()) {
+                p.setBarcodeRuleRef(null);
+            }
+        }
+        if (dto.getSides() != null) {
+            for (ProductSideDetailItem side : dto.getSides()) {
+                if (side.getBolts() != null) {
+                    for (ProductBoltDetailItem bolt : side.getBolts()) {
+                        BoltPartsBarcodeDetailItem bp = bolt.getPartsBarcode();
+                        if (bp != null) {
+                            bp.setBarcodeRuleRef(null);
+                            if (bp.getBarcodeRule() != null) {
+                                bp.getBarcodeRule().setClientRef(null);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @Transactional
@@ -508,7 +546,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
                     dtoBoltIds.add(boltItem.getId());
                     boltService.updateById(boltEntity);
                 } else {
-                    boltService.saveBolt(boltEntity, missionId);
+                    boltService.saveBolt(boltEntity);
                     boltItem.setId(boltEntity.getId());
                 }
 
@@ -553,6 +591,22 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
         }
     }
 
+    private Long resolveRuleIdFromBoltBarcode(BoltPartsBarcodeDetailItem dtoItem,
+                                               BarcodeDiffResult barcodeResult) {
+        if (dtoItem.getBarcodeRule() == null) return null;
+        Long id = dtoItem.getBarcodeRule().getId();
+        if (id != null) return id;
+        String clientRef = dtoItem.getBarcodeRule().getClientRef();
+        if (clientRef != null) {
+            Long resolved = barcodeResult.clientRefMap().get(clientRef);
+            if (resolved == null) {
+                throw new IllegalArgumentException("找不到 clientRef='" + clientRef + "' 对应的条码规则");
+            }
+            return resolved;
+        }
+        return null;
+    }
+
     private void diffPartsBarcode(Long boltId, BoltPartsBarcodeDetailItem dtoItem,
                                    BarcodeDiffResult barcodeResult) {
         List<BoltPartsBarcode> existing = partsBarcodeService.lambdaQuery()
@@ -567,9 +621,7 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
             return;
         }
 
-        Long ruleId = resolveBarcodeRef(dtoItem.getBarcodeRuleRef(),
-                dtoItem.getBarcodeRule() != null ? dtoItem.getBarcodeRule().getId() : null,
-                barcodeResult);
+        Long ruleId = resolveRuleIdFromBoltBarcode(dtoItem, barcodeResult);
 
         BoltPartsBarcode entity = Converter.dto2Entity(dtoItem, BoltPartsBarcode::new);
         entity.setProductBoltId(boltId);
@@ -621,5 +673,23 @@ public class ProductMissionService extends ServiceImpl<ProductMissionMapper, Pro
     }
 
     private record BarcodeDiffResult(List<BarCodeMatchingRule> rules, Map<String, Long> clientRefMap) {}
+
+    private ProductMissionDetailDTO snapshotForLog(ProductMissionDetailDTO dto) {
+        try {
+            ProductMissionDetailDTO copy = JsonUtils.OBJECT_MAPPER.readValue(
+                    JsonUtils.toJson(dto), ProductMissionDetailDTO.class);
+            if (copy.getSides() != null) {
+                for (ProductSideDetailItem side : copy.getSides()) {
+                    if (side.getImage() != null) side.setImage("[base64 image]");
+                    if (side.getRenderedImage() != null) side.setRenderedImage("[base64 rendered]");
+                    if (side.getThumbnail() != null) side.setThumbnail("[base64 thumb]");
+                }
+            }
+            return copy;
+        } catch (Exception e) {
+            log.warn("Failed to snapshot DTO for logging, falling back to original", e);
+            return dto;
+        }
+    }
 
 }

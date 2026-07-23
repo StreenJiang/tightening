@@ -59,10 +59,10 @@ public void handleCurveData(CurveDataDTO dto, Channel channel) {
     if (cache != null) {
         TighteningDataDTO matched = cache.byId.get(dto.getTighteningId());
         if (matched != null) {
-            fillMissionContext(data, matched);
+            fillTaskContext(data, matched);
         } else if (cache.latest != null) {
             // 2. 未命中 → fallback 最新一条
-            fillMissionContext(data, cache.latest);
+            fillTaskContext(data, cache.latest);
         }
     }
 
@@ -70,7 +70,7 @@ public void handleCurveData(CurveDataDTO dto, Channel channel) {
 }
 ```
 
-`fillMissionContext` 从匹配的拧紧数据拷贝 `missionRecordId`、`boltSerialNum`、`workstationName`、`parameterSet` 等上下文字段到 CurveData。
+`fillTaskContext` 从匹配的拧紧数据拷贝 `taskRecordId`、`boltSerialNum`、`workstationName`、`parameterSet` 等上下文字段到 CurveData。
 
 LRU 上限 20 条，设备断线重连后旧缓存自然被挤出，无需主动清理。
 
@@ -128,8 +128,8 @@ Stub：`precondition=false`，`execute=Skip`。
 3. **有规则且 partsCode 不匹配** → 保持锁（用户扫码按"不匹配 → 重新扫"循环）
 4. **无规则** → Skip
 
-用户扫码 → `POST /api/missions/{id}/validate-parts-barcode` → `BarcodeValidationService` 校验
-→ 通过后 Controller 移除活跃引擎 `MissionContext.lockReasons` 中 `BARCODE_REQUIRED`
+用户扫码 → `POST /api/tasks/{id}/validate-parts-barcode` → `BarcodeValidationService` 校验
+→ 通过后 Controller 移除活跃引擎 `TaskContext.lockReasons` 中 `BARCODE_REQUIRED`
 → LockStateMonitor 解锁 → 操作工拧紧
 
 ### 3.3 新增枚举值
@@ -158,7 +158,7 @@ public class BoltConfig {
 **组装（LifecycleEngineFactory.createEngine()）：**
 
 ```java
-List<ProductBolt> bolts = boltService.listByMissionId(mission.getId());
+List<ProductBolt> bolts = boltService.listByTaskId(task.getId());
 // 批量加载 BoltPartsBarcode
 List<Long> boltIds = bolts.stream().map(ProductBolt::getId).toList();
 Map<Long, Long> barcodeMap = partsBarcodeService.lambdaQuery()
@@ -174,7 +174,7 @@ List<BoltConfig> boltConfigs = bolts.stream()
     .toList();
 ```
 
-**MissionContext 改动：**
+**TaskContext 改动：**
 
 - `boltConfigs` 类型：`List<ProductBolt>` → `List<BoltConfig>`
 - `currentBolt()` 返回类型：`ProductBolt` → `BoltConfig`
@@ -186,13 +186,13 @@ List<BoltConfig> boltConfigs = bolts.stream()
 
 ```java
 @Override
-public boolean precondition(MissionContext ctx) {
+public boolean precondition(TaskContext ctx) {
     BoltConfig bc = ctx.currentBolt();
     return bc != null && bc.getBarcodeRuleId() != null;
 }
 
 @Override
-public CapabilityResult execute(MissionContext ctx) {
+public CapabilityResult execute(TaskContext ctx) {
     BoltConfig bc = ctx.currentBolt();
     if (ctx.getPartsCode() == null || ctx.getPartsCode().isEmpty()) {
         ctx.getLockReasons().add(LockReason.BARCODE_REQUIRED);
@@ -213,10 +213,10 @@ public CapabilityResult execute(MissionContext ctx) {
 从 Stub 改为真实 Excel 导出：
 
 - 使用 Apache POI 写 `.xlsx`（pom.xml 新增 `org.apache.poi:poi-ooxml` 依赖）
-- 注入 `TighteningDataService`，按 `missionRecordId` 查询实际拧紧数据行
+- 注入 `TighteningDataService`，按 `taskRecordId` 查询实际拧紧数据行
 - 导出列：TighteningData entity 全部字段（列定义后续通过配置定制）
 - 导出目录：`~/tightening_system/exports/`（首次导出时 `Files.createDirectories()` 自动创建）
-- 文件名：`{missionRecordId}_{timestamp}.xlsx`
+- 文件名：`{taskRecordId}_{timestamp}.xlsx`
 
 ### 4.2 TxtExporter
 
@@ -234,7 +234,7 @@ public CapabilityResult execute(MissionContext ctx) {
 
 ### 4.4 payload 设计
 
-`ExportData` Capability 的 payload 保持轻量（元数据），不搬运拧紧数据。Exporter 注入 `TighteningDataService`，按 `missionRecordId` 自行查库。
+`ExportData` Capability 的 payload 保持轻量（元数据），不搬运拧紧数据。Exporter 注入 `TighteningDataService`，按 `taskRecordId` 自行查库。
 
 ---
 
@@ -242,7 +242,7 @@ public CapabilityResult execute(MissionContext ctx) {
 
 恢复所需改动量：
 - `ContextCheckpoint` 扩展 5-6 个字段（boltStates、lockReasons、productCode、partsCode 等）
-- `MissionOrchestrator.recover()` 新方法
+- `TaskOrchestrator.recover()` 新方法
 - `LifecycleEngine` 支持从断点冷启动
 
 预估 ~300 行，涉及 4-5 个文件。记录到 gap tracker 后续处理。
@@ -264,9 +264,9 @@ public CapabilityResult execute(MissionContext ctx) {
 
 | 文件 | 行 | 处理 |
 |------|-----|------|
-| `FitSeriesInBoundHandler.java` | 49 | 拧紧数据已走 inbox → LifecycleEngine `handleTighteningData` 回填 vin/pset 等字段，missionRecordId 由 `StoreData` 写入，删 TODO |
-| `FitSeriesInBoundHandler.java` | 51 | SSE 推送拧紧结果：LifecycleEngine 新增 `onTighteningJudged` 回调（与 onCompleted/onFaulted 同模式），`advancePipeline` 在 JUDGING 完成后触发。MissionOrchestrator.trigger() 中挂载 SSE 推送逻辑，SseService 不出 lifecycle 包 |
-| `FitSeriesInBoundHandler.java` | 55 | 曲线数据在 ToolHandler 经 T2 缓存匹配后填 mission record 字段，删 TODO |
+| `FitSeriesInBoundHandler.java` | 49 | 拧紧数据已走 inbox → LifecycleEngine `handleTighteningData` 回填 vin/pset 等字段，taskRecordId 由 `StoreData` 写入，删 TODO |
+| `FitSeriesInBoundHandler.java` | 51 | SSE 推送拧紧结果：LifecycleEngine 新增 `onTighteningJudged` 回调（与 onCompleted/onFaulted 同模式），`advancePipeline` 在 JUDGING 完成后触发。TaskOrchestrator.trigger() 中挂载 SSE 推送逻辑，SseService 不出 lifecycle 包 |
+| `FitSeriesInBoundHandler.java` | 55 | 曲线数据在 ToolHandler 经 T2 缓存匹配后填 task record 字段，删 TODO |
 | `FitSeriesInBoundHandler.java` | 57 | 同 51，共用 onTighteningJudged 回调 |
 
 **onTighteningJudged 回调**：
@@ -282,7 +282,7 @@ if (onTighteningJudged != null && context.getJudgeResult() != null
     onTighteningJudged.accept(context.getCurrentOperationData());
 }
 
-// MissionOrchestrator.trigger() — 挂载 SSE
+// TaskOrchestrator.trigger() — 挂载 SSE
 engine.onTighteningJudged(data ->
     sseService.emit(new SseEvent(SseEventType.TIGHTENING_DATA, Converter.entity2Dto(data, TighteningDataDTO::new), now())));
 ```
@@ -296,43 +296,43 @@ engine.onTighteningJudged(data ->
 
 ---
 
-## 7. G1 — MissionRecordDTO 补字段
+## 7. G1 — TaskRecordDTO 补字段
 
 ```java
-// MissionRecordDTO.java 新增
+// TaskRecordDTO.java 新增
 private String contextSnapshot;
 private String faultMessage;
 ```
 
 ---
 
-## 8. G2 — MissionRecord 加 partsCode
+## 8. G2 — TaskRecord 加 partsCode
 
 ### 8.1 Entity
 
 ```java
-// MissionRecord.java 新增
+// TaskRecord.java 新增
 private String partsCode;
 ```
 
 ### 8.2 DTO
 
 ```java
-// MissionRecordDTO.java 新增
+// TaskRecordDTO.java 新增
 private String partsCode;
 ```
 
 ### 8.3 Service
 
 ```java
-public MissionRecord createRecord(Long productMissionId, String productCode,
+public TaskRecord createRecord(Long productTaskId, String productCode,
                                    String partsCode, Integer isRework) {
-    MissionRecord record = new MissionRecord()
-        .setProductMissionId(productMissionId)
+    TaskRecord record = new TaskRecord()
+        .setProductTaskId(productTaskId)
         .setProductCode(productCode)
         .setPartsCode(partsCode)
         .setIsRework(isRework)
-        .setMissionResult(MissionResult.NG.getCode());
+        .setTaskResult(TaskResult.NG.getCode());
     save(record);
     return record;
 }
@@ -340,23 +340,23 @@ public MissionRecord createRecord(Long productMissionId, String productCode,
 
 ### 8.4 调用方修改
 
-**CreateMissionRecord.java**（顺手修 productCode 传 null 的 bug）：
+**CreateTaskRecord.java**（顺手修 productCode 传 null 的 bug）：
 
 ```java
-var record = missionRecordService.createRecord(
-    ctx.getProductMissionId(), ctx.getProductCode(), ctx.getPartsCode(), 0);
+var record = taskRecordService.createRecord(
+    ctx.getProductTaskId(), ctx.getProductCode(), ctx.getPartsCode(), 0);
 ```
 
 **LifecycleEngine.startSkipScrewLifecycle()**：
 
 ```java
-var record = missionRecordService.createRecord(
-    ctx.getProductMissionId(), ctx.getProductCode(), ctx.getPartsCode(), 0);
+var record = taskRecordService.createRecord(
+    ctx.getProductTaskId(), ctx.getProductCode(), ctx.getPartsCode(), 0);
 ```
 
 ### 8.5 数据库
 
-新增 Flyway V1.0.15 迁移，`mission_record` 表加 `parts_code TEXT` 列。
+新增 Flyway V1.0.15 迁移，`task_record` 表加 `parts_code TEXT` 列。
 
 ---
 
@@ -468,8 +468,8 @@ BoltBarCodeCheck（T4）作为 BARCODE_REQUIRED 写入方。
 | T5 | Excel + txt 导出 | POI .xlsx + CSV .txt，注入 TighteningDataService 查库 |
 | T6 | checkpoint 恢复 | 记录，不做 |
 | T7 | TODO 清理 + SSE 推送 | 删注释 + engine onTighteningJudged 回调 |
-| G1 | MissionRecordDTO 补字段 | +contextSnapshot +faultMessage |
-| G2 | MissionRecord + partsCode | entity/dto/service/migration/调用方 |
+| G1 | TaskRecordDTO 补字段 | +contextSnapshot +faultMessage |
+| G2 | TaskRecord + partsCode | entity/dto/service/migration/调用方 |
 | G3 | partsCode 粒度 | 无需改动 |
 | G4 | 常量配置化 | 4 常量 → 3 config 类 |
 | G8 | Flyway V1.0.5 | 跳过 |
@@ -484,6 +484,6 @@ BoltBarCodeCheck（T4）作为 BARCODE_REQUIRED 写入方。
 
 | 设计 | 实现 | 原因 |
 |------|------|------|
-| `BoltConfig` 聚合类替换 `List<ProductBolt>` | `MissionContext` 加 `Map<Long, Long> boltBarcodeRuleIds` | 避免 6+ 文件调用方适配 |
+| `BoltConfig` 聚合类替换 `List<ProductBolt>` | `TaskContext` 加 `Map<Long, Long> boltBarcodeRuleIds` | 避免 6+ 文件调用方适配 |
 | `NotifyTighteningResult` Capability 做 SSE 推送 | `LifecycleEngine.onTighteningJudged` 回调 | 低耦合，SSE 不出 lifecycle 包 |
 | SSE `BARCODE_REQUIRED` 事件类型 | 复用 `WorkplaceStatusService` 现成链路 | LockStateMonitor 已推送 lockReasons |

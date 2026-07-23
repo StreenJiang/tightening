@@ -33,12 +33,12 @@ class BarcodeValidationServiceTest {
         @Test
         @DisplayName("无 PRODUCT_TRACE 规则 → matched")
         void noProductTraceRule() {
-            when(ruleService.listByMissionId(1L)).thenReturn(List.of());
+            when(ruleService.listByTaskId(1L)).thenReturn(List.of());
 
             var result = service.validateProductCode(1L, "ABC123");
 
             assertThat(result.matched()).isTrue();
-            assertThat(result.suggestedMissionId()).isNull();
+            assertThat(result.suggestedTaskId()).isNull();
         }
 
         @Test
@@ -47,8 +47,8 @@ class BarcodeValidationServiceTest {
             var rule = new BarCodeMatchingRule()
                     .setRuleType(BarCodeRuleType.PRODUCT_TRACE.getCode())
                     .setSegments("[{\"s\":0,\"e\":2,\"v\":\"AB\"}]")
-                    .setExpectedLength(6).setProductMissionId(1L);
-            when(ruleService.listByMissionId(1L)).thenReturn(List.of(rule));
+                    .setExpectedLength(6).setProductTaskId(1L);
+            when(ruleService.listByTaskId(1L)).thenReturn(List.of(rule));
 
             var result = service.validateProductCode(1L, "ABC123");
 
@@ -56,25 +56,25 @@ class BarcodeValidationServiceTest {
         }
 
         @Test
-        @DisplayName("有规则但不匹配当前 Mission → 查其它 Mission")
-        void wrongMission() {
+        @DisplayName("有规则但不匹配当前 Task → 查其它 Task")
+        void wrongTask() {
             var rule1 = new BarCodeMatchingRule()
                     .setRuleType(BarCodeRuleType.PRODUCT_TRACE.getCode())
                     .setSegments("[{\"s\":0,\"e\":1,\"v\":\"X\"}]")
-                    .setExpectedLength(6).setProductMissionId(1L);
-            when(ruleService.listByMissionId(1L)).thenReturn(List.of(rule1));
-            // 模拟全库查询：只有 mission 2 匹配
+                    .setExpectedLength(6).setProductTaskId(1L);
+            when(ruleService.listByTaskId(1L)).thenReturn(List.of(rule1));
+            // 模拟全库查询：只有 task 2 匹配
             when(ruleService.findProductTraceRulesExcluding(1L)).thenReturn(List.of(
                 new BarCodeMatchingRule()
                     .setRuleType(BarCodeRuleType.PRODUCT_TRACE.getCode())
                     .setSegments("[{\"s\":0,\"e\":1,\"v\":\"A\"}]")
-                    .setExpectedLength(6).setProductMissionId(2L)
+                    .setExpectedLength(6).setProductTaskId(2L)
             ));
 
             var result = service.validateProductCode(1L, "ABC123");
 
             assertThat(result.matched()).isFalse();
-            assertThat(result.suggestedMissionId()).isEqualTo(2L);
+            assertThat(result.suggestedTaskId()).isEqualTo(2L);
         }
     }
 
@@ -85,7 +85,7 @@ class BarcodeValidationServiceTest {
         @Test
         @DisplayName("无 MATERIAL_BARCODE 规则 → true")
         void noPartsRule() {
-            when(ruleService.listByMissionId(1L)).thenReturn(List.of());
+            when(ruleService.listByTaskId(1L)).thenReturn(List.of());
 
             assertThat(service.validatePartsCode(1L, "MAT456")).isTrue();
         }
@@ -96,8 +96,8 @@ class BarcodeValidationServiceTest {
             var rule = new BarCodeMatchingRule()
                     .setRuleType(BarCodeRuleType.MATERIAL_BARCODE.getCode())
                     .setSegments("[{\"s\":0,\"e\":2,\"v\":\"MA\"}]")
-                    .setExpectedLength(6).setProductMissionId(1L);
-            when(ruleService.listByMissionId(1L)).thenReturn(List.of(rule));
+                    .setExpectedLength(6).setProductTaskId(1L);
+            when(ruleService.listByTaskId(1L)).thenReturn(List.of(rule));
 
             assertThat(service.validatePartsCode(1L, "MAT456")).isTrue();
         }
@@ -108,8 +108,8 @@ class BarcodeValidationServiceTest {
             var rule = new BarCodeMatchingRule()
                     .setRuleType(BarCodeRuleType.MATERIAL_BARCODE.getCode())
                     .setSegments("[{\"s\":0,\"e\":2,\"v\":\"XX\"}]")
-                    .setExpectedLength(6).setProductMissionId(1L);
-            when(ruleService.listByMissionId(1L)).thenReturn(List.of(rule));
+                    .setExpectedLength(6).setProductTaskId(1L);
+            when(ruleService.listByTaskId(1L)).thenReturn(List.of(rule));
 
             assertThat(service.validatePartsCode(1L, "MAT456")).isFalse();
         }

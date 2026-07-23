@@ -19,8 +19,8 @@ public class OuterDatabaseStorer implements Exporter {
 
     @Override
     public ExportResult execute(ExportPayload payload) {
-        log.info("[Stub] OuterDatabaseStorer execute payload: missionRecordId={}, data={}",
-                payload.missionRecordId(), payload.data());
+        log.info("[Stub] OuterDatabaseStorer execute payload: taskRecordId={}, data={}",
+                payload.taskRecordId(), payload.data());
         return ExportResult.ok("stub");
     }
 }

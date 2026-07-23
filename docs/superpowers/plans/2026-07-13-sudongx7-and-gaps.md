@@ -137,11 +137,11 @@ Parser 只做数据提取（hex→数值），不做判定。用设计文档 1.3
   - `lockTool()`/`unlockTool()` 双发策略（间隔 200ms 连发两次，直接 return true）
   - `sendPSetCmd()` → `SudongX7Frame.sendPSet()`
 
-### Task 9: DeviceType 枚举 + MissionContext.currentPSet + SendPSet + ReceiveData + LifecycleEngine
+### Task 9: DeviceType 枚举 + TaskContext.currentPSet + SendPSet + ReceiveData + LifecycleEngine
 
 **修改文件**:
 - `constant/DeviceType.java` — 新增 `SUDONG_X7(4, "SudongX7")`
-- `lifecycle/MissionContext.java` — 新增 `volatile Integer currentPSet` 字段
+- `lifecycle/TaskContext.java` — 新增 `volatile Integer currentPSet` 字段
 - `lifecycle/capability/SendPSet.java` — `execute()` 成功后 `ctx.setCurrentPSet(psetId)`
 - `lifecycle/capability/ReceiveData.java` — `precondition()` 对 `SUDONG_X7` 返回 `false`（Skip）
 - `lifecycle/LifecycleEngine.java` — `handleTighteningData()` 新增三字段回填：
@@ -167,5 +167,5 @@ Parser 只做数据提取（hex→数值），不做判定。用设计文档 1.3
 
 **修改**:
 1. `FitTighteningDataParser.java` — barcode 解码后 `dto.setVin(barcode)`（一行 setter）
-2. `MissionContext.java` — `previousOperationData`/`pendingCurveData`/`extras` 标记 `@Deprecated`，加注释说明当前无消费者
+2. `TaskContext.java` — `previousOperationData`/`pendingCurveData`/`extras` 标记 `@Deprecated`，加注释说明当前无消费者
 3. `JsonUtils.java` + `Converter.java` — 提取共享 `ObjectMapper` 常量到 `JsonUtils`，`Converter` 引用之

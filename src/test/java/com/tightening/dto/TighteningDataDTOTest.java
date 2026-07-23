@@ -18,7 +18,7 @@ class TighteningDataDTOTest {
         original.setCreatorId(100L);
         original.setModifierId(200L);
 
-        original.setMissionRecordId(1L);
+        original.setTaskRecordId(1L);
         original.setWorkstationName("Station-01");
         original.setToolName("Tool-A");
         original.setToolTypeName("PF6000");

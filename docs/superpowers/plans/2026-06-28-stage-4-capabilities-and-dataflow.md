@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Fill 5 missing Capabilities (VALIDATION+OPERATION stages), fix ToolHandler double-write data duplication, add inbox backpressure logging, expand ExportData payload, add export_task TTL cleanup, and replace flat-string MissionStatus with structured DTO.
+**Goal:** Fill 5 missing Capabilities (VALIDATION+OPERATION stages), fix ToolHandler double-write data duplication, add inbox backpressure logging, expand ExportData payload, add export_task TTL cleanup, and replace flat-string TaskStatus with structured DTO.
 
 **Architecture:** All new Capabilities are no-arg constructors (no Spring dependencies), following existing patterns. Torque/Angle range checks are informational only — they write to `ctx.extras` and always return Pass. The ToolHandler direct `save()` is removed, making StoreData the single persistence point. The plan defers SSE/frontend notifications and real Exporter implementations to Stage 5.
 
@@ -12,13 +12,13 @@
 
 - 新建 6 源文件 + 7 测试文件，修改 7 源文件 + 2 测试文件，零删除
 - `ProductBolt` 有 `torqueMin/torqueMax/angleMin/angleMax` 字段（Double，可为 null）
-- `MissionContext.currentBolt()` 返回当前 `ProductBolt`（可能为 null）
-- `MissionContext.extras` 是 `Map<String, Object>`，用于 Capability 间临时数据传递
+- `TaskContext.currentBolt()` 返回当前 `ProductBolt`（可能为 null）
+- `TaskContext.extras` 是 `Map<String, Object>`，用于 Capability 间临时数据传递
 - TorqueRangeCheck 和 AngleRangeCheck 为纯信息性 — 写入 extras，始终返回 Pass，不阻断管道
 - ExecuteJudgment 优先级从 1 改为 3（让范围检查先执行）
 - `ToolHandler.handleTighteningData()` 删除 `tighteningDataService.save(data)` 但保留 `toolAdapter.fireTighteningData(dto)` 和 converter 调用
 - `export_task` TTL 清理使用 MyBatis-Plus `remove()`（逻辑删除），不手动 set deleted
-- `MissionStatus` 为 Java record
+- `TaskStatus` 为 Java record
 
 ---
 
@@ -81,7 +81,7 @@ git commit -m "fix: remove ToolHandler double-write, data flows exclusively thro
 - Modify: `src/main/java/com/tightening/lifecycle/LifecycleEngineFactory.java`
 
 **Interfaces:**
-- Consumes: `Capability` interface, `MissionContext`
+- Consumes: `Capability` interface, `TaskContext`
 - Produces: `WorkstationConfigCheck` — 首个 VALIDATION 阶段 Capability
 
 - [ ] **Step 1: 写失败测试**
@@ -93,8 +93,8 @@ import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.device.contract.ITool;
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.entity.ProductTask;
+import com.tightening.lifecycle.TaskContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -111,9 +111,9 @@ class WorkstationConfigCheckTest {
     @Test
     @DisplayName("配置完整时返回 Pass")
     void shouldPassWhenConfigurationValid() {
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L)
-                .missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L)
+                .taskData(new ProductTask())
                 .boltConfigs(List.of(new ProductBolt()))
                 .deviceRegistry(Map.of(1L, new ITool() {
                     @Override public long id() { return 1; }
@@ -133,9 +133,9 @@ class WorkstationConfigCheckTest {
     @Test
     @DisplayName("螺栓列表为空时返回 Fail")
     void shouldFailWhenNoBolts() {
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L)
-                .missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L)
+                .taskData(new ProductTask())
                 .boltConfigs(List.of())
                 .deviceRegistry(Map.of(1L, mockTool()))
                 .shouldSelfLoop(false)
@@ -146,9 +146,9 @@ class WorkstationConfigCheckTest {
     @Test
     @DisplayName("设备注册表为空时返回 Fail")
     void shouldFailWhenNoDevices() {
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L)
-                .missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L)
+                .taskData(new ProductTask())
                 .boltConfigs(List.of(new ProductBolt()))
                 .deviceRegistry(Map.of())
                 .shouldSelfLoop(false)
@@ -159,9 +159,9 @@ class WorkstationConfigCheckTest {
     @Test
     @DisplayName("boltConfigs 为 null 时返回 Fail")
     void shouldFailWhenBoltConfigsNull() {
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L)
-                .missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L)
+                .taskData(new ProductTask())
                 .boltConfigs(null)
                 .deviceRegistry(Map.of(1L, mockTool()))
                 .shouldSelfLoop(false)
@@ -208,7 +208,7 @@ package com.tightening.lifecycle.capability;
 
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -220,7 +220,7 @@ public class WorkstationConfigCheck implements Capability {
     @Override public int priority() { return 0; }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
+    public CapabilityResult execute(TaskContext ctx) {
         if (ctx.getBoltConfigs() == null || ctx.getBoltConfigs().isEmpty()) {
             log.warn("WorkstationConfigCheck FAIL: no bolt configs");
             return CapabilityResult.Fail;
@@ -229,8 +229,8 @@ public class WorkstationConfigCheck implements Capability {
             log.warn("WorkstationConfigCheck FAIL: no devices in registry");
             return CapabilityResult.Fail;
         }
-        if (ctx.getMissionData() == null) {
-            log.warn("WorkstationConfigCheck FAIL: no mission data");
+        if (ctx.getTaskData() == null) {
+            log.warn("WorkstationConfigCheck FAIL: no task data");
             return CapabilityResult.Fail;
         }
         log.info("WorkstationConfigCheck PASS: {} bolts, {} devices",
@@ -248,7 +248,7 @@ public class WorkstationConfigCheck implements Capability {
 List<Capability> capabilities = List.of(
     new WorkstationConfigCheck(),
     new PrepareBolts(),
-    new CreateMissionRecord(missionRecordService),
+    new CreateTaskRecord(taskRecordService),
     // ... 其余不变
 );
 ```
@@ -280,7 +280,7 @@ git commit -m "feat: add WorkstationConfigCheck Capability for VALIDATION stage"
 - Modify: `src/main/java/com/tightening/lifecycle/LifecycleEngineFactory.java`
 
 **Interfaces:**
-- Consumes: `Capability` interface, `MissionContext.currentOperationData`
+- Consumes: `Capability` interface, `TaskContext.currentOperationData`
 - Produces: `ReceiveData` — 形式化 TIGHTENING_RECEIVED 等待点的数据到达验证
 
 - [ ] **Step 1: 写失败测试**
@@ -291,7 +291,7 @@ package com.tightening.lifecycle.capability;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.entity.TighteningData;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -307,8 +307,8 @@ class ReceiveDataTest {
     void shouldPassWhenDataReceived() {
         TighteningData data = new TighteningData();
         data.setTighteningId(12345L);
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new com.tightening.entity.ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new com.tightening.entity.ProductTask())
                 .boltConfigs(java.util.List.of()).deviceRegistry(java.util.Map.of())
                 .shouldSelfLoop(false)
                 .currentOperationData(data).build();
@@ -318,8 +318,8 @@ class ReceiveDataTest {
     @Test
     @DisplayName("无数据时返回 Fail")
     void shouldFailWhenNoData() {
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new com.tightening.entity.ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new com.tightening.entity.ProductTask())
                 .boltConfigs(java.util.List.of()).deviceRegistry(java.util.Map.of())
                 .shouldSelfLoop(false)
                 .currentOperationData(null).build();
@@ -331,8 +331,8 @@ class ReceiveDataTest {
     void shouldFailWhenTighteningIdZero() {
         TighteningData data = new TighteningData();
         data.setTighteningId(0L);
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new com.tightening.entity.ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new com.tightening.entity.ProductTask())
                 .boltConfigs(java.util.List.of()).deviceRegistry(java.util.Map.of())
                 .shouldSelfLoop(false)
                 .currentOperationData(data).build();
@@ -366,7 +366,7 @@ package com.tightening.lifecycle.capability;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.entity.TighteningData;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -378,7 +378,7 @@ public class ReceiveData implements Capability {
     @Override public int priority() { return 0; }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
+    public CapabilityResult execute(TaskContext ctx) {
         TighteningData data = ctx.getCurrentOperationData();
         if (data == null) {
             log.warn("ReceiveData FAIL: no current operation data");
@@ -430,7 +430,7 @@ git commit -m "feat: add ReceiveData Capability for OPERATION/TIGHTENING_RECEIVE
 - Modify: `src/main/java/com/tightening/lifecycle/LifecycleEngineFactory.java`
 
 **Interfaces:**
-- Consumes: `MissionContext.currentBolt()`, `MissionContext.getCurrentOperationData()`, `ProductBolt.torqueMin/torqueMax`
+- Consumes: `TaskContext.currentBolt()`, `TaskContext.getCurrentOperationData()`, `ProductBolt.torqueMin/torqueMax`
 - Produces: extras 写入 `torqueInRange`, `torqueMin`, `torqueMax`, `torqueActual`
 
 - [ ] **Step 1: 写失败测试**
@@ -443,7 +443,7 @@ import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.entity.ProductBolt;
 import com.tightening.entity.TighteningData;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -470,8 +470,8 @@ class TorqueRangeCheckTest {
     @DisplayName("扭矩在范围内时 Pass 且 extras[torqueInRange]=true")
     void shouldPassWhenTorqueInRange() {
         data.setTorque(15.0);
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new com.tightening.entity.ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new com.tightening.entity.ProductTask())
                 .boltConfigs(List.of(bolt)).deviceRegistry(java.util.Map.of())
                 .shouldSelfLoop(false)
                 .currentOperationData(data)
@@ -487,8 +487,8 @@ class TorqueRangeCheckTest {
     @DisplayName("扭矩低于下限时 Pass 且 extras[torqueInRange]=false")
     void shouldPassWhenTorqueBelowMin() {
         data.setTorque(5.0);
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new com.tightening.entity.ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new com.tightening.entity.ProductTask())
                 .boltConfigs(List.of(bolt)).deviceRegistry(java.util.Map.of())
                 .shouldSelfLoop(false)
                 .currentOperationData(data)
@@ -501,8 +501,8 @@ class TorqueRangeCheckTest {
     @DisplayName("扭矩高于上限时 Pass 且 extras[torqueInRange]=false")
     void shouldPassWhenTorqueAboveMax() {
         data.setTorque(25.0);
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new com.tightening.entity.ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new com.tightening.entity.ProductTask())
                 .boltConfigs(List.of(bolt)).deviceRegistry(java.util.Map.of())
                 .shouldSelfLoop(false)
                 .currentOperationData(data)
@@ -515,8 +515,8 @@ class TorqueRangeCheckTest {
     @DisplayName("限值为 null 时 precondition 返回 false")
     void shouldSkipWhenNoLimits() {
         ProductBolt boltNoLimits = new ProductBolt();
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new com.tightening.entity.ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new com.tightening.entity.ProductTask())
                 .boltConfigs(List.of(boltNoLimits)).deviceRegistry(java.util.Map.of())
                 .shouldSelfLoop(false)
                 .currentOperationData(data)
@@ -527,8 +527,8 @@ class TorqueRangeCheckTest {
     @Test
     @DisplayName("无当前螺栓时 precondition 返回 false")
     void shouldSkipWhenNoCurrentBolt() {
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new com.tightening.entity.ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new com.tightening.entity.ProductTask())
                 .boltConfigs(List.of()).deviceRegistry(java.util.Map.of())
                 .shouldSelfLoop(false).build();
         assertThat(cap.precondition(ctx)).isFalse();
@@ -562,7 +562,7 @@ import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.entity.ProductBolt;
 import com.tightening.entity.TighteningData;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -574,13 +574,13 @@ public class TorqueRangeCheck implements Capability {
     @Override public int priority() { return 1; }
 
     @Override
-    public boolean precondition(MissionContext ctx) {
+    public boolean precondition(TaskContext ctx) {
         ProductBolt bolt = ctx.currentBolt();
         return bolt != null && bolt.getTorqueMin() != null && bolt.getTorqueMax() != null;
     }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
+    public CapabilityResult execute(TaskContext ctx) {
         ProductBolt bolt = ctx.currentBolt();
         TighteningData data = ctx.getCurrentOperationData();
 
@@ -636,7 +636,7 @@ git commit -m "feat: add TorqueRangeCheck Capability for OPERATION/JUDGING"
 - Modify: `src/main/java/com/tightening/lifecycle/capability/ExecuteJudgment.java`
 
 **Interfaces:**
-- Consumes: `MissionContext.currentBolt()`, `ProductBolt.angleMin/angleMax`
+- Consumes: `TaskContext.currentBolt()`, `ProductBolt.angleMin/angleMax`
 - Produces: extras 写入 `angleInRange`, `angleMin`, `angleMax`, `angleActual`; ExecuteJudgment priority 1→3
 
 - [ ] **Step 1: 写失败测试 — AngleRangeCheckTest**
@@ -649,7 +649,7 @@ import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.entity.ProductBolt;
 import com.tightening.entity.TighteningData;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -676,8 +676,8 @@ class AngleRangeCheckTest {
     @DisplayName("角度在范围内时 Pass 且 extras[angleInRange]=true")
     void shouldPassWhenAngleInRange() {
         data.setAngle(45.0);
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new com.tightening.entity.ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new com.tightening.entity.ProductTask())
                 .boltConfigs(List.of(bolt)).deviceRegistry(java.util.Map.of())
                 .shouldSelfLoop(false)
                 .currentOperationData(data)
@@ -693,8 +693,8 @@ class AngleRangeCheckTest {
     @DisplayName("角度低于下限时 Pass 且 extras[angleInRange]=false")
     void shouldPassWhenAngleBelowMin() {
         data.setAngle(15.0);
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new com.tightening.entity.ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new com.tightening.entity.ProductTask())
                 .boltConfigs(List.of(bolt)).deviceRegistry(java.util.Map.of())
                 .shouldSelfLoop(false)
                 .currentOperationData(data)
@@ -707,8 +707,8 @@ class AngleRangeCheckTest {
     @DisplayName("角度高于上限时 Pass 且 extras[angleInRange]=false")
     void shouldPassWhenAngleAboveMax() {
         data.setAngle(75.0);
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new com.tightening.entity.ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new com.tightening.entity.ProductTask())
                 .boltConfigs(List.of(bolt)).deviceRegistry(java.util.Map.of())
                 .shouldSelfLoop(false)
                 .currentOperationData(data)
@@ -721,8 +721,8 @@ class AngleRangeCheckTest {
     @DisplayName("限值为 null 时 precondition 返回 false")
     void shouldSkipWhenNoLimits() {
         ProductBolt boltNoLimits = new ProductBolt();
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new com.tightening.entity.ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new com.tightening.entity.ProductTask())
                 .boltConfigs(List.of(boltNoLimits)).deviceRegistry(java.util.Map.of())
                 .shouldSelfLoop(false)
                 .currentOperationData(data)
@@ -733,8 +733,8 @@ class AngleRangeCheckTest {
     @Test
     @DisplayName("无当前螺栓时 precondition 返回 false")
     void shouldSkipWhenNoCurrentBolt() {
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new com.tightening.entity.ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new com.tightening.entity.ProductTask())
                 .boltConfigs(List.of()).deviceRegistry(java.util.Map.of())
                 .shouldSelfLoop(false).build();
         assertThat(cap.precondition(ctx)).isFalse();
@@ -766,7 +766,7 @@ import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.entity.ProductBolt;
 import com.tightening.entity.TighteningData;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -778,13 +778,13 @@ public class AngleRangeCheck implements Capability {
     @Override public int priority() { return 2; }
 
     @Override
-    public boolean precondition(MissionContext ctx) {
+    public boolean precondition(TaskContext ctx) {
         ProductBolt bolt = ctx.currentBolt();
         return bolt != null && bolt.getAngleMin() != null && bolt.getAngleMax() != null;
     }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
+    public CapabilityResult execute(TaskContext ctx) {
         ProductBolt bolt = ctx.currentBolt();
         TighteningData data = ctx.getCurrentOperationData();
 
@@ -852,7 +852,7 @@ git commit -m "feat: add AngleRangeCheck Capability, bump ExecuteJudgment priori
 - Modify: `src/test/java/com/tightening/lifecycle/capability/ExportDataTest.java`
 
 **Interfaces:**
-- Consumes: `MissionRecord.productCode`, `MissionRecord.isRework`
+- Consumes: `TaskRecord.productCode`, `TaskRecord.isRework`
 - Produces: payload 新增 `productCode`, `isRework`, `timestamp` 字段
 
 - [ ] **Step 1: 读取当前 ExportData.java 和 ExportDataTest.java**
@@ -869,9 +869,9 @@ grep -n "payload.put" src/main/java/com/tightening/lifecycle/capability/ExportDa
 
 ```java
 Map<String, Object> payload = new LinkedHashMap<>();
-payload.put("missionId", ctx.getProductMissionId());
-payload.put("missionRecordId", record.getId());
-payload.put("missionResult", record.getMissionResult());
+payload.put("taskId", ctx.getProductTaskId());
+payload.put("taskRecordId", record.getId());
+payload.put("taskResult", record.getTaskResult());
 // === 新增字段 ===
 payload.put("productCode", record.getProductCode());
 payload.put("isRework", record.getIsRework());
@@ -897,16 +897,16 @@ import java.time.LocalDateTime;
 void shouldCreateTasksPerExportType() {
     LocalSettings settings = new LocalSettings(false, List.of("standard_excel", "outer_db_store"));
     ExportData cap = new ExportData(exportTaskService, settings);
-    MissionRecord record = new MissionRecord()
+    TaskRecord record = new TaskRecord()
             .setId(42L)
             .setProductCode("P001")
             .setIsRework(0)
-            .setMissionResult(MissionResult.OK.getCode());
-    MissionContext ctx = MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission())
+            .setTaskResult(TaskResult.OK.getCode());
+    TaskContext ctx = TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask())
             .boltConfigs(List.of()).deviceRegistry(Map.of())
             .shouldSelfLoop(false)
-            .missionRecord(record).build();
+            .taskRecord(record).build();
 
     assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Pass);
 
@@ -923,7 +923,7 @@ void shouldCreateTasksPerExportType() {
 需要添加 import：
 
 ```java
-import com.tightening.constant.MissionResult;
+import com.tightening.constant.TaskResult;
 import org.mockito.ArgumentCaptor;
 ```
 
@@ -1187,29 +1187,29 @@ git commit -m "fix: add inbox backpressure logging to prevent silent message dro
 
 ---
 
-### Task 9: MissionStatus DTO
+### Task 9: TaskStatus DTO
 
 **Files:**
-- Create: `src/main/java/com/tightening/dto/MissionStatus.java`
-- Modify: `src/main/java/com/tightening/controller/MissionLifecycleController.java`
-- Create: `src/test/java/com/tightening/controller/MissionLifecycleControllerTest.java`
+- Create: `src/main/java/com/tightening/dto/TaskStatus.java`
+- Modify: `src/main/java/com/tightening/controller/TaskLifecycleController.java`
+- Create: `src/test/java/com/tightening/controller/TaskLifecycleControllerTest.java`
 
 **Interfaces:**
-- Consumes: `MissionOrchestrator.getActiveEngine()`, `LifecycleEngine.getContext()`
-- Produces: `MissionStatus` record, 结构化 `GET /api/missions/{id}/status` 响应
+- Consumes: `TaskOrchestrator.getActiveEngine()`, `LifecycleEngine.getContext()`
+- Produces: `TaskStatus` record, 结构化 `GET /api/tasks/{id}/status` 响应
 
-- [ ] **Step 1: 创建 MissionStatus.java record**
+- [ ] **Step 1: 创建 TaskStatus.java record**
 
 ```java
 package com.tightening.dto;
 
-public record MissionStatus(
+public record TaskStatus(
     String status,
     String stage,
     String subState,
     int currentBoltIndex,
     int totalBolts,
-    Long missionRecordId
+    Long taskRecordId
 ) {}
 ```
 
@@ -1218,63 +1218,63 @@ public record MissionStatus(
 ```java
 package com.tightening.controller;
 
-import com.tightening.dto.MissionStatus;
+import com.tightening.dto.TaskStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DisplayName("MissionStatus DTO")
-class MissionLifecycleControllerTest {
+@DisplayName("TaskStatus DTO")
+class TaskLifecycleControllerTest {
 
     @Test
-    @DisplayName("MissionStatus record 构造和访问")
-    void shouldConstructMissionStatus() {
-        MissionStatus status = new MissionStatus("running", "OPERATION", "JUDGING", 2, 5, 42L);
+    @DisplayName("TaskStatus record 构造和访问")
+    void shouldConstructTaskStatus() {
+        TaskStatus status = new TaskStatus("running", "OPERATION", "JUDGING", 2, 5, 42L);
         assertThat(status.status()).isEqualTo("running");
         assertThat(status.stage()).isEqualTo("OPERATION");
         assertThat(status.subState()).isEqualTo("JUDGING");
         assertThat(status.currentBoltIndex()).isEqualTo(2);
         assertThat(status.totalBolts()).isEqualTo(5);
-        assertThat(status.missionRecordId()).isEqualTo(42L);
+        assertThat(status.taskRecordId()).isEqualTo(42L);
     }
 
     @Test
     @DisplayName("idle 状态各字段为 null/0")
     void shouldHaveNullsForIdle() {
-        MissionStatus status = new MissionStatus("idle", null, null, 0, 0, null);
+        TaskStatus status = new TaskStatus("idle", null, null, 0, 0, null);
         assertThat(status.status()).isEqualTo("idle");
         assertThat(status.stage()).isNull();
         assertThat(status.subState()).isNull();
         assertThat(status.currentBoltIndex()).isEqualTo(0);
         assertThat(status.totalBolts()).isEqualTo(0);
-        assertThat(status.missionRecordId()).isNull();
+        assertThat(status.taskRecordId()).isNull();
     }
 }
 ```
 
 - [ ] **Step 3: 运行测试确认失败？**
 
-MissionStatus DTO 是纯 record，测试不会失败。但 Controller 测试会编译失败（如果测试中引用了旧 API）。
+TaskStatus DTO 是纯 record，测试不会失败。但 Controller 测试会编译失败（如果测试中引用了旧 API）。
 
 ```bash
-mvn test -Dtest=MissionLifecycleControllerTest -DfailIfNoTests=false 2>&1 | tail -10
+mvn test -Dtest=TaskLifecycleControllerTest -DfailIfNoTests=false 2>&1 | tail -10
 ```
 
 Expected: DTO 测试本身应该通过（纯 record，没有编译依赖）。
 
-- [ ] **Step 4: 修改 MissionLifecycleController.getMissionStatus()**
+- [ ] **Step 4: 修改 TaskLifecycleController.getTaskStatus()**
 
 ```java
 @GetMapping("/{id}/status")
-public ResponseEntity<ApiResponse<MissionStatus>> getMissionStatus(@PathVariable Long id) {
+public ResponseEntity<ApiResponse<TaskStatus>> getTaskStatus(@PathVariable Long id) {
     var engineOpt = orchestrator.getActiveEngine(id);
     if (engineOpt.isEmpty()) {
         return ResponseEntity.ok(ApiResponse.ok(
-                new MissionStatus("idle", null, null, 0, 0, null)));
+                new TaskStatus("idle", null, null, 0, 0, null)));
     }
     var engine = engineOpt.get();
-    MissionContext ctx = engine.getContext();
+    TaskContext ctx = engine.getContext();
     String status = engine.isAlive() ? "running" : "finished";
     String stage = ctx != null && ctx.getCurrentStage() != null
             ? ctx.getCurrentStage().name() : null;
@@ -1282,33 +1282,33 @@ public ResponseEntity<ApiResponse<MissionStatus>> getMissionStatus(@PathVariable
             ? ctx.getCurrentSubState().name() : null;
     int currentBoltIndex = ctx != null ? ctx.getCurrentBoltIndex() : 0;
     int totalBolts = ctx != null ? ctx.totalBolts() : 0;
-    Long missionRecordId = ctx != null && ctx.getMissionRecord() != null
-            ? ctx.getMissionRecord().getId() : null;
+    Long taskRecordId = ctx != null && ctx.getTaskRecord() != null
+            ? ctx.getTaskRecord().getId() : null;
     return ResponseEntity.ok(ApiResponse.ok(
-            new MissionStatus(status, stage, subState, currentBoltIndex, totalBolts, missionRecordId)));
+            new TaskStatus(status, stage, subState, currentBoltIndex, totalBolts, taskRecordId)));
 }
 ```
 
 需要添加 import：
 
 ```java
-import com.tightening.dto.MissionStatus;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.dto.TaskStatus;
+import com.tightening.lifecycle.TaskContext;
 ```
 
 - [ ] **Step 5: 运行测试 + 全量编译**
 
 ```bash
-mvn compile -q 2>&1 && mvn test -Dtest=MissionLifecycleControllerTest -DfailIfNoTests=false 2>&1 | tail -10
+mvn compile -q 2>&1 && mvn test -Dtest=TaskLifecycleControllerTest -DfailIfNoTests=false 2>&1 | tail -10
 ```
 
 - [ ] **Step 6: 提交**
 
 ```bash
-git add src/main/java/com/tightening/dto/MissionStatus.java \
-        src/main/java/com/tightening/controller/MissionLifecycleController.java \
-        src/test/java/com/tightening/controller/MissionLifecycleControllerTest.java
-git commit -m "feat: add structured MissionStatus DTO for /api/missions/{id}/status"
+git add src/main/java/com/tightening/dto/TaskStatus.java \
+        src/main/java/com/tightening/controller/TaskLifecycleController.java \
+        src/test/java/com/tightening/controller/TaskLifecycleControllerTest.java
+git commit -m "feat: add structured TaskStatus DTO for /api/tasks/{id}/status"
 ```
 
 ---
@@ -1323,7 +1323,7 @@ mvn clean test -DfailIfNoTests=false
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
 # API 测试
-curl -s http://localhost:8080/api/missions/1/status | jq .
+curl -s http://localhost:8080/api/tasks/1/status | jq .
 # Expected: {"code":200,"message":"ok","data":{"status":"idle","stage":null,"subState":null,...}}
 ```
 

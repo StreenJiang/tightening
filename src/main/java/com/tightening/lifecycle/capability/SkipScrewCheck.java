@@ -2,7 +2,7 @@ package com.tightening.lifecycle.capability;
 
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -14,14 +14,14 @@ public class SkipScrewCheck implements TriggerCapability {
     @Override public int priority() { return 3; }
 
     @Override
-    public boolean precondition(MissionContext ctx) {
-        return ctx.getMissionData() != null
-            && Integer.valueOf(1).equals(ctx.getMissionData().getSkipScrew());
+    public boolean precondition(TaskContext ctx) {
+        return ctx.getTaskData() != null
+            && Integer.valueOf(1).equals(ctx.getTaskData().getSkipScrew());
     }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
-        log.info("SkipScrew fast track for mission {}", ctx.getProductMissionId());
+    public CapabilityResult execute(TaskContext ctx) {
+        log.info("SkipScrew fast track for task {}", ctx.getProductTaskId());
         return CapabilityResult.Interrupt;
     }
 }

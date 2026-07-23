@@ -6,7 +6,7 @@ import com.tightening.constant.SubState;
 import com.tightening.dto.TighteningDataDTO;
 import com.tightening.entity.TighteningData;
 import com.tightening.judgment.JudgmentStrategy;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import com.tightening.util.Converter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,12 +25,12 @@ public class ExecuteJudgment implements Capability {
     @Override public int priority() { return 3; }
 
     @Override
-    public boolean precondition(MissionContext ctx) {
+    public boolean precondition(TaskContext ctx) {
         return ctx.getCurrentOperationData() != null;
     }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
+    public CapabilityResult execute(TaskContext ctx) {
         TighteningData data = ctx.getCurrentOperationData();
         TighteningDataDTO dto = Converter.entity2Dto(data, TighteningDataDTO::new);
 

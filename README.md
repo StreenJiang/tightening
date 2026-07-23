@@ -164,7 +164,7 @@ java -jar target/tightening-0.0.1-SNAPSHOT.jar --spring.profiles.active=standalo
 
 | Issue | Possible Cause | Solution |
 |-------|----------------|----------|
-| `SQLite error` on startup | Directory lacks write permissions | Ensure `${user.home}/tightening_system/` is writable |
+| `SQLite error` on startup | Directory lacks write pertasks | Ensure `${user.home}/tightening_system/` is writable |
 | Device connection timeout | Incorrect IP/Port or firewall blocking | Verify addresses in `application-*.yml`, check network reachability |
 | Frequent heartbeat drops | `heart-beat-interval-ms` mismatches device settings | Adjust to device-supported interval (default: `30000`) |
 | Database lock wait timeout | Concurrent multi-thread writes | Confirm `busy_timeout=5000` and `journal_mode=WAL` are active |

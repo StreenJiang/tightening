@@ -4,7 +4,7 @@ import com.tightening.constant.LockReason;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.entity.ProductBolt;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -15,14 +15,14 @@ public class BoltBarCodeCheck implements Capability {
     @Override public int priority() { return 3; }
 
     @Override
-    public boolean precondition(MissionContext ctx) {
+    public boolean precondition(TaskContext ctx) {
         ProductBolt bolt = ctx.currentBolt();
         if (bolt == null) return false;
         return ctx.getBoltBarcodeRuleIds().containsKey(bolt.getId());
     }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
+    public CapabilityResult execute(TaskContext ctx) {
         ProductBolt bolt = ctx.currentBolt();
         Long ruleId = ctx.getBoltBarcodeRuleIds().get(bolt.getId());
 

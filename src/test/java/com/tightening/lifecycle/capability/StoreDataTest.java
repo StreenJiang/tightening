@@ -1,9 +1,9 @@
 package com.tightening.lifecycle.capability;
 
-import com.tightening.entity.MissionRecord;
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.TaskRecord;
+import com.tightening.entity.ProductTask;
 import com.tightening.entity.TighteningData;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import com.tightening.service.TighteningDataService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,15 +31,15 @@ class StoreDataTest {
     }
 
     @Test
-    @DisplayName("存储数据并关联 MissionRecord")
-    void shouldStoreDataWithMissionRecordId() {
+    @DisplayName("存储数据并关联 TaskRecord")
+    void shouldStoreDataWithTaskRecordId() {
         var data = new TighteningData().setTighteningId(100L);
-        var record = new MissionRecord();
+        var record = new TaskRecord();
         record.setId(42L);
-        MissionContext ctx = ctxWith(data, record);
+        TaskContext ctx = ctxWith(data, record);
 
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Pass);
-        assertThat(data.getMissionRecordId()).isEqualTo(42L);
+        assertThat(data.getTaskRecordId()).isEqualTo(42L);
         verify(tighteningDataService).save(data);
         assertThat(ctx.getTighteningDataList()).contains(data);
         assertThat(ctx.getCurrentOperationData()).isNull();
@@ -48,16 +48,16 @@ class StoreDataTest {
     @Test
     @DisplayName("无 data 时 precondition 返回 false")
     void shouldSkipWhenNoData() {
-        MissionContext ctx = ctxWith(null, new MissionRecord());
-        ctx.getMissionRecord().setId(1L);
+        TaskContext ctx = ctxWith(null, new TaskRecord());
+        ctx.getTaskRecord().setId(1L);
         assertThat(cap.precondition(ctx)).isFalse();
     }
 
-    private static MissionContext ctxWith(TighteningData data, MissionRecord record) {
-        return MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission())
+    private static TaskContext ctxWith(TighteningData data, TaskRecord record) {
+        return TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask())
             .boltConfigs(List.of()).deviceRegistry(Map.of())
             .currentOperationData(data)
-            .missionRecord(record).build();
+            .taskRecord(record).build();
     }
 }

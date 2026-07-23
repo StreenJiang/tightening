@@ -2,7 +2,7 @@
 
 ## 问题
 
-`saveMission` 单次请求中，前端同时提交新增的物料条码规则和引用该规则的前置条件。新规则尚未入库、没有 DB ID，前置条件又需要 `barcodeRuleId` 来关联。判断标准是**条码规则本身是否新增**，与任务是否新增无关——编辑已有任务时也可能添加新规则。
+`saveTask` 单次请求中，前端同时提交新增的物料条码规则和引用该规则的前置条件。新规则尚未入库、没有 DB ID，前置条件又需要 `barcodeRuleId` 来关联。判断标准是**条码规则本身是否新增**，与任务是否新增无关——编辑已有任务时也可能添加新规则。
 
 ## 方案
 
@@ -24,15 +24,15 @@
     { id: 5, ... }                  // 已有，无 clientRef
   ]
   prerequisites: [
-    { barcodeRuleRef: "abc-123", prerequisiteMissionId: 3, prerequisiteType: MATERIAL_TRACE }
+    { barcodeRuleRef: "abc-123", prerequisiteTaskId: 3, prerequisiteType: MATERIAL_TRACE }
   ]
 
-saveMission():
-  result = diffBarcodeRules(missionId, dto.getBarcodeRules())
+saveTask():
+  result = diffBarcodeRules(taskId, dto.getBarcodeRules())
   // result.rules()       = [rule(42), rule(5)]
   // result.clientRefMap() = { "abc-123" → 42 }
   validator.validateBarcodeRules(result.rules())
-  diffPrerequisites(missionId, dto.getPrerequisites(), result)
+  diffPrerequisites(taskId, dto.getPrerequisites(), result)
 ```
 
 ### 改动范围
@@ -41,12 +41,12 @@ saveMission():
 |---|---|
 | `BarCodeRuleSaveItem` | 新增 `clientRef: String` |
 | `PrerequisiteSaveItem` | 新增 `barcodeRuleRef: String` |
-| `ProductMissionService` | 新增 `private record BarcodeDiffResult`；`diffBarcodeRules` 返回该类型；`diffPrerequisites` 接收 `BarcodeDiffResult` |
-| `MissionConfigValidator` | 新增 `validateBarcodeRuleForPrerequisite` |
+| `ProductTaskService` | 新增 `private record BarcodeDiffResult`；`diffBarcodeRules` 返回该类型；`diffPrerequisites` 接收 `BarcodeDiffResult` |
+| `TaskConfigValidator` | 新增 `validateBarcodeRuleForPrerequisite` |
 
 ### 不变
 
-- `MissionPrerequisite` 实体、DB 表不变（`barcodeRuleId` 最终存真实 ID）
+- `TaskPrerequisite` 实体、DB 表不变（`barcodeRuleId` 最终存真实 ID）
 - `BarCodeMatchingRule` 实体不变
 
 ### 解析与校验

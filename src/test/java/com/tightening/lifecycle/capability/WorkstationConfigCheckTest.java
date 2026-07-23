@@ -4,8 +4,8 @@ import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.device.contract.ITool;
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.entity.ProductTask;
+import com.tightening.lifecycle.TaskContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -23,9 +23,9 @@ class WorkstationConfigCheckTest {
     @Test
     @DisplayName("配置完整时返回 Pass")
     void shouldPassWhenConfigurationValid() {
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L)
-                .missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L)
+                .taskData(new ProductTask())
                 .boltConfigs(List.of(new ProductBolt()))
                 .deviceRegistry(Map.of(1L, mock(ITool.class)))
                 
@@ -36,9 +36,9 @@ class WorkstationConfigCheckTest {
     @Test
     @DisplayName("螺栓列表为空时返回 Fail")
     void shouldFailWhenNoBolts() {
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L)
-                .missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L)
+                .taskData(new ProductTask())
                 .boltConfigs(List.of())
                 .deviceRegistry(Map.of(1L, mock(ITool.class)))
                 
@@ -49,9 +49,9 @@ class WorkstationConfigCheckTest {
     @Test
     @DisplayName("boltConfigs 为 null 时返回 Fail")
     void shouldFailWhenBoltConfigsNull() {
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L)
-                .missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L)
+                .taskData(new ProductTask())
                 .boltConfigs(null)
                 .deviceRegistry(Map.of(1L, mock(ITool.class)))
                 
@@ -62,9 +62,9 @@ class WorkstationConfigCheckTest {
     @Test
     @DisplayName("设备注册表为空时返回 Fail")
     void shouldFailWhenNoDevices() {
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L)
-                .missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L)
+                .taskData(new ProductTask())
                 .boltConfigs(List.of(new ProductBolt()))
                 .deviceRegistry(Map.of())
                 
@@ -75,9 +75,9 @@ class WorkstationConfigCheckTest {
     @Test
     @DisplayName("deviceRegistry 为 null 时返回 Fail")
     void shouldFailWhenDeviceRegistryNull() {
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L)
-                .missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L)
+                .taskData(new ProductTask())
                 .boltConfigs(List.of(new ProductBolt()))
                 .deviceRegistry(null)
                 
@@ -86,11 +86,11 @@ class WorkstationConfigCheckTest {
     }
 
     @Test
-    @DisplayName("missionData 为 null 时返回 Fail")
-    void shouldFailWhenMissionDataNull() {
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L)
-                .missionData(null)
+    @DisplayName("taskData 为 null 时返回 Fail")
+    void shouldFailWhenTaskDataNull() {
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L)
+                .taskData(null)
                 .boltConfigs(List.of(new ProductBolt()))
                 .deviceRegistry(Map.of(1L, mock(ITool.class)))
                 

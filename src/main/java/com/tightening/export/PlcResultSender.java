@@ -19,8 +19,8 @@ public class PlcResultSender implements Exporter {
 
     @Override
     public ExportResult execute(ExportPayload payload) {
-        log.info("[Stub] PlcResultSender execute payload: missionRecordId={}, data={}",
-                payload.missionRecordId(), payload.data());
+        log.info("[Stub] PlcResultSender execute payload: taskRecordId={}, data={}",
+                payload.taskRecordId(), payload.data());
         return ExportResult.ok("stub");
     }
 }

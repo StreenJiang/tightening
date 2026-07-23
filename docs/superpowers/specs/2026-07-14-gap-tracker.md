@@ -60,7 +60,7 @@ case SUBSCRIBE_DATA:
 | `OuterDatabaseStorer` | 🔴 排除 |
 | `PlcResultSender` | 🔴 排除 |
 
-### T6. MissionContext 预留字段 📋 记录
+### T6. TaskContext 预留字段 📋 记录
 
 | 字段 | 状态 |
 |------|------|
@@ -75,7 +75,7 @@ case SUBSCRIBE_DATA:
 | `TCPDeviceHandler.java:114-116` | 重连逻辑完善 + i18n |
 | `DeviceInitHandler.java:28,48,58` | 3 处 i18n |
 | `AtlasPFSeriesInBoundHandler.java:88` | SUBSCRIBE_DATA 返回值确认 |
-| `FitSeriesInBoundHandler.java:49,51,55,57` | mission record 补充 + SSE 推送 |
+| `FitSeriesInBoundHandler.java:49,51,55,57` | task record 补充 + SSE 推送 |
 | `AtlasCommandType.java:15` | i18n |
 | `AtlasErrorCode.java:11` | i18n |
 | `FitCommandType.java:15` | i18n |
@@ -88,23 +88,23 @@ case SUBSCRIBE_DATA:
 
 ## ⚠️ Gap
 
-### G1. MissionRecordDTO 缺少字段 🔧
+### G1. TaskRecordDTO 缺少字段 🔧
 
-**位置**: `dto/MissionRecordDTO.java`
+**位置**: `dto/TaskRecordDTO.java`
 
 Entity 有 `contextSnapshot` 和 `faultMessage`，DTO 没有。
 
-### G2. MissionRecord 缺少 partsCode 字段 🔧
+### G2. TaskRecord 缺少 partsCode 字段 🔧
 
-**位置**: `entity/MissionRecord.java`, `service/MissionRecordService.java`
+**位置**: `entity/TaskRecord.java`, `service/TaskRecordService.java`
 
 `createRecord` 只接收 `productCode`，物料条码无法持久化。
 
 ### G3. partsCode 绑定粒度不完整 ✅
 
-**位置**: `entity/BoltPartsBarcode.java`, `lifecycle/MissionContext.java`
+**位置**: `entity/BoltPartsBarcode.java`, `lifecycle/TaskContext.java`
 
-`MissionContext` 只有一个全局 `partsCode`，但 `BoltPartsBarcode` 表已定义 per-bolt 关联。
+`TaskContext` 只有一个全局 `partsCode`，但 `BoltPartsBarcode` 表已定义 per-bolt 关联。
 
 ### G4. 硬编码常量 🔧
 
@@ -121,7 +121,7 @@ Entity 有 `contextSnapshot` 和 `faultMessage`，DTO 没有。
 
 其中 `ReworkStatus`/`InspectionScope` 在实体中用 Integer 而非枚举，不一致。
 
-**最终处理**: `DeleteStatus`、`TCPCommand` 于 e8a61c9 删除；`IoDeviceType`、`ReworkStatus` 于 2026-07-17 体检后删除；`InspectionScope` 保留（ProductMission/ProductMissionDTO 实际使用）。
+**最终处理**: `DeleteStatus`、`TCPCommand` 于 e8a61c9 删除；`IoDeviceType`、`ReworkStatus` 于 2026-07-17 体检后删除；`InspectionScope` 保留（ProductTask/ProductTaskDTO 实际使用）。
 
 ### G6. 未使用的注解和配置 ✅
 
@@ -150,9 +150,9 @@ Entity 有 `contextSnapshot` 和 `faultMessage`，DTO 没有。
 Self-loop 改为纯前端配置，后端不做自动重启。
 
 **代码清理**:
-- `MissionOrchestrator.java`: 删除 `shouldSelfLoop`、`maxSelfLoops`、`loopCount`、`ctxShouldSelfLoop` 相关逻辑
+- `TaskOrchestrator.java`: 删除 `shouldSelfLoop`、`maxSelfLoops`、`loopCount`、`ctxShouldSelfLoop` 相关逻辑
 - `LifecycleEngineFactory.java`: 删除 `shouldSelfLoop` 参数
-- `MissionContext.java`: 删除 `shouldSelfLoop` 字段
+- `TaskContext.java`: 删除 `shouldSelfLoop` 字段
 - `InboundCommand.java`: 删除 `SelfLoop` record
 - `LocalSettings.java`: 保留 `selfLoopEnabled`（作为 getSettings API 返回的配置）
 - `LifecycleEngine.java`: 删除 `ctx.setShouldSelfLoop(false)` 调用
@@ -167,7 +167,7 @@ Self-loop 改为纯前端配置，后端不做自动重启。
 
 ### N4. boltUnlockOverride ✅ 已完成
 
-`MissionContext.boltUnlockOverride` 字段 + `LockStateMonitor` 跳过逻辑 + `AdvanceBolt` SWITCH_BOLT 重置已实现。
+`TaskContext.boltUnlockOverride` 字段 + `LockStateMonitor` 跳过逻辑 + `AdvanceBolt` SWITCH_BOLT 重置已实现。
 
 ### N5. LockStateMonitor lockMsgs 写入方 🔧 部分完成
 

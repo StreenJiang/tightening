@@ -22,7 +22,7 @@ class ExportResultTest {
 
         ExportPayload payload = new ExportPayload(42L, "excel", data);
 
-        assertThat(payload.missionRecordId()).isEqualTo(42L);
+        assertThat(payload.taskRecordId()).isEqualTo(42L);
         assertThat(payload.type()).isEqualTo("excel");
         assertThat(payload.data()).containsEntry("format", "xlsx");
     }
@@ -35,10 +35,10 @@ class ExportResultTest {
     }
 
     @Test
-    @DisplayName("ExportPayload 支持空 missionRecordId")
-    void shouldSupportNullMissionRecordId() {
+    @DisplayName("ExportPayload 支持空 taskRecordId")
+    void shouldSupportNullTaskRecordId() {
         ExportPayload payload = new ExportPayload(null, "csv", Map.of());
-        assertThat(payload.missionRecordId()).isNull();
+        assertThat(payload.taskRecordId()).isNull();
     }
 
     @Test

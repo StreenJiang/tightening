@@ -4,8 +4,8 @@ import com.tightening.constant.BoltState;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.judgment.JudgmentResult;
-import com.tightening.lifecycle.MissionContext;
-import com.tightening.service.MissionRecordService;
+import com.tightening.lifecycle.TaskContext;
+import com.tightening.service.TaskRecordService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -15,7 +15,7 @@ import java.util.Arrays;
 @RequiredArgsConstructor
 public class AdvanceBolt implements Capability {
 
-    private final MissionRecordService missionRecordService;
+    private final TaskRecordService taskRecordService;
 
     @Override public String id() { return "AdvanceBolt"; }
     @Override public Stage stage() { return Stage.OPERATION; }
@@ -23,7 +23,7 @@ public class AdvanceBolt implements Capability {
     @Override public int priority() { return 0; }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
+    public CapabilityResult execute(TaskContext ctx) {
         JudgmentResult jr = ctx.getJudgeResult();
         if (jr != null) {
             BoltState state = jr.isOk() ? BoltState.JUDGED_OK : BoltState.JUDGED_NG;
@@ -34,9 +34,9 @@ public class AdvanceBolt implements Capability {
             log.info("Bolt {} result: {}", idx + 1, state);
 
             boolean allOk = Arrays.stream(ctx.getBoltStates()).allMatch(s -> s == BoltState.JUDGED_OK);
-            if (allOk && ctx.getMissionRecord() != null) {
-                missionRecordService.markAsOk(ctx.getMissionRecord().getId());
-                log.info("MissionRecord {} marked OK", ctx.getMissionRecord().getId());
+            if (allOk && ctx.getTaskRecord() != null) {
+                taskRecordService.markAsOk(ctx.getTaskRecord().getId());
+                log.info("TaskRecord {} marked OK", ctx.getTaskRecord().getId());
             }
         }
 
@@ -49,7 +49,7 @@ public class AdvanceBolt implements Capability {
             return CapabilityResult.Pass;
         }
 
-        log.info("All bolts completed for mission {}", ctx.getProductMissionId());
+        log.info("All bolts completed for task {}", ctx.getProductTaskId());
         ctx.setCurrentStage(Stage.FINALIZATION);
         ctx.setCurrentSubState(SubState.CLEANING_TASKS);
         return CapabilityResult.Pass;

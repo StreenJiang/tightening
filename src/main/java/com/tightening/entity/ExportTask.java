@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 @TableName("export_task")
 public class ExportTask extends BaseEntity {
     private String type;
-    private Long missionRecordId;
+    private Long taskRecordId;
     private String payload;
     private Integer status;
     private Integer retryCount;

@@ -4,7 +4,7 @@ import com.tightening.config.LocalSettings;
 import com.tightening.constant.DeviceType;
 import com.tightening.device.contract.ITool;
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.ProductTask;
 import com.tightening.judgment.JudgmentStrategy;
 import org.springframework.lang.Nullable;
 import com.tightening.lifecycle.capability.*;
@@ -14,7 +14,7 @@ import com.tightening.entity.BoltPartsBarcode;
 import com.tightening.service.BarCodeMatchingRuleService;
 import com.tightening.service.BoltPartsBarcodeService;
 import com.tightening.service.ExportTaskService;
-import com.tightening.service.MissionRecordService;
+import com.tightening.service.TaskRecordService;
 import com.tightening.service.TighteningDataService;
 import com.tightening.service.WorkplaceStatusService;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class LifecycleEngineFactory {
 
-    private final MissionRecordService missionRecordService;
+    private final TaskRecordService taskRecordService;
     private final TighteningDataService tighteningDataService;
     private final ExportTaskService exportTaskService;
     private final LocalSettings settings;
@@ -38,7 +38,7 @@ public class LifecycleEngineFactory {
     private final WorkplaceStatusService workplaceStatusService;
 
     public LifecycleEngine createEngine(
-            ProductMission mission,
+            ProductTask task,
             List<ProductBolt> bolts,
             Map<Long, ITool> deviceMap,
             @Nullable String productCode,
@@ -50,9 +50,9 @@ public class LifecycleEngineFactory {
                 .list().stream()
                 .collect(Collectors.toMap(BoltPartsBarcode::getProductBoltId, BoltPartsBarcode::getBarCodeMatchingRuleId));
 
-        MissionContext ctx = MissionContext.builder()
-            .productMissionId(mission.getId())
-            .missionData(mission)
+        TaskContext ctx = TaskContext.builder()
+            .productTaskId(task.getId())
+            .taskData(task)
             .boltConfigs(bolts)
             .deviceRegistry(deviceMap)
             .productCode(productCode)
@@ -65,7 +65,7 @@ public class LifecycleEngineFactory {
         List<Capability> capabilities = List.of(
             new WorkstationConfigCheck(),
             new PrepareBolts(),
-            new CreateMissionRecord(missionRecordService),
+            new CreateTaskRecord(taskRecordService),
             new SendArrangerSignal(),
             new SendSetterSelector(),
             new SendPSet(),
@@ -75,7 +75,7 @@ public class LifecycleEngineFactory {
             new AngleRangeCheck(),
             new ExecuteJudgment(judgmentStrategies),
             new StoreData(tighteningDataService),
-            new AdvanceBolt(missionRecordService),
+            new AdvanceBolt(taskRecordService),
             new CancelTasks(),
             new LockTools(),
             new ResetState(),
@@ -92,7 +92,7 @@ public class LifecycleEngineFactory {
             new SkipScrewCheck()
         );
 
-        LifecycleEngine engine = new LifecycleEngine(pipeline, missionRecordService, capabilities, monitors,
+        LifecycleEngine engine = new LifecycleEngine(pipeline, taskRecordService, capabilities, monitors,
                 triggerCaps, workplaceStatusService);
         engine.initContext(ctx);
 

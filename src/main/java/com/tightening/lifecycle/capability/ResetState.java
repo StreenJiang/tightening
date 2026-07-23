@@ -2,7 +2,7 @@ package com.tightening.lifecycle.capability;
 
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -14,10 +14,10 @@ public class ResetState implements Capability {
     @Override public int priority() { return 0; }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
+    public CapabilityResult execute(TaskContext ctx) {
         ctx.getExtras().clear();
         ctx.getLockReasons().clear();
-        log.info("ResetState: mission context extras and lock reasons cleared");
+        log.info("ResetState: task context extras and lock reasons cleared");
         return CapabilityResult.Pass;
     }
 }

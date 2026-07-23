@@ -104,10 +104,10 @@ class ExportWorkerTest {
     /**
      * Helper: 创建 ExportTask，避免 Lombok 链式调用中 setId 返回 BaseEntity 的编译问题。
      */
-    private static ExportTask task(Long id, String type, Long missionRecordId,
+    private static ExportTask task(Long id, String type, Long taskRecordId,
                                    String payload, int retryCount, int maxRetries) {
         ExportTask t = new ExportTask()
-                .setType(type).setMissionRecordId(missionRecordId)
+                .setType(type).setTaskRecordId(taskRecordId)
                 .setPayload(payload).setStatus(0)
                 .setRetryCount(retryCount).setMaxRetries(maxRetries);
         t.setId(id);

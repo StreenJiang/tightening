@@ -1,21 +1,21 @@
 # Stage 5: 触发阶段 (Trigger Phase) — 设计文档
 
 > 设计日期: 2026-06-29
-> 基于: [Mission 生命周期架构设计](../docs/2026-06-21-mission-lifecycle-architecture-design.md) §2.3
-> 前置: Stage 0-4（LifecycleEngine、Capability 管道、MissionOrchestrator）
+> 基于: [Task 生命周期架构设计](../docs/2026-06-21-task-lifecycle-architecture-design.md) §2.3
+> 前置: Stage 0-4（LifecycleEngine、Capability 管道、TaskOrchestrator）
 
 ---
 
 ## 1. 范围
 
-实现 Mission 生命周期的触发入口。触发阶段在 VALIDATION 之前执行，负责条码校验、SkipScrew 快速通道、激活门控。
+实现 Task 生命周期的触发入口。触发阶段在 VALIDATION 之前执行，负责条码校验、SkipScrew 快速通道、激活门控。
 
 **包含:**
 - 3 个 REST 端点（产品码校验、物料码校验、触发激活）
 - 3 个新 Capability（ProductBarCodeCheck、PartsBarCodeMatching、SkipScrewCheck）
 - 引擎触发管道（pre-VALIDATION）
 - CheckCanActivate 门控（引擎内置）
-- MissionContext 新增产品码/物料码字段
+- TaskContext 新增产品码/物料码字段
 
 **不含:**
 - SCANNER_INPUT / PLC_SIGNAL / PLC_READ（硬件适配层待后续）
@@ -66,7 +66,7 @@ TriggerRequest { productCode, partsCode }
   │                            有规则+未提供 → Fail
   │                            无规则 → Skip
   │
-  ├─► SkipScrewCheck          mission.skipScrew=true → Interrupt（快速通道）
+  ├─► SkipScrewCheck          task.skipScrew=true → Interrupt（快速通道）
   │                            否则 → Pass
   │
   └─► CheckCanActivate        引擎内置门控
@@ -74,7 +74,7 @@ TriggerRequest { productCode, partsCode }
                                全部满足 → 进入 VALIDATION
 ```
 
-**快速通道**: SkipScrewCheck 返回 Interrupt → 引擎跳过 VALIDATION/ACTIVATION/OPERATION → 直接进入 FINALIZATION → 创建 OK MissionRecord → 导出 → Completed(OK)。不自循环。
+**快速通道**: SkipScrewCheck 返回 Interrupt → 引擎跳过 VALIDATION/ACTIVATION/OPERATION → 直接进入 FINALIZATION → 创建 OK TaskRecord → 导出 → Completed(OK)。不自循环。
 
 ---
 
@@ -83,28 +83,28 @@ TriggerRequest { productCode, partsCode }
 ### 3.1 产品码校验
 
 ```
-POST /api/missions/{id}/validate-product-barcode
+POST /api/tasks/{id}/validate-product-barcode
 Body: { "productCode": "ABC123" }
 
 响应:
-  { "result": "MATCHED" }                  // 匹配当前 Mission
-  { "result": "WRONG_MISSION", "suggestedMissionId": 42 }  // 匹配到其它 Mission
+  { "result": "MATCHED" }                  // 匹配当前 Task
+  { "result": "WRONG_MISSION", "suggestedTaskId": 42 }  // 匹配到其它 Task
   { "result": "NOT_MATCHED" }              // 无任何匹配
 ```
 
 **逻辑**:
-1. 查询当前 Mission 的 `BarCodeMatchingRule`（ruleType=PRODUCT_TRACE）
-2. 无规则 → 直接返回 MATCHED（该 Mission 无需产品码）
+1. 查询当前 Task 的 `BarCodeMatchingRule`（ruleType=PRODUCT_TRACE）
+2. 无规则 → 直接返回 MATCHED（该 Task 无需产品码）
 3. 有规则 → 对 productCode 做位置匹配（keyStartPosition/keyEndPosition/keyChar）
 4. 匹配 → MATCHED
-5. 不匹配 → 遍历其它 Mission 的 PRODUCT_TRACE 规则
-6. 找到匹配 → WRONG_MISSION(suggestedMissionId)
+5. 不匹配 → 遍历其它 Task 的 PRODUCT_TRACE 规则
+6. 找到匹配 → WRONG_MISSION(suggestedTaskId)
 7. 无匹配 → NOT_MATCHED
 
 ### 3.2 物料码校验
 
 ```
-POST /api/missions/{id}/validate-parts-barcode
+POST /api/tasks/{id}/validate-parts-barcode
 Body: { "partsCode": "MAT456" }
 // productCode 不需要传 — 此接口调用时任务已锁定，产品码已在步骤1确认匹配
 
@@ -114,7 +114,7 @@ Body: { "partsCode": "MAT456" }
 ```
 
 **逻辑**:
-1. 查询当前 Mission 的 `BarCodeMatchingRule`（ruleType=PARTS_BARCODE）
+1. 查询当前 Task 的 `BarCodeMatchingRule`（ruleType=PARTS_BARCODE）
 2. 无规则 → 直接返回 PASS
 3. 有规则 → 对 partsCode 做位置匹配
 4. 匹配 → PASS
@@ -123,12 +123,12 @@ Body: { "partsCode": "MAT456" }
 ### 3.3 触发激活
 
 ```
-POST /api/missions/{id}/trigger
+POST /api/tasks/{id}/trigger
 Body: { "productCode": "ABC123", "partsCode": "MAT456" }
 
 响应:
   202 Accepted { "message": "trigger request accepted" }
-  400 Bad Request { "message": "mission already active" }
+  400 Bad Request { "message": "task already active" }
 ```
 
 **逻辑**: 将 `TriggerRequest` 投递到引擎 inbox → 管道串行处理 → 激活成功/失败通过 SSE 通知前端。
@@ -137,7 +137,7 @@ Body: { "productCode": "ABC123", "partsCode": "MAT456" }
 
 ## 4. 数据模型变更
 
-### 4.1 MissionContext 新增字段
+### 4.1 TaskContext 新增字段
 
 ```java
 /** 产品追溯码（触发阶段写入，生命周期内不可变） */
@@ -152,7 +152,7 @@ Body: { "productCode": "ABC123", "partsCode": "MAT456" }
 
 - `BarCodeMatchingRule` — 位置匹配规则（keyStartPosition, keyEndPosition, keyChar）
 - `BarCodeRuleType` — PRODUCT_TRACE(1), PARTS_BARCODE(2)
-- `ProductMission.skipScrew` — SkipScrew 快速通道标志
+- `ProductTask.skipScrew` — SkipScrew 快速通道标志
 
 ---
 
@@ -185,14 +185,14 @@ record TriggerRequest(
 
 ### 5.3 onTriggered 回调
 
-引擎新增 `onTriggered` 回调（Consumer），在触发管道通过、进入 VALIDATION 时通知 `MissionOrchestrator` 执行后续初始化（设置 device mapping、注册完成回调、启动 tick 等）。拆分为两步的原因：`TriggerRequest` 到达时尚未绑定设备，管道通过后确认不会中止，才建立设备关联。
+引擎新增 `onTriggered` 回调（Consumer），在触发管道通过、进入 VALIDATION 时通知 `TaskOrchestrator` 执行后续初始化（设置 device mapping、注册完成回调、启动 tick 等）。拆分为两步的原因：`TriggerRequest` 到达时尚未绑定设备，管道通过后确认不会中止，才建立设备关联。
 
 ### 5.4 CheckCanActivate（引擎内置，非 Capability）
 
 ```
 CheckCanActivate(ctx):
-    productRules = getRules(ctx.missionId, PRODUCT_TRACE)
-    partsRules  = getRules(ctx.missionId, PARTS_BARCODE)
+    productRules = getRules(ctx.taskId, PRODUCT_TRACE)
+    partsRules  = getRules(ctx.taskId, PARTS_BARCODE)
     if productRules 非空 and ctx.productCode == null → reject("需要产品追溯码")
     if partsRules 非空 and ctx.partsCode == null   → reject("需要物料码")
     → 放行，进入 VALIDATION
@@ -234,9 +234,9 @@ CheckCanActivate(ctx):
 |------|-----|
 | priority | 3 |
 
-**precondition**: ctx.missionData.skipScrew == true
+**precondition**: ctx.taskData.skipScrew == true
 
-**execute**: 返回 Interrupt("SkipScrew fast track")，引擎识别后跳转 FINALIZATION。快速通道中 `shouldSelfLoop=false`，不绑定设备。引擎在 `handleActivateMissionSkipScrew` 中直接创建 OK MissionRecord 后走 FINALIZATION 管道。
+**execute**: 返回 Interrupt("SkipScrew fast track")，引擎识别后跳转 FINALIZATION。快速通道中 `shouldSelfLoop=false`，不绑定设备。引擎在 `handleActivateTaskSkipScrew` 中直接创建 OK TaskRecord 后走 FINALIZATION 管道。
 
 ### 6.1 TriggerCapability 标记接口
 
@@ -252,7 +252,7 @@ public interface TriggerCapability extends Capability {
 
 ## 7. Controller 变更
 
-`MissionLifecycleController` 新增 3 个端点，原有 `/activate` 替换为 `/trigger`：
+`TaskLifecycleController` 新增 3 个端点，原有 `/activate` 替换为 `/trigger`：
 
 - 删除: `POST /{id}/activate`
 - 新增: `POST /{id}/validate-product-barcode`
@@ -260,11 +260,11 @@ public interface TriggerCapability extends Capability {
 - 新增: `POST /{id}/trigger`
 - 保留: `POST /{id}/interrupt`、`GET /{id}/status`
 
-Controller 依赖注入新增: `BarCodeMatchingRuleService`、`BarcodeValidationService`（用于跨 Mission 查询）
+Controller 依赖注入新增: `BarCodeMatchingRuleService`、`BarcodeValidationService`（用于跨 Task 查询）
 
 ### 7.1 并发防护
 
-`MissionOrchestrator.trigger()` 末尾使用 `activeEngines.putIfAbsent()` 替代 `put()`，防止并发触发导致同一个 Mission 被激活两次。`putIfAbsent` 返回非 null 时表示竞态失败，关闭引擎并返回 null。
+`TaskOrchestrator.trigger()` 末尾使用 `activeEngines.putIfAbsent()` 替代 `put()`，防止并发触发导致同一个 Task 被激活两次。`putIfAbsent` 返回非 null 时表示竞态失败，关闭引擎并返回 null。
 
 ---
 
@@ -286,7 +286,7 @@ Controller 依赖注入新增: `BarCodeMatchingRuleService`、`BarcodeValidation
 
 **Trigger pipeline 未接入引擎**（2026-07-10 审查发现）。
 
-三个 TriggerCapability（ProductBarCodeCheck、PartsBarCodeMatching、SkipScrewCheck）已实现，但 `LifecycleEngineFactory.createEngine()` 未创建并注入——传了 `List.of()` 空列表。结果是 `MissionOrchestrator.trigger()` 进入引擎后 trigger pipeline 空转、直接返回 Pass。
+三个 TriggerCapability（ProductBarCodeCheck、PartsBarCodeMatching、SkipScrewCheck）已实现，但 `LifecycleEngineFactory.createEngine()` 未创建并注入——传了 `List.of()` 空列表。结果是 `TaskOrchestrator.trigger()` 进入引擎后 trigger pipeline 空转、直接返回 Pass。
 
 REST 层的条码校验端点（BarcodeValidationService）仍正常工作，但引擎层的防御性二次门控缺失。
 

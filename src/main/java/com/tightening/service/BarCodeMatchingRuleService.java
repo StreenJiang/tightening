@@ -13,17 +13,17 @@ import java.util.List;
 @Service
 public class BarCodeMatchingRuleService extends ServiceImpl<BarCodeMatchingRuleMapper, BarCodeMatchingRule> {
 
-    public List<BarCodeMatchingRule> listByMissionId(Long missionId) {
+    public List<BarCodeMatchingRule> listByTaskId(Long taskId) {
         return lambdaQuery()
-                .eq(BarCodeMatchingRule::getProductMissionId, missionId)
+                .eq(BarCodeMatchingRule::getProductTaskId, taskId)
                 .orderByAsc(BarCodeMatchingRule::getSeq)
                 .list();
     }
 
-    public List<BarCodeMatchingRule> findProductTraceRulesExcluding(Long excludeMissionId) {
+    public List<BarCodeMatchingRule> findProductTraceRulesExcluding(Long excludeTaskId) {
         return lambdaQuery()
                 .eq(BarCodeMatchingRule::getRuleType, BarCodeRuleType.PRODUCT_TRACE.getCode())
-                .ne(BarCodeMatchingRule::getProductMissionId, excludeMissionId)
+                .ne(BarCodeMatchingRule::getProductTaskId, excludeTaskId)
                 .list();
     }
 }

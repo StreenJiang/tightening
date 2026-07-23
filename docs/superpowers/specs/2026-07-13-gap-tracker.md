@@ -14,12 +14,12 @@
 | 🐛 1. Atlas lock/unlock Key 不匹配 | `generateKey(ENABLE.getMid(), deviceId)` / `generateKey(DISABLE.getMid(), deviceId)` |
 | 🐛 2. ToolAdapter 语义颠倒 | `sendLock()` → `handler.lock()`, `sendUnlock()` → `handler.unlock()` |
 | ⚠️ G5. ReceiveData tighteningId 校验 | 新增 `precondition()` 对 `SUDONG_X7` 返回 false |
-| ⚠️ G6. MissionContext 缺 currentPSet | 新增 `volatile Integer currentPSet` 字段 + `SendPSet` 写入 |
+| ⚠️ G6. TaskContext 缺 currentPSet | 新增 `volatile Integer currentPSet` 字段 + `SendPSet` 写入 |
 | 📋 T3. FIT barcode 未写入 DTO | `tighteningData.setVin(barcode)` |
-| ⚠️ G1. MissionContext 死字段 | `previousOperationData`/`pendingCurveData`/`extras` 标记 `@Deprecated` |
+| ⚠️ G1. TaskContext 死字段 | `previousOperationData`/`pendingCurveData`/`extras` 标记 `@Deprecated` |
 | ⚠️ G12. 重复 ObjectMapper | `Converter` 和 `BarcodeMatcher` 引用 `JsonUtils.OBJECT_MAPPER` |
 | ⚠️ G4. partsCode 绑定粒度 | 条码匹配规则新增 `segments TEXT` 列（多段 JSON 匹配），Flyway V1.0.14 |
-| 📋 T7. MissionContext 预留字段 | `currentPSet` 已补充；`checkpoint`/`lockMessages` 仍预留 |
+| 📋 T7. TaskContext 预留字段 | `currentPSet` 已补充；`checkpoint`/`lockMessages` 仍预留 |
 
 ---
 
@@ -120,7 +120,7 @@ barcode 被 GBK 解码、打日志，但不设到 `dto.setVin()`。DTO 已有 vi
 | `OuterDatabaseStorer` | `ExportResult.ok("stub")` |
 | `PlcResultSender` | `ExportResult.ok("stub")` |
 
-### T7. MissionContext 预留给未完成功能的字段
+### T7. TaskContext 预留给未完成功能的字段
 
 | 字段 | 用途 | 状态 |
 |------|------|------|
@@ -135,7 +135,7 @@ barcode 被 GBK 解码、打日志，但不设到 `dto.setVin()`。DTO 已有 vi
 | `TCPDeviceHandler.java:114-116` | 重连逻辑完善 + i18n |
 | `DeviceInitHandler.java:28,48,58` | 3 处 i18n |
 | `AtlasPFSeriesInBoundHandler.java:88` | SUBSCRIBE_DATA 返回值确认 |
-| `FitSeriesInBoundHandler.java:49,51,55,57` | mission record 补充 + SSE 推送 |
+| `FitSeriesInBoundHandler.java:49,51,55,57` | task record 补充 + SSE 推送 |
 | `AtlasCommandType.java:15` | i18n |
 | `AtlasErrorCode.java:11` | i18n |
 | `FitCommandType.java:15` | i18n |
@@ -148,7 +148,7 @@ barcode 被 GBK 解码、打日志，但不设到 `dto.setVin()`。DTO 已有 vi
 
 ## ⚠️ Gap
 
-### G1. MissionContext 死字段
+### G1. TaskContext 死字段
 
 | 字段 | 问题 |
 |------|------|
@@ -156,21 +156,21 @@ barcode 被 GBK 解码、打日志，但不设到 `dto.setVin()`。DTO 已有 vi
 | `pendingCurveData` | 声明的空 ArrayList，从不 add 或 read |
 | `extras` | put 写入但无任何 Capability 按 key get |
 
-### G2. MissionRecordDTO 缺少字段
+### G2. TaskRecordDTO 缺少字段
 
-**位置**: `dto/MissionRecordDTO.java` — 缺少 `contextSnapshot` 和 `faultMessage`（entity 有此二字段）
+**位置**: `dto/TaskRecordDTO.java` — 缺少 `contextSnapshot` 和 `faultMessage`（entity 有此二字段）
 
-### G3. MissionRecord 缺少 partsCode 字段
+### G3. TaskRecord 缺少 partsCode 字段
 
-**位置**: `entity/MissionRecord.java`, `service/MissionRecordService.java`
+**位置**: `entity/TaskRecord.java`, `service/TaskRecordService.java`
 
 `createRecord` 只接收 `productCode`，物料条码无法持久化。
 
 ### G4. partsCode 绑定粒度不完整
 
-**位置**: `entity/BoltPartsBarcode.java`, `lifecycle/MissionContext.java`
+**位置**: `entity/BoltPartsBarcode.java`, `lifecycle/TaskContext.java`
 
-`MissionContext` 只有一个全局 `partsCode`，但 `BoltPartsBarcode` 表已定义 `productBoltId → barCodeMatchingRuleId` 关联。per-bolt 场景不支持。
+`TaskContext` 只有一个全局 `partsCode`，但 `BoltPartsBarcode` 表已定义 `productBoltId → barCodeMatchingRuleId` 关联。per-bolt 场景不支持。
 
 ### G5. ReceiveData 的 tighteningId 校验过于严格
 
@@ -178,9 +178,9 @@ barcode 被 GBK 解码、打日志，但不设到 `dto.setVin()`。DTO 已有 vi
 
 `data.getTighteningId() <= 0` → Fail。SudongX7 不回传 tighteningId → 所有数据被拦截。
 
-### G6. MissionContext 缺少 currentPSet 字段
+### G6. TaskContext 缺少 currentPSet 字段
 
-**位置**: `lifecycle/MissionContext.java`, `lifecycle/capability/SendPSet.java`
+**位置**: `lifecycle/TaskContext.java`, `lifecycle/capability/SendPSet.java`
 
 `SendPSet` 下发后不记录 PSet 编号，SudongX7 拧紧数据无法回填 `parameterSet`。
 
@@ -229,5 +229,5 @@ barcode 被 GBK 解码、打日志，但不设到 `dto.setVin()`。DTO 已有 vi
 |------|------|--------|
 | 🐛 Bug | 2 | Atlas lock/unlock key 不匹配、ToolAdapter 语义颠倒 |
 | 📋 TODO | 9 | Subscribe ACK、CurveData handler、FIT barcode、Stub Capability×3、Stub Exporter×3、Context 预留字段、14 TODO 注释、9 个 [规划中] 概念 |
-| ⚠️ Gap | 12 | Context 死字段、DTO 缺字段、MissionRecord 缺 partsCode、partsCode 粒度、ReceiveData、currentPSet、硬编码常量、死枚举、未使用配置、close() 空、Flyway 版本号、重复 ObjectMapper |
+| ⚠️ Gap | 12 | Context 死字段、DTO 缺字段、TaskRecord 缺 partsCode、partsCode 粒度、ReceiveData、currentPSet、硬编码常量、死枚举、未使用配置、close() 空、Flyway 版本号、重复 ObjectMapper |
 | **合计** | **23** | |

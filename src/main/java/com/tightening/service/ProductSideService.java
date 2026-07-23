@@ -16,10 +16,10 @@ import java.util.List;
 public class ProductSideService extends ServiceImpl<ProductSideMapper, ProductSide> {
     private final ProductBoltService boltService;
 
-    public List<Long> listSideIdsByMissionId(Long missionId) {
+    public List<Long> listSideIdsByTaskId(Long taskId) {
         return lambdaQuery()
                 .select(ProductSide::getId)
-                .eq(ProductSide::getProductMissionId, missionId)
+                .eq(ProductSide::getProductTaskId, taskId)
                 .eq(ProductSide::getDeleted, 0)
                 .list().stream().map(ProductSide::getId).toList();
     }

@@ -6,7 +6,7 @@ import com.tightening.constant.DeviceType;
 import com.tightening.device.contract.ITool;
 import com.tightening.entity.BarCodeMatchingRule;
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.ProductTask;
 import com.tightening.judgment.JudgmentStrategy;
 import com.tightening.lifecycle.message.InboundCommand;
 import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
@@ -14,7 +14,7 @@ import com.tightening.entity.BoltPartsBarcode;
 import com.tightening.service.BarCodeMatchingRuleService;
 import com.tightening.service.BoltPartsBarcodeService;
 import com.tightening.service.ExportTaskService;
-import com.tightening.service.MissionRecordService;
+import com.tightening.service.TaskRecordService;
 import com.tightening.service.TighteningDataService;
 import com.tightening.service.WorkplaceStatusService;
 import org.junit.jupiter.api.AfterEach;
@@ -40,7 +40,7 @@ import static org.mockito.Mockito.mock;
 @DisplayName("LifecycleEngineFactory")
 class LifecycleEngineFactoryTest {
 
-    @Mock private MissionRecordService missionRecordService;
+    @Mock private TaskRecordService taskRecordService;
     @Mock private TighteningDataService tighteningDataService;
     @Mock private ExportTaskService exportTaskService;
     @Mock private LocalSettings settings;
@@ -64,7 +64,7 @@ class LifecycleEngineFactoryTest {
         lenient().when(barcodeChain.list()).thenReturn(List.of());
         lenient().when(partsBarcodeService.lambdaQuery()).thenReturn(barcodeChain);
         factory = new LifecycleEngineFactory(
-            missionRecordService, tighteningDataService, exportTaskService, settings,
+            taskRecordService, tighteningDataService, exportTaskService, settings,
             Map.of(DeviceType.ATLAS_PF4000, judgmentStrategy), barCodeMatchingRuleService,
             partsBarcodeService, workplaceStatusService);
     }
@@ -79,12 +79,12 @@ class LifecycleEngineFactoryTest {
     @Test
     @DisplayName("createEngine 返回已组装的引擎")
     void shouldCreateEngineWithContext() {
-        var mission = new ProductMission();
-        mission.setId(1L);
-        var engine = factory.createEngine(mission, List.of(), Map.of(), null, null);
+        var task = new ProductTask();
+        task.setId(1L);
+        var engine = factory.createEngine(task, List.of(), Map.of(), null, null);
 
         assertThat(engine).isNotNull();
-        assertThat(engine.getContext().getProductMissionId()).isEqualTo(1L);
+        assertThat(engine.getContext().getProductTaskId()).isEqualTo(1L);
         assertThat(engine.isAlive()).isFalse();
     }
 
@@ -93,16 +93,16 @@ class LifecycleEngineFactoryTest {
     void shouldFaultWhenProductCodeRequiredButMissing() throws Exception {
         var rule = new BarCodeMatchingRule();
         rule.setRuleType(BarCodeRuleType.PRODUCT_TRACE.getCode());
-        when(barCodeMatchingRuleService.listByMissionId(1L)).thenReturn(List.of(rule));
+        when(barCodeMatchingRuleService.listByTaskId(1L)).thenReturn(List.of(rule));
 
-        var mission = new ProductMission();
-        mission.setId(1L);
+        var task = new ProductTask();
+        task.setId(1L);
         var bolt = new ProductBolt();
         bolt.setSerialNum(1);
         bolt.setTorqueMin(1.0);
         bolt.setTorqueMax(10.0);
 
-        testEngine = factory.createEngine(mission, List.of(bolt),
+        testEngine = factory.createEngine(task, List.of(bolt),
                 Map.of(1L, mockTool), null, null);
 
         CountDownLatch triggered = new CountDownLatch(1);

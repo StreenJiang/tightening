@@ -305,7 +305,7 @@ import lombok.experimental.Accessors;
 @TableName("tightening_data")
 public class TighteningData extends BaseEntity {
     // 业务字段
-    private long missionRecordId;
+    private long taskRecordId;
     private String workstationName;
     private String toolName;
     private String toolTypeName;

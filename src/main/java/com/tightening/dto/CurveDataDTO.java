@@ -12,7 +12,7 @@ import lombok.experimental.Accessors;
 @EqualsAndHashCode(callSuper = true)
 @Accessors(chain = true)
 public class CurveDataDTO extends BaseDTO {
-    private Long missionRecordId;
+    private Long taskRecordId;
     private String workstationName;
     private String productSideName;
     private int boltSerialNum;

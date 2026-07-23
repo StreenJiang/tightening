@@ -3,9 +3,9 @@ package com.tightening.lifecycle.capability;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.ProductTask;
 import com.tightening.entity.TighteningData;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,8 +33,8 @@ class TorqueRangeCheckTest {
     @Test
     @DisplayName("扭矩在范围内时 Pass 且 extras[torqueInRange]=true")
     void shouldPassWhenTorqueInRange() {
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask())
                 .boltConfigs(List.of(bolt)).deviceRegistry(Map.of())
                 
                 .currentOperationData(data).build();
@@ -49,8 +49,8 @@ class TorqueRangeCheckTest {
     @DisplayName("扭矩低于下限时 Pass 且 extras[torqueInRange]=false")
     void shouldPassWhenTorqueBelowMin() {
         data.setTorque(5.0);
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask())
                 .boltConfigs(List.of(bolt)).deviceRegistry(Map.of())
                 
                 .currentOperationData(data).build();
@@ -62,8 +62,8 @@ class TorqueRangeCheckTest {
     @DisplayName("扭矩高于上限时 Pass 且 extras[torqueInRange]=false")
     void shouldPassWhenTorqueAboveMax() {
         data.setTorque(25.0);
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask())
                 .boltConfigs(List.of(bolt)).deviceRegistry(Map.of())
                 
                 .currentOperationData(data).build();
@@ -74,8 +74,8 @@ class TorqueRangeCheckTest {
     @Test
     @DisplayName("限值为 null 时 precondition 返回 false")
     void shouldSkipWhenNoLimits() {
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask())
                 .boltConfigs(List.of(new ProductBolt())).deviceRegistry(Map.of())
                 
                 .currentOperationData(data).build();
@@ -85,8 +85,8 @@ class TorqueRangeCheckTest {
     @Test
     @DisplayName("无当前螺栓时 precondition 返回 false")
     void shouldSkipWhenNoCurrentBolt() {
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask())
                 .boltConfigs(List.of()).deviceRegistry(Map.of())
                 .build();
         assertThat(cap.precondition(ctx)).isFalse();
@@ -95,8 +95,8 @@ class TorqueRangeCheckTest {
     @Test
     @DisplayName("currentOperationData 为 null 时 precondition 返回 false")
     void shouldSkipWhenNoOperationData() {
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask())
                 .boltConfigs(List.of(bolt)).deviceRegistry(Map.of())
                 
                 .currentOperationData(null).build();

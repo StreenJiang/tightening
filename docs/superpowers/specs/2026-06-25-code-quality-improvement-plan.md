@@ -1,7 +1,7 @@
 # 代码质量改进计划
 
 > 日期: 2026-06-25
-> 基于: 2026-06-21 Mission 生命周期架构设计 + 当前代码审查
+> 基于: 2026-06-21 Task 生命周期架构设计 + 当前代码审查
 > 目标架构: 方案 B — 完整 Actor 模型
 > 原则: 本项目是新开发项目，当前不完善处是待完善目标，非 bug
 
@@ -13,7 +13,7 @@
 
 | 维度 | 状态 |
 |------|------|
-| 数据层 | 9 张配置表 + tightening_data/curve_data/mission_record，Flyway 迁移规范 |
+| 数据层 | 9 张配置表 + tightening_data/curve_data/task_record，Flyway 迁移规范 |
 | 设备通信层 | Netty + Atlas/FIT 协议，工厂模式解耦，新增设备类型零改动 |
 | 测试覆盖 | 90+ 测试文件，覆盖 entity/enum/DTO/controller/protocol |
 | 配置层 CRUD | RESTful API，校验规则完备（循环依赖检测、key_char 长度校验等） |
@@ -21,7 +21,7 @@
 
 ### 1.2 生命周期的数据层 100% 就绪
 
-`product_mission` + `product_side` + `product_bolt` 三张表覆盖了生命周期设计所需的全部配置数据（max_ng_count、扭矩/角度范围、PSet、条码规则、前置依赖、点检绑定）。
+`product_task` + `product_side` + `product_bolt` 三张表覆盖了生命周期设计所需的全部配置数据（max_ng_count、扭矩/角度范围、PSet、条码规则、前置依赖、点检绑定）。
 
 ### 1.3 核心断层
 
@@ -57,7 +57,7 @@ Actor 模型不是一次性重写整个项目。实施策略：
 2. **设备层不直接改造** — ToolHandler 通过 Adapter 将数据投递到 inbox，内部实现不变
 3. **判定逻辑优先落地** — JudgmentStrategy 接口 + Atlas/FIT 实现是独立组件，不依赖 Actor
 4. **Capability 渐进式实现** — 先做默认管道（详见 §2.3 管道表全部 17 个 Capability），扩展 Capability（MaxNGCheck、BuzzerAlert、AdminConfirm、BoltBarCodeCheck 等）后续添加
-5. **崩溃恢复内置 — 不是附加功能** — Actor 模型单线程运行，线程崩溃导致 Context 全部丢失。从第一天起在关键转换点（子状态推进前、MissionRecord 创建后、存储数据后）将 Context 摘要写入 MissionRecord 的 `context_snapshot` 字段。Actor 启动时检测上次 checkpoint，尝试恢复。**崩溃恢复不是后期可以安全添加的功能** — 它决定了 checkpoint 字段在 Context 中的位置、持久化策略、恢复路径；后期加会需要改所有 Capability 的 execute 签名
+5. **崩溃恢复内置 — 不是附加功能** — Actor 模型单线程运行，线程崩溃导致 Context 全部丢失。从第一天起在关键转换点（子状态推进前、TaskRecord 创建后、存储数据后）将 Context 摘要写入 TaskRecord 的 `context_snapshot` 字段。Actor 启动时检测上次 checkpoint，尝试恢复。**崩溃恢复不是后期可以安全添加的功能** — 它决定了 checkpoint 字段在 Context 中的位置、持久化策略、恢复路径；后期加会需要改所有 Capability 的 execute 签名
 
 ---
 
@@ -73,59 +73,59 @@ Actor 模型不是一次性重写整个项目。实施策略：
 
 | 当前（Controller 中） | 应改为（Service 中） |
 |---|---|
-| `missionService.lambdaQuery().eq(deleted,0).orderByDesc(id).last(...)` | `missionService.listByPage(page, size)` |
-| `prerequisiteService.lambdaQuery().eq(missionId).eq(deleted,0).list()` | `prerequisiteService.listByMissionId(missionId)` |
-| `barcodeRuleService.lambdaQuery().eq(missionId).eq(deleted,0).list()` | `barcodeRuleService.listByMissionId(missionId)` |
-| `bindingService.lambdaQuery().eq(inspectionMissionId).eq(deleted,0).list()` | `bindingService.listByInspectionMissionId(missionId)` |
+| `taskService.lambdaQuery().eq(deleted,0).orderByDesc(id).last(...)` | `taskService.listByPage(page, size)` |
+| `prerequisiteService.lambdaQuery().eq(taskId).eq(deleted,0).list()` | `prerequisiteService.listByTaskId(taskId)` |
+| `barcodeRuleService.lambdaQuery().eq(taskId).eq(deleted,0).list()` | `barcodeRuleService.listByTaskId(taskId)` |
+| `bindingService.lambdaQuery().eq(inspectionTaskId).eq(deleted,0).list()` | `bindingService.listByInspectionTaskId(taskId)` |
 
-**原因**: 生命周期引擎需要通过 Service 方法查询数据（如 "查某个 mission 下所有螺栓"），如果 Service 是空壳则无处承载这些查询。
+**原因**: 生命周期引擎需要通过 Service 方法查询数据（如 "查某个 task 下所有螺栓"），如果 Service 是空壳则无处承载这些查询。
 
 **具体变更**:
 
 ```java
 // TighteningDataService — 空壳 → 封装查询
-public List<TighteningData> listByMissionRecordId(Long missionRecordId) {
+public List<TighteningData> listByTaskRecordId(Long taskRecordId) {
     return lambdaQuery()
-        .eq(TighteningData::getMissionRecordId, missionRecordId)
+        .eq(TighteningData::getTaskRecordId, taskRecordId)
         .eq(TighteningData::getDeleted, 0)
         .list();
 }
 
-// MissionRecordService — 空壳 → 封装激活/完成操作
-public MissionRecord createRecord(Long productMissionId, String productCode, Integer isRework) {
-    MissionRecord record = new MissionRecord()
-        .setProductMissionId(productMissionId)
+// TaskRecordService — 空壳 → 封装激活/完成操作
+public TaskRecord createRecord(Long productTaskId, String productCode, Integer isRework) {
+    TaskRecord record = new TaskRecord()
+        .setProductTaskId(productTaskId)
         .setProductCode(productCode)
         .setIsRework(isRework)
-        .setMissionResult(MissionResult.NG.getCode());  // 激活时初始为 NG
+        .setTaskResult(TaskResult.NG.getCode());  // 激活时初始为 NG
     save(record);
     return record;
 }
 
 public void markAsOk(Long recordId) {
-    lambdaUpdate().eq(MissionRecord::getId, recordId)
-        .set(MissionRecord::getMissionResult, MissionResult.OK.getCode())
+    lambdaUpdate().eq(TaskRecord::getId, recordId)
+        .set(TaskRecord::getTaskResult, TaskResult.OK.getCode())
         .update();
 }
 
-// ProductBoltService — 新增按 missionId 查询
-public List<ProductBolt> listByMissionId(Long missionId) {
+// ProductBoltService — 新增按 taskId 查询
+public List<ProductBolt> listByTaskId(Long taskId) {
     // 通过 sideId 关联查询
     ...
 }
 ```
 
-#### 0.2 ProductMissionController 分页改用 MyBatis-Plus Page
+#### 0.2 ProductTaskController 分页改用 MyBatis-Plus Page
 
 ```java
 // 替换:
 .last("LIMIT " + safeSize + " OFFSET " + ((safePage - 1) * safeSize))
 
 // 改为:
-Page<ProductMission> page = new Page<>(page, size);
-missionService.lambdaQuery()
-    .eq(ProductMission::getDeleted, 0)
-    .orderByDesc(ProductMission::getId)
+Page<ProductTask> page = new Page<>(page, size);
+taskService.lambdaQuery()
+    .eq(ProductTask::getDeleted, 0)
+    .orderByDesc(ProductTask::getId)
     .page(page);
 ```
 
@@ -147,26 +147,26 @@ public record ApiResponse<T>(int code, String message, T data) {
 }
 ```
 
-所有 Controller 返回 `ResponseEntity<ApiResponse<T>>`。涉及 ProductMissionController、ProductBoltController、ProductSideController、UserAccountInfoController 共 4 个。DeviceController 保持 DeferredResult 异步模式不变，LoginController 为测试桩不改造。
+所有 Controller 返回 `ResponseEntity<ApiResponse<T>>`。涉及 ProductTaskController、ProductBoltController、ProductSideController、UserAccountInfoController 共 4 个。DeviceController 保持 DeferredResult 异步模式不变，LoginController 为测试桩不改造。
 
-#### 0.4 `mission_record_id` 改为可空（tightening_data + curve_data）
+#### 0.4 `task_record_id` 改为可空（tightening_data + curve_data）
 
 在 V1.0.11 迁移中：
 
-1. `tightening_data.mission_record_id` — `INTEGER NOT NULL` → `INTEGER`（允许 NULL）
-2. `curve_data.mission_record_id` — `INTEGER NOT NULL` → `INTEGER`（允许 NULL）
+1. `tightening_data.task_record_id` — `INTEGER NOT NULL` → `INTEGER`（允许 NULL）
+2. `curve_data.task_record_id` — `INTEGER NOT NULL` → `INTEGER`（允许 NULL）
 
-并重建表（SQLite 不支持 ALTER COLUMN）。Java 侧同步将 `TighteningData.missionRecordId` 从 `long` 改为 `Long`，`CurveData.missionRecordId` 同理。
+并重建表（SQLite 不支持 ALTER COLUMN）。Java 侧同步将 `TighteningData.taskRecordId` 从 `long` 改为 `Long`，`CurveData.taskRecordId` 同理。
 
-**原因**: 生命周期引擎上线前，拧紧数据和曲线数据到达时没有关联的 mission_record。允许 NULL 使引擎可以渐进式部署。primitive `long` 默认值为 0，无法区分"未关联"和"关联 ID=0 的记录"。
+**原因**: 生命周期引擎上线前，拧紧数据和曲线数据到达时没有关联的 task_record。允许 NULL 使引擎可以渐进式部署。primitive `long` 默认值为 0，无法区分"未关联"和"关联 ID=0 的记录"。
 
-#### 0.5 `mission_record` 增加崩溃恢复字段
+#### 0.5 `task_record` 增加崩溃恢复字段
 
-在 V1.0.12 迁移中为 `mission_record` 表增加：
+在 V1.0.12 迁移中为 `task_record` 表增加：
 
 ```sql
-ALTER TABLE mission_record ADD COLUMN context_snapshot TEXT;  -- JSON，可为 NULL，记录关键转换点的 Context 摘要
-ALTER TABLE mission_record ADD COLUMN fault_message TEXT;     -- 可为 NULL，Actor 线程崩溃时的异常信息
+ALTER TABLE task_record ADD COLUMN context_snapshot TEXT;  -- JSON，可为 NULL，记录关键转换点的 Context 摘要
+ALTER TABLE task_record ADD COLUMN fault_message TEXT;     -- 可为 NULL，Actor 线程崩溃时的异常信息
 ```
 
 **原因**: §2.2 崩溃恢复机制需要在关键转换点将 Context 摘要写入 `context_snapshot`，Actor 启动时检测并尝试恢复。不是后期可安全添加的功能。
@@ -247,11 +247,11 @@ public class FitJudgment implements JudgmentStrategy { ... }
 > - **以下为阶段 2 首次实现的最小子集。完整 Context 字段定义参见生命周期设计文档 §4.2，其余字段（workstationConfig、workplaceStatus、barcodeObj、cancellationToken、设备开关等）在对应 Capability 实现时按需补充**
 
 ```java
-public class MissionContext {
+public class TaskContext {
     // ═══ 第一层：核心字段（引擎核心代码和 Capability 的 precondition/execute 直接访问） ═══
     
     // 不可变（Workstation 就绪时注入，生命周期内只读）
-    final ProductMission missionData;
+    final ProductTask taskData;
     final List<ProductBolt> boltConfigs;        // 从 product_bolt 加载，按 boltSerialNum 排序
     final Map<Long, ITool> deviceRegistry;       // 设备引用
     final boolean shouldSelfLoop;
@@ -262,7 +262,7 @@ public class MissionContext {
     final BoltState[] boltStates;
     int currentBoltIndex;
     int currentSideIndex;
-    MissionRecord missionRecord;
+    TaskRecord taskRecord;
     final List<TighteningData> tighteningDataList;  // 本生命周期收集的数据
     boolean interruptRequested;
     String interruptReason;
@@ -284,7 +284,7 @@ public class MissionContext {
     final Map<String, Object> extras;
     
     // ═══ 崩溃恢复 ═══
-    // 关键转换点（子状态推进前、MissionRecord 创建后、StoreData 后）写入的快照
+    // 关键转换点（子状态推进前、TaskRecord 创建后、StoreData 后）写入的快照
     ContextCheckpoint checkpoint;
 }
 ```
@@ -303,7 +303,7 @@ public class LifecycleEngine {
     private final BlockingQueue<InboundMessage> inbox = new LinkedBlockingQueue<>();
     private final Map<Class<?>, MessageHandler> handlers = new HashMap<>();  // 消息处理器注册表
     private final ScheduledExecutorService tickScheduler = Executors.newSingleThreadScheduledExecutor();
-    private MissionContext context;
+    private TaskContext context;
     private boolean alive = false;
     private Thread actorThread;
     
@@ -312,7 +312,7 @@ public class LifecycleEngine {
     
     @FunctionalInterface
     interface MessageHandler {
-        void handle(InboundMessage msg, MissionContext ctx, LifecycleEngine engine);
+        void handle(InboundMessage msg, TaskContext ctx, LifecycleEngine engine);
     }
     
     public void registerHandler(Class<?> msgType, MessageHandler handler) {
@@ -348,9 +348,9 @@ public class LifecycleEngine {
     private void handleActorCrash(Exception e, InboundMessage msg) {
         log.error("Actor 线程异常崩溃, message={}", msg, e);
         if (context == null) return;
-        // 1. 记录故障到 mission_record（如果有）
-        if (context.missionRecord != null && context.missionRecord.getId() != null) {
-            missionRecordService.markFaulted(context.missionRecord.getId(), e.getMessage());
+        // 1. 记录故障到 task_record（如果有）
+        if (context.taskRecord != null && context.taskRecord.getId() != null) {
+            taskRecordService.markFaulted(context.taskRecord.getId(), e.getMessage());
         }
         // 2. 记住当前阶段的 checkpoint 位置（供恢复时用）
         saveCheckpoint(context, CrashPoint.of(context.currentStage, context.currentSubState));
@@ -378,13 +378,13 @@ public class LifecycleEngine {
     
     // === 生命周期控制 ===
     
-    public void start(MissionContext ctx) {
+    public void start(TaskContext ctx) {
         this.context = ctx;
         this.alive = true;
         // 注册默认消息处理器
         registerDefaultHandlers();
         // 启动 Actor 线程
-        actorThread = new Thread(this::actorLoop, "lifecycle-engine-" + ctx.missionData.getId());
+        actorThread = new Thread(this::actorLoop, "lifecycle-engine-" + ctx.taskData.getId());
         actorThread.setUncaughtExceptionHandler((t, e) -> {
             log.error("Actor 线程未捕获异常", e);
             handleActorCrash(e, null);
@@ -392,7 +392,7 @@ public class LifecycleEngine {
         actorThread.start();
         // 投递激活消息
         try {
-            inbox.put(new InboundCommand.ActivateMission());
+            inbox.put(new InboundCommand.ActivateTask());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -418,9 +418,9 @@ public interface Capability {
     Stage stage();
     SubState subState();
     int priority();
-    boolean precondition(MissionContext ctx);
-    CapabilityResult execute(MissionContext ctx);
-    ErrorAction onError(MissionContext ctx, Exception e);
+    boolean precondition(TaskContext ctx);
+    CapabilityResult execute(TaskContext ctx);
+    ErrorAction onError(TaskContext ctx, Exception e);
 }
 
 enum CapabilityResult { Pass, Fail, Skip, Interrupt }
@@ -432,7 +432,7 @@ enum CapabilityResult { Pass, Fail, Skip, Interrupt }
 |-------|----------|-----------|
 | VALIDATION | VALIDATING | WorkstationConfigCheck |
 | ACTIVATION | PREPARING | PrepareBolts |
-| ACTIVATION | ACTIVATING | CreateMissionRecord |
+| ACTIVATION | ACTIVATING | CreateTaskRecord |
 | OPERATION | SWITCH_BOLT | SendArrangerSignal → SendSetterSelector → SendPSet |
 | OPERATION | TIGHTENING_RECEIVED | ReceiveData |
 | OPERATION | JUDGING | ControllerStatusCheck → TorqueRangeCheck → AngleRangeCheck |
@@ -448,7 +448,7 @@ enum CapabilityResult { Pass, Fail, Skip, Interrupt }
 ```java
 public interface PersistentMonitor {
     long intervalMs();
-    void execute(MissionContext ctx);
+    void execute(TaskContext ctx);
 }
 
 // 实现:
@@ -463,7 +463,7 @@ public class DeviceConnectionMonitor implements PersistentMonitor { ... }
 CREATE TABLE export_task (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
     type             TEXT NOT NULL,
-    mission_record_id INTEGER NOT NULL,
+    task_record_id INTEGER NOT NULL,
     payload          TEXT NOT NULL,
     status           TEXT NOT NULL DEFAULT 'PENDING',
     retry_count      INTEGER NOT NULL DEFAULT 0,
@@ -516,13 +516,13 @@ public void handleTighteningData(TighteningDataDTO dto, Channel channel) {
 
 ## 4. 对生命周期设计文档的修改建议
 
-当前设计文档 `docs/2026-06-21-mission-lifecycle-architecture-design.md` 是一个很好的架构蓝图。以下是根据代码审查提出的修改建议：
+当前设计文档 `docs/2026-06-21-task-lifecycle-architecture-design.md` 是一个很好的架构蓝图。以下是根据代码审查提出的修改建议：
 
 ### 4.1 Context 中需要新增的字段
 
 | 新增字段 | 类型 | 原因 |
 |----------|------|------|
-| `productMissionId` | Long | 数据层以 ID 关联，Context 需要持有以便存储时填写外键 |
+| `productTaskId` | Long | 数据层以 ID 关联，Context 需要持有以便存储时填写外键 |
 | `deviceBindings[]` | BoltDeviceBinding[] | 螺栓→排列机/套筒选择器的映射，当前通过 `bolt_device_binding` 表承载 |
 | `partsBarcodes[]` | BoltPartsBarcode[] | 螺栓→物料码规则的映射 |
 
@@ -532,11 +532,11 @@ public void handleTighteningData(TighteningDataDTO dto, Channel channel) {
 
 ```
 工作台就绪流程:
-  1. 用户选择 Mission → 加载 ProductMission + ProductSide + ProductBolt
+  1. 用户选择 Task → 加载 ProductTask + ProductSide + ProductBolt
   2. 查询 BoltDeviceBinding → 确定需要哪些设备（工具/排列机/套筒选择器）
   3. 从 DeviceRegistry 获取设备引用（设备已在用户登录时连接）
   4. 加载 BarCodeMatchingRule → 确定扫码规则
-  5. 组装 MissionContext 不可变部分 → READY
+  5. 组装 TaskContext 不可变部分 → READY
 ```
 
 ### 4.3 `DeviceRegistry` 与现有 `DeviceManager` 的关系
@@ -576,7 +576,7 @@ public interface BarcodeAcquisitionStrategy {
      * - HTTP_BODY:    HTTP 请求体中携带 → 立即 complete
      * - NONE:         立即 complete(null)
      */
-    CompletableFuture<String> acquireBarcode(MissionContext ctx);
+    CompletableFuture<String> acquireBarcode(TaskContext ctx);
 }
 ```
 
@@ -644,7 +644,7 @@ public class ExporterRegistry {
 ```
 
 **设计要点**：
-- `Exporter` 接口与 `ExportPayload` 解耦 — Exporter 不依赖 `MissionContext`
+- `Exporter` 接口与 `ExportPayload` 解耦 — Exporter 不依赖 `TaskContext`
 - Spring 自动注入所有 `Exporter` 实现到 `ExporterRegistry`
 - 新增导出目标 = 实现 `Exporter` + Spring 注册，无需修改 ExportWorker
 - ExportWorker 只负责调度和重试，不包含任何业务导出逻辑
@@ -662,7 +662,7 @@ private final Map<Class<?>, MessageHandler> handlers = new HashMap<>();
 
 @FunctionalInterface
 interface MessageHandler {
-    void handle(InboundMessage msg, MissionContext ctx, LifecycleEngine engine);
+    void handle(InboundMessage msg, TaskContext ctx, LifecycleEngine engine);
 }
 ```
 
@@ -677,7 +677,7 @@ interface MessageHandler {
 | 0: 代码完善 | 4（ApiResponse, 2 migrations, 1 Service 方法） | 7（4 Controller + 3 Service） | 0 |
 | 1: 设备接口 | 6（ITool, IArm, IArranger, ISetterSelector, IPreconditionCheckable, DeviceRegistry） | 2（ToolHandler, DeviceManager） | 0 |
 | 1: Judgment | 4（JudgmentStrategy, JudgmentResult, AtlasJudgment, FitJudgment） | 0 | 0 |
-| 2: Engine | ~25（LifecycleEngine, MissionContext, ContextCheckpoint, Capability, ~17 Capability 实现, 2 PersistentMonitor, Stage/SubState enum, BarcodeAcquisitionStrategy） | 0 | 0 |
+| 2: Engine | ~25（LifecycleEngine, TaskContext, ContextCheckpoint, Capability, ~17 Capability 实现, 2 PersistentMonitor, Stage/SubState enum, BarcodeAcquisitionStrategy） | 0 | 0 |
 | 3: Outbox | 8（ExportTask entity/DTO/mapper/service, ExportWorker, Exporter, ExporterRegistry, 具体 Exporter 实现） | 0 | 0 |
 | 4: 适配 | 1（ToolAdapter） | 1（ToolHandler 1 行改动） | 0 |
 | 5: 测试 | 8+ | 0 | 0 |
@@ -694,8 +694,8 @@ interface MessageHandler {
 | 设备命令（sendPSet/sendLock）的 Future 回调在 Actor 线程外完成 | Adapter 将 CompletableFuture 回调结果转为 inbox 消息，回到 Actor 线程处理 |
 | Actor 单线程成为瓶颈 | 当前为单工具串行场景，Actor 处理一条拧紧数据 < 1ms。未来多工具并行时每工具一个 Actor 实例 |
 | 生命周期设计文档与实施细节的差异 | 以设计文档为准，实施中发现不合理的部分及时更新设计文档 |
-| **Actor 线程崩溃导致 Context 完全丢失（技术审查新增）** | **关键转换点（子状态推进前、MissionRecord 创建后、StoreData 后）将 Context 摘要写入 MissionRecord.context_snapshot，Actor 启动时检测并尝试恢复。从阶段 2 开始内置 checkpoint 机制，不做后期补丁** |
-| **MissionContext 字段膨胀失控（技术审查新增）** | **执行三层分类纪律：第一层（核心字段）需架构师审批新增；第二层（管道间传递）需对应 Capability 的 PR 评审确认；第三层（extras{}）自由度最高但不得被引擎核心代码读取。每半年 review Context 字段确认必要性** |
+| **Actor 线程崩溃导致 Context 完全丢失（技术审查新增）** | **关键转换点（子状态推进前、TaskRecord 创建后、StoreData 后）将 Context 摘要写入 TaskRecord.context_snapshot，Actor 启动时检测并尝试恢复。从阶段 2 开始内置 checkpoint 机制，不做后期补丁** |
+| **TaskContext 字段膨胀失控（技术审查新增）** | **执行三层分类纪律：第一层（核心字段）需架构师审批新增；第二层（管道间传递）需对应 Capability 的 PR 评审确认；第三层（extras{}）自由度最高但不得被引擎核心代码读取。每半年 review Context 字段确认必要性** |
 
 ---
 
@@ -703,14 +703,14 @@ interface MessageHandler {
 
 | 位置 | 现状 | 完善目标 |
 |------|------|---------|
-| `ToolHandler.handleTighteningData()` | 直接存储，无 Mission 上下文 | 阶段 4 接入 LifecycleEngine |
+| `ToolHandler.handleTighteningData()` | 直接存储，无 Task 上下文 | 阶段 4 接入 LifecycleEngine |
 | `TighteningDataService` | 空壳 | 阶段 0.1 封装查询方法 |
-| `MissionRecordService` | 空壳 | 阶段 0.1 封装 createRecord/markAsOk |
+| `TaskRecordService` | 空壳 | 阶段 0.1 封装 createRecord/markAsOk |
 | `CurveDataService` | 空壳 | 阶段 0.1 封装曲线匹配查询 |
-| ProductMissionController 分页 | 字符串拼接 SQL | 阶段 0.2 改用 MyBatis-Plus Page |
+| ProductTaskController 分页 | 字符串拼接 SQL | 阶段 0.2 改用 MyBatis-Plus Page |
 | Controller 响应格式 | `String.valueOf(id)` / `"ok"` / `byte[]` | 阶段 0.3 统一 ApiResponse |
-| `tightening_data` / `curve_data` 的 `mission_record_id` | NOT NULL 但代码不填值 | 阶段 0.4 改为可空 |
+| `tightening_data` / `curve_data` 的 `task_record_id` | NOT NULL 但代码不填值 | 阶段 0.4 改为可空 |
 | OK/NG 判定 | 无 | 阶段 1.3 JudgmentStrategy |
-| Mission 激活/完成状态 | 无 | 阶段 2 LifecycleEngine |
+| Task 激活/完成状态 | 无 | 阶段 2 LifecycleEngine |
 | 曲线数据与拧紧数据关联 | 独立存储 | 阶段 2 双槽位匹配 |
 | 数据导出 | 无 | 阶段 3 Outbox Worker |

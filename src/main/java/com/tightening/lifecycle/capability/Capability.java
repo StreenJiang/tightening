@@ -2,7 +2,7 @@ package com.tightening.lifecycle.capability;
 
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 
 public interface Capability {
     String id();
@@ -10,13 +10,13 @@ public interface Capability {
     SubState subState();
     int priority();
 
-    default boolean precondition(MissionContext ctx) {
+    default boolean precondition(TaskContext ctx) {
         return true;
     }
 
-    CapabilityResult execute(MissionContext ctx);
+    CapabilityResult execute(TaskContext ctx);
 
-    default ErrorAction onError(MissionContext ctx, Exception e) {
+    default ErrorAction onError(TaskContext ctx, Exception e) {
         return ErrorAction.FAIL_STAGE;
     }
 }

@@ -4,7 +4,7 @@ import com.tightening.constant.BarCodeRuleType;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.entity.BarCodeMatchingRule;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import com.tightening.service.BarCodeMatchingRuleService;
 import com.tightening.util.BarcodeMatcher;
 import lombok.RequiredArgsConstructor;
@@ -24,13 +24,13 @@ public class PartsBarCodeMatching implements TriggerCapability {
     @Override public int priority() { return 2; }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
-        List<BarCodeMatchingRule> rules = ruleService.listByMissionId(ctx.getProductMissionId()).stream()
+    public CapabilityResult execute(TaskContext ctx) {
+        List<BarCodeMatchingRule> rules = ruleService.listByTaskId(ctx.getProductTaskId()).stream()
                 .filter(r -> r.getRuleType() == BarCodeRuleType.MATERIAL_BARCODE.getCode())
                 .toList();
 
         if (rules.isEmpty()) {
-            log.debug("No MATERIAL_BARCODE rule for mission {}", ctx.getProductMissionId());
+            log.debug("No MATERIAL_BARCODE rule for task {}", ctx.getProductTaskId());
             return CapabilityResult.Skip;
         }
 

@@ -67,7 +67,7 @@ case DISABLE:
 **步骤**:
 1. 在 L28 解析 `tighteningId` 后，添加 `tighteningData.setTighteningId(Integer.toUnsignedLong(tighteningId));`
 
-**注意**: `barcode` 暂不处理——它应存入 `mission_record` 而非 `tightening_data`。
+**注意**: `barcode` 暂不处理——它应存入 `task_record` 而非 `tightening_data`。
 
 **验证**: `mvn test -pl .` 全量测试通过
 
@@ -188,4 +188,4 @@ case ALARM:
 | self=this 构造器逃逸 | 不影响正确性 |
 | enable/disable 共用 key | 协议规定 |
 | SUBSCRIBE_DATA ACK | 用户未完成实现 |
-| barcode 存 tightening_data | 应存 mission_record |
+| barcode 存 tightening_data | 应存 task_record |

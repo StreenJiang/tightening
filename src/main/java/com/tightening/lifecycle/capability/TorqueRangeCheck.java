@@ -4,7 +4,7 @@ import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.entity.ProductBolt;
 import com.tightening.entity.TighteningData;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -16,7 +16,7 @@ public class TorqueRangeCheck implements Capability {
     @Override public int priority() { return 1; }
 
     @Override
-    public boolean precondition(MissionContext ctx) {
+    public boolean precondition(TaskContext ctx) {
         ProductBolt bolt = ctx.currentBolt();
         return bolt != null
                 && bolt.getTorqueMin() != null && bolt.getTorqueMax() != null
@@ -24,7 +24,7 @@ public class TorqueRangeCheck implements Capability {
     }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
+    public CapabilityResult execute(TaskContext ctx) {
         ProductBolt bolt = ctx.currentBolt();
         TighteningData data = ctx.getCurrentOperationData();
 

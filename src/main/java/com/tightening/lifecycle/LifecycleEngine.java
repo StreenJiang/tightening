@@ -5,7 +5,7 @@ import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.constant.WorkplaceStatus;
 import com.tightening.device.contract.ITool;
-import com.tightening.entity.MissionRecord;
+import com.tightening.entity.TaskRecord;
 import com.tightening.entity.TighteningData;
 
 import com.tightening.lifecycle.capability.Capability;
@@ -14,7 +14,7 @@ import com.tightening.lifecycle.capability.ErrorAction;
 import com.tightening.lifecycle.capability.TriggerCapability;
 import com.tightening.lifecycle.message.*;
 import com.tightening.lifecycle.monitor.PersistentMonitor;
-import com.tightening.service.MissionRecordService;
+import com.tightening.service.TaskRecordService;
 import com.tightening.service.WorkplaceStatusService;
 import com.tightening.util.JsonUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -29,15 +29,15 @@ public class LifecycleEngine {
 
     @FunctionalInterface
     public interface MessageHandler {
-        void handle(InboundMessage msg, MissionContext ctx, LifecycleEngine engine);
+        void handle(InboundMessage msg, TaskContext ctx, LifecycleEngine engine);
     }
 
     private final BlockingQueue<InboundMessage> inbox = new LinkedBlockingQueue<>(1024);
     private final Map<Class<?>, MessageHandler> handlers = new HashMap<>();
 
-    private MissionContext context;
+    private TaskContext context;
     private final PipelineDefinition pipeline;
-    private final MissionRecordService missionRecordService;
+    private final TaskRecordService taskRecordService;
     private final List<PersistentMonitor> monitors;
 
     private volatile boolean alive = false;
@@ -56,12 +56,12 @@ public class LifecycleEngine {
     private final List<TriggerCapability> triggerCaps;
     private final WorkplaceStatusService wsService;
 
-    public LifecycleEngine(PipelineDefinition pipeline, MissionRecordService missionRecordService,
+    public LifecycleEngine(PipelineDefinition pipeline, TaskRecordService taskRecordService,
                            List<Capability> capabilities, List<PersistentMonitor> monitors,
                            List<TriggerCapability> triggerCapabilities,
                            WorkplaceStatusService wsService) {
         this.pipeline = pipeline;
-        this.missionRecordService = missionRecordService;
+        this.taskRecordService = taskRecordService;
         this.monitors = monitors != null ? monitors : List.of();
         this.triggerCaps = triggerCapabilities != null ? triggerCapabilities : List.of();
         this.wsService = wsService;
@@ -83,13 +83,13 @@ public class LifecycleEngine {
         registerHandler(InboundCommand.AdvancePipeline.class, this::handleAdvancePipeline);
         registerHandler(DeviceEvent.TighteningDataReceived.class, this::handleTighteningData);
         registerHandler(EngineInternal.Faulted.class, this::handleFaulted);
-        registerHandler(InboundCommand.InterruptMission.class, this::handleInterrupt);
+        registerHandler(InboundCommand.InterruptTask.class, this::handleInterrupt);
         registerHandler(EngineInternal.MonitorTick.class, this::handleMonitorTick);
     }
 
     private final Map<PersistentMonitor, Long> monitorLastRun = new java.util.concurrent.ConcurrentHashMap<>();
 
-    void handleMonitorTick(InboundMessage msg, MissionContext ctx, LifecycleEngine engine) {
+    void handleMonitorTick(InboundMessage msg, TaskContext ctx, LifecycleEngine engine) {
         if (ctx == null) return;
         long now = System.currentTimeMillis();
         for (PersistentMonitor m : monitors) {
@@ -130,7 +130,7 @@ public class LifecycleEngine {
 
     // === 消息 Handler ===
 
-    void handleTriggerRequest(InboundMessage msg, MissionContext ctx, LifecycleEngine engine) {
+    void handleTriggerRequest(InboundMessage msg, TaskContext ctx, LifecycleEngine engine) {
         var cmd = (InboundCommand.TriggerRequest) msg;
         log.info("Trigger request: productCode={}, partsCode={}", cmd.productCode(), cmd.partsCode());
 
@@ -146,7 +146,7 @@ public class LifecycleEngine {
         }
 
         if (triggerResult == CapabilityResult.Interrupt) {
-            // SkipScrew fast track — 不绑定设备，直接创建 OK MissionRecord 进 FINALIZATION
+            // SkipScrew fast track — 不绑定设备，直接创建 OK TaskRecord 进 FINALIZATION
             log.info("SkipScrew fast track — entering FINALIZATION");
             startSkipScrewLifecycle(ctx);
             return;
@@ -154,11 +154,11 @@ public class LifecycleEngine {
 
         log.info("Trigger passed, entering lifecycle");
         wsService.transitionTo(WorkplaceStatus.ACTIVATED, Set.of());
-        if (onTriggered != null) onTriggered.accept(ctx.getProductMissionId());
+        if (onTriggered != null) onTriggered.accept(ctx.getProductTaskId());
         startNormalLifecycle(ctx);
     }
 
-    private CapabilityResult executeTriggerPipeline(MissionContext ctx) {
+    private CapabilityResult executeTriggerPipeline(TaskContext ctx) {
         for (TriggerCapability cap : triggerCaps) {
             if (!cap.precondition(ctx)) continue;
             try {
@@ -178,7 +178,7 @@ public class LifecycleEngine {
     }
 
 
-    private void startNormalLifecycle(MissionContext ctx) {
+    private void startNormalLifecycle(TaskContext ctx) {
         int boltCount = ctx.getBoltConfigs().size();
         BoltState[] states = new BoltState[boltCount];
         Arrays.fill(states, BoltState.PENDING);
@@ -188,23 +188,23 @@ public class LifecycleEngine {
         postMessage(new InboundCommand.AdvancePipeline());
     }
 
-    private void startSkipScrewLifecycle(MissionContext ctx) {
-        // 创建 OK MissionRecord — createRecord 默认设 missionResult=NG，需后续 markAsOk
-        var record = missionRecordService.createRecord(
-                ctx.getProductMissionId(), ctx.getProductCode(), ctx.getPartsCode(), 0);
-        missionRecordService.markAsOk(record.getId());
-        ctx.setMissionRecord(record);
+    private void startSkipScrewLifecycle(TaskContext ctx) {
+        // 创建 OK TaskRecord — createRecord 默认设 taskResult=NG，需后续 markAsOk
+        var record = taskRecordService.createRecord(
+                ctx.getProductTaskId(), ctx.getProductCode(), ctx.getPartsCode(), 0);
+        taskRecordService.markAsOk(record.getId());
+        ctx.setTaskRecord(record);
         ctx.setCurrentStage(Stage.FINALIZATION);
         ctx.setCurrentSubState(SubState.CLEANING_TASKS);
         postMessage(new InboundCommand.AdvancePipeline());
     }
 
-    void handleAdvancePipeline(InboundMessage msg, MissionContext ctx, LifecycleEngine engine) {
+    void handleAdvancePipeline(InboundMessage msg, TaskContext ctx, LifecycleEngine engine) {
         if (ctx == null) return;
         advancePipeline();
     }
 
-    void handleTighteningData(InboundMessage msg, MissionContext ctx, LifecycleEngine engine) {
+    void handleTighteningData(InboundMessage msg, TaskContext ctx, LifecycleEngine engine) {
         if (ctx == null) return;
         var event = (DeviceEvent.TighteningDataReceived) msg;
         var data = event.data();
@@ -239,7 +239,7 @@ public class LifecycleEngine {
         advancePipeline();
     }
 
-    void handleFaulted(InboundMessage msg, MissionContext ctx, LifecycleEngine engine) {
+    void handleFaulted(InboundMessage msg, TaskContext ctx, LifecycleEngine engine) {
         var fault = (EngineInternal.Faulted) msg;
         log.error("Engine faulted: {}", fault.reason());
         if (ctx != null) {
@@ -250,8 +250,8 @@ public class LifecycleEngine {
         shutdown();
     }
 
-    void handleInterrupt(InboundMessage msg, MissionContext ctx, LifecycleEngine engine) {
-        var cmd = (InboundCommand.InterruptMission) msg;
+    void handleInterrupt(InboundMessage msg, TaskContext ctx, LifecycleEngine engine) {
+        var cmd = (InboundCommand.InterruptTask) msg;
         log.warn("Engine interrupted: {}", cmd.reason());
         if (ctx != null) {
             ctx.setInterruptRequested(true);
@@ -338,8 +338,8 @@ public class LifecycleEngine {
         // 终点检测：不变则终止
         if (next.nextStage() == stage && next.nextSubState() == subState) {
             log.info("Pipeline reached terminal state: {}/{}", stage, subState);
-            if (onCompleted != null && context.getMissionRecord() != null) {
-                onCompleted.accept(context.getMissionRecord().getId());
+            if (onCompleted != null && context.getTaskRecord() != null) {
+                onCompleted.accept(context.getTaskRecord().getId());
             }
             shutdown();
             return;
@@ -362,9 +362,9 @@ public class LifecycleEngine {
         log.error("Stage failure at: {}", failedCap.id());
         context.setCurrentStage(Stage.FINALIZATION);
         context.setCurrentSubState(SubState.FAULTED);
-        if (context.getMissionRecord() != null && context.getMissionRecord().getId() != null) {
-            missionRecordService.markFaulted(
-                context.getMissionRecord().getId(),
+        if (context.getTaskRecord() != null && context.getTaskRecord().getId() != null) {
+            taskRecordService.markFaulted(
+                context.getTaskRecord().getId(),
                 "Capability failed: " + failedCap.id());
         }
         saveCheckpoint("StageFailure:" + failedCap.id());
@@ -377,10 +377,10 @@ public class LifecycleEngine {
     private void handleActorCrash(Exception e, InboundMessage msg) {
         log.error("Actor thread crashed, message={}", msg, e);
         if (context == null) return;
-        if (context.getMissionRecord() != null && context.getMissionRecord().getId() != null) {
+        if (context.getTaskRecord() != null && context.getTaskRecord().getId() != null) {
             try {
-                missionRecordService.markFaulted(
-                    context.getMissionRecord().getId(), e.getMessage());
+                taskRecordService.markFaulted(
+                    context.getTaskRecord().getId(), e.getMessage());
             } catch (Exception markEx) {
                 log.error("Failed to mark faulted", markEx);
             }
@@ -397,10 +397,10 @@ public class LifecycleEngine {
     }
 
     private void saveCheckpoint(String reason) {
-        if (context == null || context.getMissionRecord() == null) return;
+        if (context == null || context.getTaskRecord() == null) return;
         ContextCheckpoint cp = ContextCheckpoint.builder()
-            .missionId(context.getProductMissionId())
-            .missionRecordId(context.getMissionRecord().getId())
+            .taskId(context.getProductTaskId())
+            .taskRecordId(context.getTaskRecord().getId())
             .stage(context.getCurrentStage())
             .subState(context.getCurrentSubState())
             .currentBoltIndex(context.getCurrentBoltIndex())
@@ -408,14 +408,14 @@ public class LifecycleEngine {
             .completedBolts((int) Arrays.stream(context.getBoltStates())
                 .filter(s -> s == BoltState.JUDGED_OK || s == BoltState.JUDGED_NG).count())
             .dataStored(context.getCurrentOperationData() == null
-                || context.getCurrentOperationData().getMissionRecordId() != null)
+                || context.getCurrentOperationData().getTaskRecordId() != null)
             .snapshotReason(reason)
             .timestamp(System.currentTimeMillis())
             .build();
         context.setCheckpoint(cp);
         // 持久化到 DB
         String json = JsonUtils.toJson(cp);
-        missionRecordService.updateSnapshot(context.getMissionRecord().getId(), json);
+        taskRecordService.updateSnapshot(context.getTaskRecord().getId(), json);
     }
 
     // === MonitorTick ===
@@ -432,15 +432,15 @@ public class LifecycleEngine {
 
     // === 生命周期控制 ===
 
-    public void start(MissionContext ctx) {
+    public void start(TaskContext ctx) {
         this.context = ctx;
         this.alive = true;
-        actorThread = new Thread(this::actorLoop, "lifecycle-engine-" + ctx.getProductMissionId());
+        actorThread = new Thread(this::actorLoop, "lifecycle-engine-" + ctx.getProductTaskId());
         actorThread.setUncaughtExceptionHandler((t, throwable) -> {
             log.error("Actor thread uncaught exception", throwable);
             // 线程即将死亡，直接执行崩溃逻辑并 shutdown，不投递到 inbox
-            if (context != null && context.getMissionRecord() != null && context.getMissionRecord().getId() != null) {
-                try { missionRecordService.markFaulted(context.getMissionRecord().getId(), throwable.getMessage()); }
+            if (context != null && context.getTaskRecord() != null && context.getTaskRecord().getId() != null) {
+                try { taskRecordService.markFaulted(context.getTaskRecord().getId(), throwable.getMessage()); }
                 catch (Exception ex) { log.error("Failed to mark faulted", ex); }
             }
             try { saveCheckpoint("Uncaught:" + throwable.getClass().getSimpleName()); }
@@ -463,15 +463,15 @@ public class LifecycleEngine {
 
     public void interrupt(String reason) {
         if (context != null && context.getCurrentStage() == Stage.FINALIZATION) return;
-        postMessage(new InboundCommand.InterruptMission(reason));
+        postMessage(new InboundCommand.InterruptTask(reason));
     }
 
     public boolean isAlive() { return alive; }
 
-    public MissionContext getContext() { return context; }
+    public TaskContext getContext() { return context; }
 
     /** 设置上下文但不启动引擎，由工厂在组装后调用 */
-    void initContext(MissionContext ctx) { this.context = ctx; }
+    void initContext(TaskContext ctx) { this.context = ctx; }
 
     void shutdown() {
         alive = false;

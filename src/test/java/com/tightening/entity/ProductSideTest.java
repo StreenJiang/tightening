@@ -19,7 +19,7 @@ class ProductSideTest {
 
         ProductSide original = new ProductSide();
         original.setId(1L);
-        original.setProductMissionId(100L);
+        original.setProductTaskId(100L);
         original.setName("Side A");
         original.setImageData(imageData);
         original.setRenderedImageData(renderedImageData);
@@ -28,7 +28,7 @@ class ProductSideTest {
         String json = mapper.writeValueAsString(original);
         ProductSide restored = mapper.readValue(json, ProductSide.class);
 
-        assertThat(restored.getProductMissionId()).isEqualTo(100L);
+        assertThat(restored.getProductTaskId()).isEqualTo(100L);
         assertThat(restored.getName()).isEqualTo("Side A");
         // @JsonIgnore on byte[] fields — they are excluded from JSON serialization
         assertThat(restored.getImageData()).isNull();

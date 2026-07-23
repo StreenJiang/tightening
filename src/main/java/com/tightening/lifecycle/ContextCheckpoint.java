@@ -8,8 +8,8 @@ import lombok.Value;
 @Value
 @Builder
 public class ContextCheckpoint {
-    long missionId;
-    long missionRecordId;
+    long taskId;
+    long taskRecordId;
     Stage stage;
     SubState subState;
     int currentBoltIndex;

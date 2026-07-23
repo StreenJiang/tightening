@@ -17,7 +17,7 @@ class CurveDataDTOTest {
         original.setCreatorId(100L);
         original.setModifierId(200L);
 
-        original.setMissionRecordId(1L);
+        original.setTaskRecordId(1L);
         original.setWorkstationName("Station-01");
         original.setProductSideName("Left");
         original.setBoltSerialNum(1);
@@ -30,7 +30,7 @@ class CurveDataDTOTest {
         String json = mapper.writeValueAsString(original);
         CurveDataDTO restored = mapper.readValue(json, CurveDataDTO.class);
 
-        assertThat(restored.getMissionRecordId()).isEqualTo(1L);
+        assertThat(restored.getTaskRecordId()).isEqualTo(1L);
         assertThat(restored.getTighteningId()).isEqualTo(1234567890);
         assertThat(restored.getTimestamp()).isEqualTo("2024-01-15 10:30:00");
         assertThat(restored.getDataType()).isEqualTo(1);

@@ -3,8 +3,8 @@ package com.tightening.lifecycle.capability;
 import com.tightening.config.LocalSettings;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
-import com.tightening.entity.MissionRecord;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.entity.TaskRecord;
+import com.tightening.lifecycle.TaskContext;
 import com.tightening.service.ExportTaskService;
 import com.tightening.util.JsonUtils;
 import lombok.RequiredArgsConstructor;
@@ -26,17 +26,17 @@ public class ExportData implements Capability {
     @Override public int priority() { return 0; }
 
     @Override
-    public boolean precondition(MissionContext ctx) {
-        return ctx.getMissionRecord() != null && ctx.getMissionRecord().getId() != null;
+    public boolean precondition(TaskContext ctx) {
+        return ctx.getTaskRecord() != null && ctx.getTaskRecord().getId() != null;
     }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
-        MissionRecord record = ctx.getMissionRecord();
+    public CapabilityResult execute(TaskContext ctx) {
+        TaskRecord record = ctx.getTaskRecord();
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("missionId", ctx.getProductMissionId());
-        payload.put("missionRecordId", record.getId());
-        payload.put("missionResult", record.getMissionResult());
+        payload.put("taskId", ctx.getProductTaskId());
+        payload.put("taskRecordId", record.getId());
+        payload.put("taskResult", record.getTaskResult());
         payload.put("productCode", record.getProductCode() != null ? record.getProductCode() : "");
         payload.put("isRework", record.getIsRework() != null ? record.getIsRework() : 0);
         payload.put("timestamp", java.time.LocalDateTime.now().toString());
@@ -46,7 +46,7 @@ public class ExportData implements Capability {
         String json = JsonUtils.toJson(payload);
         for (String type : settings.exportTypes()) {
             exportTaskService.createTask(type, record.getId(), json);
-            log.info("ExportData: created {} task for missionRecordId={}", type, record.getId());
+            log.info("ExportData: created {} task for taskRecordId={}", type, record.getId());
         }
         return CapabilityResult.Pass;
     }

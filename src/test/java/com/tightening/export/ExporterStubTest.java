@@ -23,7 +23,7 @@ class ExporterStubTest {
     @Test
     @DisplayName("StandardExcelExporter type=standard_excel")
     void standardExcelExporterShouldWork() {
-        when(tighteningDataService.listByMissionRecordId(1L)).thenReturn(List.of());
+        when(tighteningDataService.listByTaskRecordId(1L)).thenReturn(List.of());
 
         Exporter e = new StandardExcelExporter(tighteningDataService);
         assertThat(e.type()).isEqualTo("standard_excel");

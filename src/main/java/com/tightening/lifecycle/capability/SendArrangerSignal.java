@@ -2,7 +2,7 @@ package com.tightening.lifecycle.capability;
 
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 
 public class SendArrangerSignal implements Capability {
     @Override public String id() { return "SendArrangerSignal"; }
@@ -11,8 +11,8 @@ public class SendArrangerSignal implements Capability {
     @Override public int priority() { return 0; }
 
     @Override
-    public boolean precondition(MissionContext ctx) { return false; }
+    public boolean precondition(TaskContext ctx) { return false; }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) { return CapabilityResult.Skip; }
+    public CapabilityResult execute(TaskContext ctx) { return CapabilityResult.Skip; }
 }

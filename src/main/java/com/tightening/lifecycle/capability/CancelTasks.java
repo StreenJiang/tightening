@@ -2,7 +2,7 @@ package com.tightening.lifecycle.capability;
 
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -14,8 +14,8 @@ public class CancelTasks implements Capability {
     @Override public int priority() { return 0; }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
-        log.info("CancelTasks: all tasks cleared for mission {}", ctx.getProductMissionId());
+    public CapabilityResult execute(TaskContext ctx) {
+        log.info("CancelTasks: all tasks cleared for task {}", ctx.getProductTaskId());
         return CapabilityResult.Pass;
     }
 }

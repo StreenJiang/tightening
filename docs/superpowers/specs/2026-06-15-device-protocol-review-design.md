@@ -25,7 +25,7 @@
 InBoundHandler → 解析 DTO → deviceHandler.handleTighteningData(dto, channel)
                                   ├── Converter.dto2Entity
                                   ├── tighteningDataService.save()
-                                  └── (将来) SSE 推送、mission record 更新
+                                  └── (将来) SSE 推送、task record 更新
 ```
 
 - `handleTighteningData(TighteningDataDTO, Channel)` — 拧紧数据

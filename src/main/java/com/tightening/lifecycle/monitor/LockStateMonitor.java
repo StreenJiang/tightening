@@ -2,7 +2,7 @@ package com.tightening.lifecycle.monitor;
 
 import com.tightening.constant.WorkplaceStatus;
 import com.tightening.device.contract.ITool;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import com.tightening.service.WorkplaceStatusService;
 import lombok.extern.slf4j.Slf4j;
 
@@ -24,7 +24,7 @@ public class LockStateMonitor implements PersistentMonitor {
     }
 
     @Override
-    public void execute(MissionContext ctx) {
+    public void execute(TaskContext ctx) {
         if (ctx.isBoltUnlockOverride()) {
             return;
         }

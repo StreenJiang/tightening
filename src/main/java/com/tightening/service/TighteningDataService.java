@@ -14,9 +14,9 @@ import java.util.List;
 @Service
 public class TighteningDataService extends ServiceImpl<TighteningDataMapper, TighteningData> {
 
-    public List<TighteningData> listByMissionRecordId(Long missionRecordId) {
+    public List<TighteningData> listByTaskRecordId(Long taskRecordId) {
         return lambdaQuery()
-                .eq(TighteningData::getMissionRecordId, missionRecordId)
+                .eq(TighteningData::getTaskRecordId, taskRecordId)
                 .orderByAsc(TighteningData::getId)
                 .list();
     }

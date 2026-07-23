@@ -54,7 +54,7 @@ public class ExportWorker {
                 Exporter exporter = exporterRegistry.get(task.getType());
                 Map<String, Object> data = JsonUtils.parse(task.getPayload(), Map.class);
                 ExportPayload payload = new ExportPayload(
-                        task.getMissionRecordId(),
+                        task.getTaskRecordId(),
                         task.getType(),
                         data);
                 ExportResult result = exporter.execute(payload);

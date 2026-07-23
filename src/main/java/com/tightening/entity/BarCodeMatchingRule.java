@@ -16,7 +16,7 @@ import lombok.experimental.Accessors;
 @TableName("bar_code_matching_rule")
 public class BarCodeMatchingRule extends BaseEntity {
     private String name;
-    private Long productMissionId;
+    private Long productTaskId;
     private Integer ruleType;
     private String partNumber;
     private Integer expectedLength;

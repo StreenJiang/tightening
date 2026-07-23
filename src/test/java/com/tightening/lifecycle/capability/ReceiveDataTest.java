@@ -2,9 +2,9 @@ package com.tightening.lifecycle.capability;
 
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.ProductTask;
 import com.tightening.entity.TighteningData;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -23,8 +23,8 @@ class ReceiveDataTest {
     void shouldPassWhenDataReceived() {
         TighteningData data = new TighteningData();
         data.setTighteningId(12345L);
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask())
                 .boltConfigs(List.of()).deviceRegistry(Map.of())
                 
                 .currentOperationData(data).build();
@@ -34,8 +34,8 @@ class ReceiveDataTest {
     @Test
     @DisplayName("无数据时返回 Fail")
     void shouldFailWhenNoData() {
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask())
                 .boltConfigs(List.of()).deviceRegistry(Map.of())
                 
                 .currentOperationData(null).build();
@@ -47,8 +47,8 @@ class ReceiveDataTest {
     void shouldFailWhenTighteningIdZero() {
         TighteningData data = new TighteningData();
         data.setTighteningId(0L);
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask())
                 .boltConfigs(List.of()).deviceRegistry(Map.of())
                 
                 .currentOperationData(data).build();

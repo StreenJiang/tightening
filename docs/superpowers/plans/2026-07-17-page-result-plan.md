@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 新增 `PageResult<T>` 通用分页 DTO，让 `ProductMissionController.list` 返回分页元数据。
+**Goal:** 新增 `PageResult<T>` 通用分页 DTO，让 `ProductTaskController.list` 返回分页元数据。
 
-**Architecture:** 新建 `PageResult` record（含 `of()` 静态工厂），修改 `ProductMissionController.list` 的返回类型和方法体，更新两个测试用例的断言。
+**Architecture:** 新建 `PageResult` record（含 `of()` 静态工厂），修改 `ProductTaskController.list` 的返回类型和方法体，更新两个测试用例的断言。
 
 **Tech Stack:** Java 21, Spring Boot, MyBatis-Plus Page
 
@@ -60,14 +60,14 @@ git commit -m "feat: add PageResult generic pagination DTO"
 
 ---
 
-### Task 2: 修改 ProductMissionController.list
+### Task 2: 修改 ProductTaskController.list
 
 **Files:**
-- Modify: `src/main/java/com/tightening/controller/ProductMissionController.java:48-53`
+- Modify: `src/main/java/com/tightening/controller/ProductTaskController.java:48-53`
 
 **Interfaces:**
 - Consumes: `PageResult.of(Page<?> page, List<T> records)` from Task 1
-- Produces: `ResponseEntity<ApiResponse<PageResult<ProductMissionDTO>>> list(int page, int size, String name)`
+- Produces: `ResponseEntity<ApiResponse<PageResult<ProductTaskDTO>>> list(int page, int size, String name)`
 
 - [ ] **Step 1: 修改 list 方法**
 
@@ -75,11 +75,11 @@ git commit -m "feat: add PageResult generic pagination DTO"
 
 ```java
     @GetMapping
-    public ResponseEntity<ApiResponse<PageResult<ProductMissionDTO>>> list(@RequestParam(defaultValue = "1") int page,
+    public ResponseEntity<ApiResponse<PageResult<ProductTaskDTO>>> list(@RequestParam(defaultValue = "1") int page,
                                                         @RequestParam(defaultValue = "100") int size,
                                                         @RequestParam(required = false) String name) {
-        var resultPage = missionService.listByPage(page, size, name);
-        var dtos = Converter.entity2Dto(resultPage.getRecords(), ProductMissionDTO::new);
+        var resultPage = taskService.listByPage(page, size, name);
+        var dtos = Converter.entity2Dto(resultPage.getRecords(), ProductTaskDTO::new);
         return ResponseEntity.ok(ApiResponse.ok(PageResult.of(resultPage, dtos)));
     }
 ```
@@ -100,8 +100,8 @@ Expected: BUILD SUCCESS
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/main/java/com/tightening/controller/ProductMissionController.java
-git commit -m "feat: return PageResult in ProductMissionController.list"
+git add src/main/java/com/tightening/controller/ProductTaskController.java
+git commit -m "feat: return PageResult in ProductTaskController.list"
 ```
 
 ---
@@ -109,7 +109,7 @@ git commit -m "feat: return PageResult in ProductMissionController.list"
 ### Task 3: 更新测试用例
 
 **Files:**
-- Modify: `src/test/java/com/tightening/controller/ProductMissionControllerTest.java:37-54`
+- Modify: `src/test/java/com/tightening/controller/ProductTaskControllerTest.java:37-54`
 
 **Interfaces:**
 - Consumes: `PageResult.of(Page<?> page, List<T> records)` from Task 1
@@ -121,9 +121,9 @@ git commit -m "feat: return PageResult in ProductMissionController.list"
 ```java
     @Test
     void list_shouldReturnOk() {
-        when(missionService.listByPage(eq(1), eq(100), isNull())).thenReturn(new Page<>(1, 100));
+        when(taskService.listByPage(eq(1), eq(100), isNull())).thenReturn(new Page<>(1, 100));
 
-        ResponseEntity<ApiResponse<PageResult<ProductMissionDTO>>> response = controller.list(1, 100, null);
+        ResponseEntity<ApiResponse<PageResult<ProductTaskDTO>>> response = controller.list(1, 100, null);
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().code()).isEqualTo(200);
@@ -140,9 +140,9 @@ git commit -m "feat: return PageResult in ProductMissionController.list"
 ```java
     @Test
     void list_shouldPassNameToService_whenNameProvided() {
-        when(missionService.listByPage(1, 100, "Test")).thenReturn(new Page<>(1, 100));
+        when(taskService.listByPage(1, 100, "Test")).thenReturn(new Page<>(1, 100));
 
-        ResponseEntity<ApiResponse<PageResult<ProductMissionDTO>>> response = controller.list(1, 100, "Test");
+        ResponseEntity<ApiResponse<PageResult<ProductTaskDTO>>> response = controller.list(1, 100, "Test");
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().code()).isEqualTo(200);
         assertThat(response.getBody().data().total()).isEqualTo(0);
@@ -161,13 +161,13 @@ import com.tightening.dto.PageResult;
 
 - [ ] **Step 3: 运行测试验证**
 
-Run: `mvn test -Dtest=ProductMissionControllerTest -q`
+Run: `mvn test -Dtest=ProductTaskControllerTest -q`
 Expected: Tests run: 18, Failures: 0, BUILD SUCCESS
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/test/java/com/tightening/controller/ProductMissionControllerTest.java
+git add src/test/java/com/tightening/controller/ProductTaskControllerTest.java
 git commit -m "test: update list tests for PageResult return type"
 ```
 

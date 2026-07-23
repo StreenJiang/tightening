@@ -2,8 +2,8 @@ package com.tightening.lifecycle.capability;
 
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
-import com.tightening.entity.ProductMission;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.entity.ProductTask;
+import com.tightening.lifecycle.TaskContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -50,8 +50,8 @@ class CancelTasksTest {
     @Test
     @DisplayName("execute 返回 Pass")
     void executeShouldReturnPass() {
-        MissionContext ctx = MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask())
             .boltConfigs(List.of()).deviceRegistry(Map.of())
             .build();
 

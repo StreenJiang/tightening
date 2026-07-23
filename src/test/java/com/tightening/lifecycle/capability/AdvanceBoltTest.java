@@ -3,12 +3,12 @@ package com.tightening.lifecycle.capability;
 import com.tightening.constant.BoltState;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
-import com.tightening.entity.MissionRecord;
+import com.tightening.entity.TaskRecord;
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.ProductTask;
 import com.tightening.judgment.JudgmentResult;
-import com.tightening.lifecycle.MissionContext;
-import com.tightening.service.MissionRecordService;
+import com.tightening.lifecycle.TaskContext;
+import com.tightening.service.TaskRecordService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,18 +27,18 @@ import static org.mockito.Mockito.verify;
 @DisplayName("AdvanceBolt Capability")
 class AdvanceBoltTest {
 
-    @Mock private MissionRecordService missionRecordService;
+    @Mock private TaskRecordService taskRecordService;
     private AdvanceBolt cap;
 
     @BeforeEach
     void setUp() {
-        cap = new AdvanceBolt(missionRecordService);
+        cap = new AdvanceBolt(taskRecordService);
     }
 
     @Test
     @DisplayName("OK 判定后标记为 JUDGED_OK 并推进索引")
     void shouldMarkBoltJudgedOk() {
-        MissionContext ctx = ctxWithBolts(2);
+        TaskContext ctx = ctxWithBolts(2);
         ctx.setCurrentBoltIndex(0);
         ctx.setJudgeResult(new JudgmentResult(true, "OK"));
 
@@ -51,7 +51,7 @@ class AdvanceBoltTest {
     @Test
     @DisplayName("NG 判定后标记为 JUDGED_NG 并推进")
     void shouldMarkBoltJudgedNg() {
-        MissionContext ctx = ctxWithBolts(2);
+        TaskContext ctx = ctxWithBolts(2);
         ctx.setCurrentBoltIndex(0);
         ctx.setJudgeResult(new JudgmentResult(false, "NG"));
 
@@ -64,7 +64,7 @@ class AdvanceBoltTest {
     @Test
     @DisplayName("全部螺栓完成 → 进入 FINALIZATION")
     void shouldEnterFinalizationWhenAllDone() {
-        MissionContext ctx = ctxWithBolts(1);
+        TaskContext ctx = ctxWithBolts(1);
         ctx.setCurrentBoltIndex(0);
 
         cap.execute(ctx);
@@ -75,26 +75,26 @@ class AdvanceBoltTest {
 
     @Test
     @DisplayName("最后一个螺栓 OK 时调用 markAsOk")
-    void shouldMarkMissionOkWhenAllJudgedOk() {
-        MissionContext ctx = ctxWithBolts(1);
+    void shouldMarkTaskOkWhenAllJudgedOk() {
+        TaskContext ctx = ctxWithBolts(1);
         ctx.setCurrentBoltIndex(0);
         ctx.setBoltStates(new BoltState[]{BoltState.JUDGED_OK});
         ctx.setJudgeResult(new JudgmentResult(true, "OK"));
-        MissionRecord record = new MissionRecord();
+        TaskRecord record = new TaskRecord();
         record.setId(42L);
-        ctx.setMissionRecord(record);
+        ctx.setTaskRecord(record);
 
         cap.execute(ctx);
 
-        verify(missionRecordService).markAsOk(42L);
+        verify(taskRecordService).markAsOk(42L);
     }
 
-    private static MissionContext ctxWithBolts(int count) {
+    private static TaskContext ctxWithBolts(int count) {
         List<ProductBolt> bolts = IntStream.range(0, count)
             .mapToObj(i -> new ProductBolt().setSerialNum(i + 1))
             .toList();
-        return MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission())
+        return TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask())
             .boltConfigs(bolts).deviceRegistry(Map.of())
             
             .boltStates(new BoltState[count])

@@ -4,17 +4,17 @@
 
 **Goal:** Build the Actor engine core — `LifecycleEngine` with BlockingQueue inbox, MessageHandler registry, pipeline advancement, and crash recovery — plus key Capabilities proving end-to-end data flow from ToolAdapter data fork through judgment to storage.
 
-**Architecture:** `LifecycleEngine` is NOT a Spring bean — instantiated per-mission via `LifecycleEngineFactory` (@Component). Single-threaded actor loop with `inbox.take()` blocking wait, `Map<Class, MessageHandler>` dispatch. Pipeline advances recursively through non-waiting sub-states, pauses at waiting points. Checkpoint persisted to `mission_record.context_snapshot` at key transitions.
+**Architecture:** `LifecycleEngine` is NOT a Spring bean — instantiated per-task via `LifecycleEngineFactory` (@Component). Single-threaded actor loop with `inbox.take()` blocking wait, `Map<Class, MessageHandler>` dispatch. Pipeline advances recursively through non-waiting sub-states, pauses at waiting points. Checkpoint persisted to `task_record.context_snapshot` at key transitions.
 
 **Tech Stack:** Java 21, JUnit 5, AssertJ 3.27.7, Mockito (transitive), Spring Boot Test, MyBatis-Plus
 
 ## Global Constraints
 
-- 新建 ~34 源文件 + ~15 测试文件，修改 1 个现有文件（`MissionRecordService.java`）
+- 新建 ~34 源文件 + ~15 测试文件，修改 1 个现有文件（`TaskRecordService.java`）
 - `LifecycleEngine` 非 Spring Bean，由 `LifecycleEngineFactory`（@Component）创建
-- 枚举遵循 `MissionResult` 模式：`int code` + `Optional<X> fromCode(int)`
-- `ContextCheckpoint` 必须在 `saveCheckpoint()` 中写 DB（`mission_record.context_snapshot`）
-- `MessageHandler` 签名：`void handle(InboundMessage msg, MissionContext ctx, LifecycleEngine engine)` 三元组
+- 枚举遵循 `TaskResult` 模式：`int code` + `Optional<X> fromCode(int)`
+- `ContextCheckpoint` 必须在 `saveCheckpoint()` 中写 DB（`task_record.context_snapshot`）
+- `MessageHandler` 签名：`void handle(InboundMessage msg, TaskContext ctx, LifecycleEngine engine)` 三元组
 - `LockMessage` 使用 `record(String source, String reason)`，非 `Set<String>`
 - `boltConfigs` 按 `boltSerialNum` 排序（由调用方保证）
 - OPERATION 管道：`SWITCH_BOLT`(非等待) → `TIGHTENING_RECEIVED`(等待点，等拧紧数据) → `JUDGING` → `STORING` → `ADVANCING`(非等待) → 循环回 `SWITCH_BOLT`
@@ -307,15 +307,15 @@ git commit -m "feat: add Stage, SubState, and BoltState enums for Actor lifecycl
 - Create: `src/test/java/com/tightening/lifecycle/message/InboundMessageTest.java`
 
 **Interfaces:**
-- Consumes: `Stage`, `SubState` (from Task 1), `ProductMission`, `ProductSide`, `ProductBolt`, `BoltDeviceBinding` (entity), `TighteningData`, `CurveData` (entity)
-- Produces: `LockMessage(String source, String reason)` record, `InboundMessage` sealed interface, `InboundCommand` (ActivateMission, AdvancePipeline, SelfLoop, InterruptMission), `DeviceEvent` (TighteningDataReceived, CurveDataReceived, DeviceDisconnected), `EngineInternal` (MonitorTick, Faulted)
+- Consumes: `Stage`, `SubState` (from Task 1), `ProductTask`, `ProductSide`, `ProductBolt`, `BoltDeviceBinding` (entity), `TighteningData`, `CurveData` (entity)
+- Produces: `LockMessage(String source, String reason)` record, `InboundMessage` sealed interface, `InboundCommand` (ActivateTask, AdvancePipeline, SelfLoop, InterruptTask), `DeviceEvent` (TighteningDataReceived, CurveDataReceived, DeviceDisconnected), `EngineInternal` (MonitorTick, Faulted)
 
 - [ ] **Step 1: 写失败测试**
 
 ```java
 package com.tightening.lifecycle.message;
 
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.ProductTask;
 import com.tightening.entity.TighteningData;
 import com.tightening.lifecycle.LockMessage;
 import org.junit.jupiter.api.DisplayName;
@@ -329,14 +329,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 class InboundMessageTest {
 
     @Test
-    @DisplayName("ActivateMission record 创建并实现 InboundMessage")
-    void shouldCreateActivateMission() {
-        var msg = new InboundCommand.ActivateMission(
-            new ProductMission().setId(1L).setName("test"),
+    @DisplayName("ActivateTask record 创建并实现 InboundMessage")
+    void shouldCreateActivateTask() {
+        var msg = new InboundCommand.ActivateTask(
+            new ProductTask().setId(1L).setName("test"),
             List.of(), List.of(), List.of()
         );
         assertThat(msg).isInstanceOf(InboundMessage.class);
-        assertThat(msg.missionData().getId()).isEqualTo(1L);
+        assertThat(msg.taskData().getId()).isEqualTo(1L);
     }
 
     @Test
@@ -418,16 +418,16 @@ package com.tightening.lifecycle.message;
 
 import com.tightening.entity.BoltDeviceBinding;
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.ProductTask;
 import com.tightening.entity.ProductSide;
 
 import java.util.List;
 
 public sealed interface InboundCommand extends InboundMessage {
 
-    /** 激活 Mission — 生命周期开始 */
-    record ActivateMission(
-        ProductMission missionData,
+    /** 激活 Task — 生命周期开始 */
+    record ActivateTask(
+        ProductTask taskData,
         List<ProductSide> sides,
         List<ProductBolt> bolts,
         List<BoltDeviceBinding> bindings
@@ -439,8 +439,8 @@ public sealed interface InboundCommand extends InboundMessage {
     /** 自循环 — 新的一轮开始 */
     record SelfLoop() implements InboundCommand {}
 
-    /** 中断当前 Mission */
-    record InterruptMission(String reason) implements InboundCommand {}
+    /** 中断当前 Task */
+    record InterruptTask(String reason) implements InboundCommand {}
 }
 ```
 
@@ -502,16 +502,16 @@ git commit -m "feat: add sealed InboundMessage hierarchy and LockMessage record"
 
 ---
 
-### Task 3: ContextCheckpoint + MissionContext
+### Task 3: ContextCheckpoint + TaskContext
 
 **Files:**
 - Create: `src/main/java/com/tightening/lifecycle/ContextCheckpoint.java`
-- Create: `src/main/java/com/tightening/lifecycle/MissionContext.java`
-- Create: `src/test/java/com/tightening/lifecycle/MissionContextTest.java`
+- Create: `src/main/java/com/tightening/lifecycle/TaskContext.java`
+- Create: `src/test/java/com/tightening/lifecycle/TaskContextTest.java`
 
 **Interfaces:**
-- Consumes: `Stage`, `SubState`, `BoltState` (Task 1), `LockMessage` (Task 2), `ProductMission`, `ProductBolt`, `MissionRecord`, `TighteningData`, `CurveData` (entity), `ITool` (Stage 1), `JudgmentResult` (Stage 1)
-- Produces: `ContextCheckpoint` (@Value @Builder record for DB snapshot), `MissionContext` (builder pattern, 3-layer fields, convenience methods: `currentBolt()`, `hasMoreBolts()`, `totalBolts()`, `allBoltsCompleted()`)
+- Consumes: `Stage`, `SubState`, `BoltState` (Task 1), `LockMessage` (Task 2), `ProductTask`, `ProductBolt`, `TaskRecord`, `TighteningData`, `CurveData` (entity), `ITool` (Stage 1), `JudgmentResult` (Stage 1)
+- Produces: `ContextCheckpoint` (@Value @Builder record for DB snapshot), `TaskContext` (builder pattern, 3-layer fields, convenience methods: `currentBolt()`, `hasMoreBolts()`, `totalBolts()`, `allBoltsCompleted()`)
 
 - [ ] **Step 1: 写失败测试**
 
@@ -522,7 +522,7 @@ import com.tightening.constant.BoltState;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.ProductTask;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -531,15 +531,15 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DisplayName("MissionContext 三层字段 + Builder")
-class MissionContextTest {
+@DisplayName("TaskContext 三层字段 + Builder")
+class TaskContextTest {
 
     @Test
     @DisplayName("Builder 默认值正确")
     void shouldUseDefaultsForOptionalFields() {
-        MissionContext ctx = MissionContext.builder()
-            .productMissionId(1L)
-            .missionData(new ProductMission().setId(1L))
+        TaskContext ctx = TaskContext.builder()
+            .productTaskId(1L)
+            .taskData(new ProductTask().setId(1L))
             .boltConfigs(List.of())
             .deviceRegistry(Map.of())
             .shouldSelfLoop(false)
@@ -558,8 +558,8 @@ class MissionContextTest {
     void currentBoltShouldReturnCorrectBolt() {
         ProductBolt b1 = new ProductBolt().setBoltSerialNum(1).setBoltName("Bolt1");
         ProductBolt b2 = new ProductBolt().setBoltSerialNum(2).setBoltName("Bolt2");
-        MissionContext ctx = MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission().setId(1L))
+        TaskContext ctx = TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask().setId(1L))
             .boltConfigs(List.of(b1, b2)).deviceRegistry(Map.of())
             .shouldSelfLoop(false)
             .currentBoltIndex(1).build();
@@ -570,7 +570,7 @@ class MissionContextTest {
     @Test
     @DisplayName("currentBolt() 索引越界返回 null")
     void currentBoltShouldReturnNullWhenOutOfRange() {
-        MissionContext ctx = minimalContext();
+        TaskContext ctx = minimalContext();
         ctx.setCurrentBoltIndex(99);
         assertThat(ctx.currentBolt()).isNull();
     }
@@ -580,8 +580,8 @@ class MissionContextTest {
     void hasMoreBoltsShouldWork() {
         ProductBolt b1 = new ProductBolt().setBoltSerialNum(1);
         ProductBolt b2 = new ProductBolt().setBoltSerialNum(2);
-        MissionContext ctx = MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission().setId(1L))
+        TaskContext ctx = TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask().setId(1L))
             .boltConfigs(List.of(b1, b2)).deviceRegistry(Map.of())
             .shouldSelfLoop(false).build();
 
@@ -594,8 +594,8 @@ class MissionContextTest {
     @Test
     @DisplayName("allBoltsCompleted() 全部 JDGED_OK/JUDGED_NG 返回 true")
     void allBoltsCompletedShouldReturnTrueWhenAllDone() {
-        MissionContext ctx = MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission().setId(1L))
+        TaskContext ctx = TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask().setId(1L))
             .boltConfigs(List.of(new ProductBolt(), new ProductBolt()))
             .deviceRegistry(Map.of()).shouldSelfLoop(false)
             .boltStates(new BoltState[]{BoltState.JUDGED_OK, BoltState.JUDGED_NG})
@@ -607,8 +607,8 @@ class MissionContextTest {
     @Test
     @DisplayName("allBoltsCompleted() 有 PENDING 返回 false")
     void allBoltsCompletedShouldReturnFalseWhenPendingExists() {
-        MissionContext ctx = MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission().setId(1L))
+        TaskContext ctx = TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask().setId(1L))
             .boltConfigs(List.of(new ProductBolt(), new ProductBolt()))
             .deviceRegistry(Map.of()).shouldSelfLoop(false)
             .boltStates(new BoltState[]{BoltState.JUDGED_OK, BoltState.PENDING})
@@ -620,7 +620,7 @@ class MissionContextTest {
     @Test
     @DisplayName("可变字段 setter 正常工作")
     void mutableFieldsShouldBeSettable() {
-        MissionContext ctx = minimalContext();
+        TaskContext ctx = minimalContext();
         ctx.setCurrentStage(Stage.OPERATION);
         ctx.setCurrentSubState(SubState.JUDGING);
         ctx.setCurrentBoltIndex(2);
@@ -632,10 +632,10 @@ class MissionContextTest {
         assertThat(ctx.isInterruptRequested()).isTrue();
     }
 
-    private static MissionContext minimalContext() {
-        return MissionContext.builder()
-            .productMissionId(1L)
-            .missionData(new ProductMission().setId(1L))
+    private static TaskContext minimalContext() {
+        return TaskContext.builder()
+            .productTaskId(1L)
+            .taskData(new ProductTask().setId(1L))
             .boltConfigs(List.of())
             .deviceRegistry(Map.of())
             .shouldSelfLoop(false)
@@ -647,9 +647,9 @@ class MissionContextTest {
 - [ ] **Step 2: 运行测试确认失败**
 
 ```bash
-mvn test -Dtest="MissionContextTest" -DfailIfNoTests=false -q
+mvn test -Dtest="TaskContextTest" -DfailIfNoTests=false -q
 ```
-Expected: 编译失败 "cannot find symbol: class MissionContext"
+Expected: 编译失败 "cannot find symbol: class TaskContext"
 
 - [ ] **Step 3: 实现 ContextCheckpoint.java**
 
@@ -664,8 +664,8 @@ import lombok.Value;
 @Value
 @Builder
 public class ContextCheckpoint {
-    long missionId;
-    long missionRecordId;
+    long taskId;
+    long taskRecordId;
     Stage stage;
     SubState subState;
     int currentBoltIndex;
@@ -677,7 +677,7 @@ public class ContextCheckpoint {
 }
 ```
 
-- [ ] **Step 4: 实现 MissionContext.java**
+- [ ] **Step 4: 实现 TaskContext.java**
 
 ```java
 package com.tightening.lifecycle;
@@ -697,13 +697,13 @@ import java.util.*;
 
 @Getter
 @Builder
-public class MissionContext {
+public class TaskContext {
 
     // ═══ 第一层：核心字段 ═══
 
     /** 不可变 — Workstation 就绪时注入 */
-    private final Long productMissionId;
-    private final ProductMission missionData;
+    private final Long productTaskId;
+    private final ProductTask taskData;
     private final List<ProductBolt> boltConfigs;       // 按 boltSerialNum 排序（调用方保证）
     private final Map<Long, ITool> deviceRegistry;
     private final boolean shouldSelfLoop;
@@ -714,7 +714,7 @@ public class MissionContext {
     @Builder.Default @Setter private BoltState[] boltStates = new BoltState[0];
     @Builder.Default @Setter private int currentBoltIndex = 0;
     @Builder.Default @Setter private int currentSideIndex = 0;
-    @Builder.Default @Setter private MissionRecord missionRecord = null;
+    @Builder.Default @Setter private TaskRecord taskRecord = null;
     @Builder.Default private final List<TighteningData> tighteningDataList = new ArrayList<>();
     @Builder.Default @Setter private volatile boolean interruptRequested = false;
     @Builder.Default @Setter private volatile String interruptReason = null;
@@ -764,15 +764,15 @@ public class MissionContext {
 - [ ] **Step 5: 运行测试确认通过**
 
 ```bash
-mvn test -Dtest="MissionContextTest" -DfailIfNoTests=false
+mvn test -Dtest="TaskContextTest" -DfailIfNoTests=false
 ```
 Expected: Tests run: 7, Failures: 0
 
 - [ ] **Step 6: 提交**
 
 ```bash
-git add src/main/java/com/tightening/lifecycle/ContextCheckpoint.java src/main/java/com/tightening/lifecycle/MissionContext.java src/test/java/com/tightening/lifecycle/MissionContextTest.java
-git commit -m "feat: add MissionContext with 3-layer fields and ContextCheckpoint"
+git add src/main/java/com/tightening/lifecycle/ContextCheckpoint.java src/main/java/com/tightening/lifecycle/TaskContext.java src/test/java/com/tightening/lifecycle/TaskContextTest.java
+git commit -m "feat: add TaskContext with 3-layer fields and ContextCheckpoint"
 ```
 
 ---
@@ -787,7 +787,7 @@ git commit -m "feat: add MissionContext with 3-layer fields and ContextCheckpoin
 - Create: `src/test/java/com/tightening/lifecycle/capability/ErrorActionTest.java`
 
 **Interfaces:**
-- Consumes: `Stage`, `SubState` (Task 1), `MissionContext` (Task 3)
+- Consumes: `Stage`, `SubState` (Task 1), `TaskContext` (Task 3)
 - Produces: `Capability` (id, stage, subState, priority, precondition, execute, onError), `CapabilityResult` (Pass, Fail, Skip, Interrupt), `ErrorAction` (FAIL_CAPABILITY, FAIL_STAGE, RETRY_LATER, INTERRUPT)
 
 - [ ] **Step 1: 写失败测试**
@@ -882,7 +882,7 @@ package com.tightening.lifecycle.capability;
 
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 
 public interface Capability {
     String id();
@@ -890,13 +890,13 @@ public interface Capability {
     SubState subState();
     int priority();
 
-    default boolean precondition(MissionContext ctx) {
+    default boolean precondition(TaskContext ctx) {
         return true;
     }
 
-    CapabilityResult execute(MissionContext ctx);
+    CapabilityResult execute(TaskContext ctx);
 
-    default ErrorAction onError(MissionContext ctx, Exception e) {
+    default ErrorAction onError(TaskContext ctx, Exception e) {
         return ErrorAction.FAIL_STAGE;
     }
 }
@@ -1242,7 +1242,7 @@ git commit -m "feat: add PipelineDefinition with stage routing and default pipel
 
 **Interfaces:**
 - Consumes: Tasks 1-5 (all enums, messages, context, capability interface, pipeline)
-- Produces: `LifecycleEngine` — `start(MissionContext)`, `postMessage(InboundMessage)`, `interrupt(String)`, `isAlive()`, `getContext()`, `registerHandler(Class, MessageHandler)`, `onFaulted(Consumer)`, `onCompleted(Consumer)`, `startMonitorTicks()`, `stopMonitorTicks()`. Inner `MessageHandler` @FunctionalInterface: `void handle(InboundMessage msg, MissionContext ctx, LifecycleEngine engine)`
+- Produces: `LifecycleEngine` — `start(TaskContext)`, `postMessage(InboundMessage)`, `interrupt(String)`, `isAlive()`, `getContext()`, `registerHandler(Class, MessageHandler)`, `onFaulted(Consumer)`, `onCompleted(Consumer)`, `startMonitorTicks()`, `stopMonitorTicks()`. Inner `MessageHandler` @FunctionalInterface: `void handle(InboundMessage msg, TaskContext ctx, LifecycleEngine engine)`
 
 - [ ] **Step 1: 写失败测试**
 
@@ -1251,13 +1251,13 @@ package com.tightening.lifecycle;
 
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
-import com.tightening.entity.MissionRecord;
+import com.tightening.entity.TaskRecord;
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.ProductTask;
 import com.tightening.lifecycle.capability.Capability;
 import com.tightening.lifecycle.capability.CapabilityResult;
 import com.tightening.lifecycle.message.*;
-import com.tightening.service.MissionRecordService;
+import com.tightening.service.TaskRecordService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -1279,7 +1279,7 @@ import static org.mockito.Mockito.*;
 class LifecycleEngineTest {
 
     @Mock
-    private MissionRecordService missionRecordService;
+    private TaskRecordService taskRecordService;
 
     private PipelineDefinition pd;
     private LifecycleEngine engine;
@@ -1287,13 +1287,13 @@ class LifecycleEngineTest {
     @BeforeEach
     void setUp() {
         pd = PipelineDefinition.createDefault();
-        engine = new LifecycleEngine(pd, missionRecordService, List.of(), List.of());
+        engine = new LifecycleEngine(pd, taskRecordService, List.of(), List.of());
     }
 
     @Test
     @DisplayName("start() 启动 Actor 线程并设置 alive=true")
     void shouldStartActorThread() throws InterruptedException {
-        MissionContext ctx = minimalContext();
+        TaskContext ctx = minimalContext();
         engine.start(ctx);
         Thread.sleep(200);
         assertThat(engine.isAlive()).isTrue();
@@ -1307,7 +1307,7 @@ class LifecycleEngineTest {
         CountDownLatch latch = new CountDownLatch(1);
         engine.registerHandler(InboundCommand.SelfLoop.class, (msg, ctx, eng) -> latch.countDown());
 
-        MissionContext ctx = minimalContext();
+        TaskContext ctx = minimalContext();
         engine.start(ctx);
         engine.postMessage(new InboundCommand.SelfLoop());
 
@@ -1322,7 +1322,7 @@ class LifecycleEngineTest {
         String[] reason = new String[1];
         engine.onFaulted(r -> { reason[0] = r; latch.countDown(); });
 
-        MissionContext ctx = minimalContext();
+        TaskContext ctx = minimalContext();
         engine.start(ctx);
         engine.postMessage(new EngineInternal.Faulted("test crash"));
 
@@ -1333,7 +1333,7 @@ class LifecycleEngineTest {
     @Test
     @DisplayName("interrupt() 在 FINALIZATION 阶段被忽略")
     void shouldNotInterruptDuringFinalization() throws InterruptedException {
-        MissionContext ctx = minimalContext();
+        TaskContext ctx = minimalContext();
         ctx.setCurrentStage(Stage.FINALIZATION);
         engine.start(ctx);
         Thread.sleep(100);
@@ -1345,7 +1345,7 @@ class LifecycleEngineTest {
     @Test
     @DisplayName("interrupt() 在非 FINALIZATION 阶段设置标志")
     void shouldInterruptOutsideFinalization() throws InterruptedException {
-        MissionContext ctx = minimalContext();
+        TaskContext ctx = minimalContext();
         ctx.setCurrentStage(Stage.OPERATION);
         engine.start(ctx);
         Thread.sleep(100);
@@ -1356,8 +1356,8 @@ class LifecycleEngineTest {
     }
 
     @Test
-    @DisplayName("HandleActivateMission 初始化 BoltStates 并推进管道")
-    void shouldActivateMissionAndAdvancePipeline() throws Exception {
+    @DisplayName("HandleActivateTask 初始化 BoltStates 并推进管道")
+    void shouldActivateTaskAndAdvancePipeline() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
 
         Capability cap = mock(Capability.class);
@@ -1373,12 +1373,12 @@ class LifecycleEngineTest {
 
         PipelineDefinition customPd = PipelineDefinition.createDefault();
         customPd.registerCapability(cap).sortByPriority();
-        engine = new LifecycleEngine(customPd, missionRecordService, List.of(cap), List.of());
+        engine = new LifecycleEngine(customPd, taskRecordService, List.of(cap), List.of());
 
         ProductBolt bolt = new ProductBolt().setBoltSerialNum(1);
-        MissionContext ctx = MissionContext.builder()
-            .productMissionId(1L)
-            .missionData(new ProductMission().setId(1L))
+        TaskContext ctx = TaskContext.builder()
+            .productTaskId(1L)
+            .taskData(new ProductTask().setId(1L))
             .boltConfigs(List.of(bolt))
             .deviceRegistry(Map.of())
             .shouldSelfLoop(false)
@@ -1404,17 +1404,17 @@ class LifecycleEngineTest {
 
         PipelineDefinition customPd = PipelineDefinition.createDefault();
         customPd.registerCapability(cap).sortByPriority();
-        engine = new LifecycleEngine(customPd, missionRecordService, List.of(cap), List.of());
+        engine = new LifecycleEngine(customPd, taskRecordService, List.of(cap), List.of());
         engine.onFaulted(r -> latch.countDown());
 
-        MissionRecord record = new MissionRecord().setId(42L);
-        MissionContext ctx = MissionContext.builder()
-            .productMissionId(1L)
-            .missionData(new ProductMission().setId(1L))
+        TaskRecord record = new TaskRecord().setId(42L);
+        TaskContext ctx = TaskContext.builder()
+            .productTaskId(1L)
+            .taskData(new ProductTask().setId(1L))
             .boltConfigs(List.of(new ProductBolt().setBoltSerialNum(1)))
             .deviceRegistry(Map.of())
             .shouldSelfLoop(false)
-            .missionRecord(record)
+            .taskRecord(record)
             .currentStage(Stage.OPERATION)
             .currentSubState(SubState.STORING)
             .build();
@@ -1424,14 +1424,14 @@ class LifecycleEngineTest {
         engine.postMessage(new InboundCommand.AdvancePipeline());
 
         assertThat(latch.await(3, TimeUnit.SECONDS)).isTrue();
-        verify(missionRecordService, timeout(2000))
+        verify(taskRecordService, timeout(2000))
             .updateSnapshot(eq(42L), anyString());
     }
 
-    private static MissionContext minimalContext() {
-        return MissionContext.builder()
-            .productMissionId(1L)
-            .missionData(new ProductMission().setId(1L))
+    private static TaskContext minimalContext() {
+        return TaskContext.builder()
+            .productTaskId(1L)
+            .taskData(new ProductTask().setId(1L))
             .boltConfigs(List.of())
             .deviceRegistry(Map.of())
             .shouldSelfLoop(false)
@@ -1453,17 +1453,17 @@ Expected: 编译失败 "cannot find symbol: class LifecycleEngine"
 package com.tightening.lifecycle;
 
 import com.tightening.constant.BoltState;
-import com.tightening.constant.MissionResult;
+import com.tightening.constant.TaskResult;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.device.contract.ITool;
-import com.tightening.entity.MissionRecord;
+import com.tightening.entity.TaskRecord;
 import com.tightening.lifecycle.capability.Capability;
 import com.tightening.lifecycle.capability.CapabilityResult;
 import com.tightening.lifecycle.capability.ErrorAction;
 import com.tightening.lifecycle.message.*;
 import com.tightening.lifecycle.monitor.PersistentMonitor;
-import com.tightening.service.MissionRecordService;
+import com.tightening.service.TaskRecordService;
 import com.tightening.util.JsonUtils;
 import lombok.extern.slf4j.Slf4j;
 
@@ -1476,15 +1476,15 @@ public class LifecycleEngine {
 
     @FunctionalInterface
     public interface MessageHandler {
-        void handle(InboundMessage msg, MissionContext ctx, LifecycleEngine engine);
+        void handle(InboundMessage msg, TaskContext ctx, LifecycleEngine engine);
     }
 
     private final BlockingQueue<InboundMessage> inbox = new LinkedBlockingQueue<>();
     private final Map<Class<?>, MessageHandler> handlers = new HashMap<>();
 
-    private MissionContext context;
+    private TaskContext context;
     private final PipelineDefinition pipeline;
-    private final MissionRecordService missionRecordService;
+    private final TaskRecordService taskRecordService;
     private final List<PersistentMonitor> monitors;
 
     private volatile boolean alive = false;
@@ -1498,10 +1498,10 @@ public class LifecycleEngine {
     private Consumer<String> onFaulted;
     private Consumer<Long> onCompleted;
 
-    public LifecycleEngine(PipelineDefinition pipeline, MissionRecordService missionRecordService,
+    public LifecycleEngine(PipelineDefinition pipeline, TaskRecordService taskRecordService,
                            List<Capability> capabilities, List<PersistentMonitor> monitors) {
         this.pipeline = pipeline;
-        this.missionRecordService = missionRecordService;
+        this.taskRecordService = taskRecordService;
         this.monitors = monitors != null ? monitors : List.of();
         pipeline.registerCapabilities(capabilities).sortByPriority();
         registerDefaultHandlers();
@@ -1515,17 +1515,17 @@ public class LifecycleEngine {
     public void onCompleted(Consumer<Long> callback) { this.onCompleted = callback; }
 
     private void registerDefaultHandlers() {
-        registerHandler(InboundCommand.ActivateMission.class, this::handleActivateMission);
+        registerHandler(InboundCommand.ActivateTask.class, this::handleActivateTask);
         registerHandler(InboundCommand.AdvancePipeline.class, this::handleAdvancePipeline);
         registerHandler(DeviceEvent.TighteningDataReceived.class, this::handleTighteningData);
         registerHandler(EngineInternal.Faulted.class, this::handleFaulted);
-        registerHandler(InboundCommand.InterruptMission.class, this::handleInterrupt);
+        registerHandler(InboundCommand.InterruptTask.class, this::handleInterrupt);
         registerHandler(EngineInternal.MonitorTick.class, this::handleMonitorTick);
     }
 
     private final Map<PersistentMonitor, Long> monitorLastRun = new ConcurrentHashMap<>();
 
-    void handleMonitorTick(InboundMessage msg, MissionContext ctx, LifecycleEngine engine) {
+    void handleMonitorTick(InboundMessage msg, TaskContext ctx, LifecycleEngine engine) {
         if (ctx == null) return;
         long now = System.currentTimeMillis();
         for (PersistentMonitor m : monitors) {
@@ -1566,9 +1566,9 @@ public class LifecycleEngine {
 
     // === 消息 Handler ===
 
-    void handleActivateMission(InboundMessage msg, MissionContext ctx, LifecycleEngine engine) {
-        var cmd = (InboundCommand.ActivateMission) msg;
-        log.info("Engine activating mission: {}", cmd.missionData().getId());
+    void handleActivateTask(InboundMessage msg, TaskContext ctx, LifecycleEngine engine) {
+        var cmd = (InboundCommand.ActivateTask) msg;
+        log.info("Engine activating task: {}", cmd.taskData().getId());
 
         int boltCount = cmd.bolts().size();
         BoltState[] states = new BoltState[boltCount];
@@ -1581,12 +1581,12 @@ public class LifecycleEngine {
         postMessage(new InboundCommand.AdvancePipeline());
     }
 
-    void handleAdvancePipeline(InboundMessage msg, MissionContext ctx, LifecycleEngine engine) {
+    void handleAdvancePipeline(InboundMessage msg, TaskContext ctx, LifecycleEngine engine) {
         if (ctx == null) return;
         advancePipeline();
     }
 
-    void handleTighteningData(InboundMessage msg, MissionContext ctx, LifecycleEngine engine) {
+    void handleTighteningData(InboundMessage msg, TaskContext ctx, LifecycleEngine engine) {
         if (ctx == null) return;
         var event = (DeviceEvent.TighteningDataReceived) msg;
         log.debug("Tightening data: device={}, tighteningId={}",
@@ -1608,7 +1608,7 @@ public class LifecycleEngine {
         advancePipeline();
     }
 
-    void handleFaulted(InboundMessage msg, MissionContext ctx, LifecycleEngine engine) {
+    void handleFaulted(InboundMessage msg, TaskContext ctx, LifecycleEngine engine) {
         var fault = (EngineInternal.Faulted) msg;
         log.error("Engine faulted: {}", fault.reason());
         if (ctx != null) {
@@ -1619,8 +1619,8 @@ public class LifecycleEngine {
         shutdown();
     }
 
-    void handleInterrupt(InboundMessage msg, MissionContext ctx, LifecycleEngine engine) {
-        var cmd = (InboundCommand.InterruptMission) msg;
+    void handleInterrupt(InboundMessage msg, TaskContext ctx, LifecycleEngine engine) {
+        var cmd = (InboundCommand.InterruptTask) msg;
         log.warn("Engine interrupted: {}", cmd.reason());
         if (ctx != null) {
             ctx.setInterruptRequested(true);
@@ -1697,8 +1697,8 @@ public class LifecycleEngine {
         // 终点检测：不变则终止
         if (next.nextStage() == stage && next.nextSubState() == subState) {
             log.info("Pipeline reached terminal state: {}/{}", stage, subState);
-            if (onCompleted != null && context.getMissionRecord() != null) {
-                onCompleted.accept(context.getMissionRecord().getId());
+            if (onCompleted != null && context.getTaskRecord() != null) {
+                onCompleted.accept(context.getTaskRecord().getId());
             }
             shutdown();
             return;
@@ -1721,9 +1721,9 @@ public class LifecycleEngine {
         log.error("Stage failure at: {}", failedCap.id());
         context.setCurrentStage(Stage.FINALIZATION);
         context.setCurrentSubState(SubState.FAULTED);
-        if (context.getMissionRecord() != null && context.getMissionRecord().getId() != null) {
-            missionRecordService.markFaulted(
-                context.getMissionRecord().getId(),
+        if (context.getTaskRecord() != null && context.getTaskRecord().getId() != null) {
+            taskRecordService.markFaulted(
+                context.getTaskRecord().getId(),
                 "Capability failed: " + failedCap.id());
         }
         saveCheckpoint("StageFailure:" + failedCap.id());
@@ -1736,10 +1736,10 @@ public class LifecycleEngine {
     private void handleActorCrash(Exception e, InboundMessage msg) {
         log.error("Actor thread crashed, message={}", msg, e);
         if (context == null) return;
-        if (context.getMissionRecord() != null && context.getMissionRecord().getId() != null) {
+        if (context.getTaskRecord() != null && context.getTaskRecord().getId() != null) {
             try {
-                missionRecordService.markFaulted(
-                    context.getMissionRecord().getId(), e.getMessage());
+                taskRecordService.markFaulted(
+                    context.getTaskRecord().getId(), e.getMessage());
             } catch (Exception markEx) {
                 log.error("Failed to mark faulted", markEx);
             }
@@ -1753,10 +1753,10 @@ public class LifecycleEngine {
     }
 
     private void saveCheckpoint(String reason) {
-        if (context == null || context.getMissionRecord() == null) return;
+        if (context == null || context.getTaskRecord() == null) return;
         ContextCheckpoint cp = ContextCheckpoint.builder()
-            .missionId(context.getProductMissionId())
-            .missionRecordId(context.getMissionRecord().getId())
+            .taskId(context.getProductTaskId())
+            .taskRecordId(context.getTaskRecord().getId())
             .stage(context.getCurrentStage())
             .subState(context.getCurrentSubState())
             .currentBoltIndex(context.getCurrentBoltIndex())
@@ -1764,14 +1764,14 @@ public class LifecycleEngine {
             .completedBolts((int) Arrays.stream(context.getBoltStates())
                 .filter(s -> s == BoltState.JUDGED_OK || s == BoltState.JUDGED_NG).count())
             .dataStored(context.getCurrentOperationData() == null
-                || context.getCurrentOperationData().getMissionRecordId() != null)
+                || context.getCurrentOperationData().getTaskRecordId() != null)
             .snapshotReason(reason)
             .timestamp(System.currentTimeMillis())
             .build();
         context.setCheckpoint(cp);
         // 持久化到 DB
         String json = JsonUtils.toJson(cp);
-        missionRecordService.updateSnapshot(context.getMissionRecord().getId(), json);
+        taskRecordService.updateSnapshot(context.getTaskRecord().getId(), json);
     }
 
     // === MonitorTick ===
@@ -1788,15 +1788,15 @@ public class LifecycleEngine {
 
     // === 生命周期控制 ===
 
-    public void start(MissionContext ctx) {
+    public void start(TaskContext ctx) {
         this.context = ctx;
         this.alive = true;
-        actorThread = new Thread(this::actorLoop, "lifecycle-engine-" + ctx.getProductMissionId());
+        actorThread = new Thread(this::actorLoop, "lifecycle-engine-" + ctx.getProductTaskId());
         actorThread.setUncaughtExceptionHandler((t, throwable) -> {
             log.error("Actor thread uncaught exception", throwable);
             // 线程即将死亡，直接执行崩溃逻辑并 shutdown，不投递到 inbox
-            if (context != null && context.getMissionRecord() != null && context.getMissionRecord().getId() != null) {
-                try { missionRecordService.markFaulted(context.getMissionRecord().getId(), throwable.getMessage()); }
+            if (context != null && context.getTaskRecord() != null && context.getTaskRecord().getId() != null) {
+                try { taskRecordService.markFaulted(context.getTaskRecord().getId(), throwable.getMessage()); }
                 catch (Exception ex) { log.error("Failed to mark faulted", ex); }
             }
             try { saveCheckpoint("Uncaught:" + throwable.getClass().getSimpleName()); }
@@ -1805,8 +1805,8 @@ public class LifecycleEngine {
             shutdown();
         });
         actorThread.start();
-        inbox.offer(new InboundCommand.ActivateMission(
-            ctx.getMissionData(), List.of(), ctx.getBoltConfigs(), List.of()));
+        inbox.offer(new InboundCommand.ActivateTask(
+            ctx.getTaskData(), List.of(), ctx.getBoltConfigs(), List.of()));
     }
 
     public void postMessage(InboundMessage msg) {
@@ -1815,12 +1815,12 @@ public class LifecycleEngine {
 
     public void interrupt(String reason) {
         if (context != null && context.getCurrentStage() == Stage.FINALIZATION) return;
-        postMessage(new InboundCommand.InterruptMission(reason));
+        postMessage(new InboundCommand.InterruptTask(reason));
     }
 
     public boolean isAlive() { return alive; }
 
-    public MissionContext getContext() { return context; }
+    public TaskContext getContext() { return context; }
 
     private void shutdown() {
         alive = false;
@@ -1853,7 +1853,7 @@ git commit -m "feat: add LifecycleEngine with Actor loop, message dispatch, and 
 - Create: `src/test/java/com/tightening/lifecycle/capability/PrepareBoltsTest.java`
 
 **Interfaces:**
-- Consumes: `Capability` (Task 4), `MissionContext`, `BoltState` (Task 1/3)
+- Consumes: `Capability` (Task 4), `TaskContext`, `BoltState` (Task 1/3)
 - Produces: `PrepareBolts` (ACTIVATION/PREPARING, pri=0)
 
 - [ ] **Step 1: 写失败测试**
@@ -1863,8 +1863,8 @@ package com.tightening.lifecycle.capability;
 
 import com.tightening.constant.BoltState;
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.entity.ProductTask;
+import com.tightening.lifecycle.TaskContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -1882,7 +1882,7 @@ class PrepareBoltsTest {
     @Test
     @DisplayName("有螺栓时初始化 BoltState[] 全部 PENDING")
     void shouldInitializeBoltStates() {
-        MissionContext ctx = ctxWithBolts(3);
+        TaskContext ctx = ctxWithBolts(3);
         CapabilityResult result = cap.execute(ctx);
 
         assertThat(result).isEqualTo(CapabilityResult.Pass);
@@ -1894,26 +1894,26 @@ class PrepareBoltsTest {
     @Test
     @DisplayName("零螺栓返回 Fail")
     void shouldFailWhenNoBolts() {
-        MissionContext ctx = ctxWithBolts(0);
+        TaskContext ctx = ctxWithBolts(0);
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Fail);
     }
 
     @Test
     @DisplayName("boltConfigs 为 null 返回 Fail")
     void shouldFailWhenBoltConfigsNull() {
-        MissionContext ctx = MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask())
             .boltConfigs(null).deviceRegistry(Map.of())
             .shouldSelfLoop(false).build();
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Fail);
     }
 
-    private static MissionContext ctxWithBolts(int count) {
+    private static TaskContext ctxWithBolts(int count) {
         List<ProductBolt> bolts = IntStream.range(0, count)
             .mapToObj(i -> new ProductBolt().setBoltSerialNum(i + 1))
             .toList();
-        return MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission())
+        return TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask())
             .boltConfigs(bolts).deviceRegistry(Map.of())
             .shouldSelfLoop(false).build();
     }
@@ -1935,7 +1935,7 @@ package com.tightening.lifecycle.capability;
 import com.tightening.constant.BoltState;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Arrays;
@@ -1949,9 +1949,9 @@ public class PrepareBolts implements Capability {
     @Override public int priority() { return 0; }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
+    public CapabilityResult execute(TaskContext ctx) {
         if (ctx.getBoltConfigs() == null || ctx.getBoltConfigs().isEmpty()) {
-            log.warn("No bolts configured for mission {}", ctx.getProductMissionId());
+            log.warn("No bolts configured for task {}", ctx.getProductTaskId());
             return CapabilityResult.Fail;
         }
         int count = ctx.getBoltConfigs().size();
@@ -1982,25 +1982,25 @@ git commit -m "feat: add PrepareBolts Capability"
 
 ---
 
-### Task 7b: CreateMissionRecord Capability
+### Task 7b: CreateTaskRecord Capability
 
 **Files:**
-- Create: `src/main/java/com/tightening/lifecycle/capability/CreateMissionRecord.java`
-- Create: `src/test/java/com/tightening/lifecycle/capability/CreateMissionRecordTest.java`
+- Create: `src/main/java/com/tightening/lifecycle/capability/CreateTaskRecord.java`
+- Create: `src/test/java/com/tightening/lifecycle/capability/CreateTaskRecordTest.java`
 
 **Interfaces:**
-- Consumes: `MissionRecordService.createRecord()` (existing)
-- Produces: `CreateMissionRecord` (ACTIVATION/ACTIVATING, pri=0)
+- Consumes: `TaskRecordService.createRecord()` (existing)
+- Produces: `CreateTaskRecord` (ACTIVATION/ACTIVATING, pri=0)
 
 - [ ] **Step 1: 写失败测试**
 
 ```java
 package com.tightening.lifecycle.capability;
 
-import com.tightening.entity.MissionRecord;
-import com.tightening.entity.ProductMission;
-import com.tightening.lifecycle.MissionContext;
-import com.tightening.service.MissionRecordService;
+import com.tightening.entity.TaskRecord;
+import com.tightening.entity.ProductTask;
+import com.tightening.lifecycle.TaskContext;
+import com.tightening.service.TaskRecordService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -2016,34 +2016,34 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("CreateMissionRecord Capability")
-class CreateMissionRecordTest {
+@DisplayName("CreateTaskRecord Capability")
+class CreateTaskRecordTest {
 
-    @Mock private MissionRecordService missionRecordService;
-    private CreateMissionRecord cap;
+    @Mock private TaskRecordService taskRecordService;
+    private CreateTaskRecord cap;
 
     @BeforeEach
     void setUp() {
-        cap = new CreateMissionRecord(missionRecordService);
+        cap = new CreateTaskRecord(taskRecordService);
     }
 
     @Test
-    @DisplayName("创建 MissionRecord 并回写 Context")
+    @DisplayName("创建 TaskRecord 并回写 Context")
     void shouldCreateRecordAndSetOnContext() {
-        MissionRecord record = new MissionRecord().setId(42L);
-        when(missionRecordService.createRecord(1L, null, 0)).thenReturn(record);
+        TaskRecord record = new TaskRecord().setId(42L);
+        when(taskRecordService.createRecord(1L, null, 0)).thenReturn(record);
 
-        MissionContext ctx = minimalContext();
+        TaskContext ctx = minimalContext();
         CapabilityResult result = cap.execute(ctx);
 
         assertThat(result).isEqualTo(CapabilityResult.Pass);
-        assertThat(ctx.getMissionRecord().getId()).isEqualTo(42L);
-        verify(missionRecordService).createRecord(1L, null, 0);
+        assertThat(ctx.getTaskRecord().getId()).isEqualTo(42L);
+        verify(taskRecordService).createRecord(1L, null, 0);
     }
 
-    private static MissionContext minimalContext() {
-        return MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission())
+    private static TaskContext minimalContext() {
+        return TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask())
             .boltConfigs(List.of()).deviceRegistry(Map.of())
             .shouldSelfLoop(false).build();
     }
@@ -2057,28 +2057,28 @@ package com.tightening.lifecycle.capability;
 
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
-import com.tightening.lifecycle.MissionContext;
-import com.tightening.service.MissionRecordService;
+import com.tightening.lifecycle.TaskContext;
+import com.tightening.service.TaskRecordService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RequiredArgsConstructor
-public class CreateMissionRecord implements Capability {
+public class CreateTaskRecord implements Capability {
 
-    private final MissionRecordService missionRecordService;
+    private final TaskRecordService taskRecordService;
 
-    @Override public String id() { return "CreateMissionRecord"; }
+    @Override public String id() { return "CreateTaskRecord"; }
     @Override public Stage stage() { return Stage.ACTIVATION; }
     @Override public SubState subState() { return SubState.ACTIVATING; }
     @Override public int priority() { return 0; }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
-        var record = missionRecordService.createRecord(
-            ctx.getProductMissionId(), null, 0);
-        ctx.setMissionRecord(record);
-        log.info("MissionRecord created: id={}", record.getId());
+    public CapabilityResult execute(TaskContext ctx) {
+        var record = taskRecordService.createRecord(
+            ctx.getProductTaskId(), null, 0);
+        ctx.setTaskRecord(record);
+        log.info("TaskRecord created: id={}", record.getId());
         return CapabilityResult.Pass;
     }
 }
@@ -2087,8 +2087,8 @@ public class CreateMissionRecord implements Capability {
 - [ ] **Step 4: 运行测试确认通过** → **Step 5: 提交**
 
 ```bash
-git add src/main/java/com/tightening/lifecycle/capability/CreateMissionRecord.java src/test/java/com/tightening/lifecycle/capability/CreateMissionRecordTest.java
-git commit -m "feat: add CreateMissionRecord Capability"
+git add src/main/java/com/tightening/lifecycle/capability/CreateTaskRecord.java src/test/java/com/tightening/lifecycle/capability/CreateTaskRecordTest.java
+git commit -m "feat: add CreateTaskRecord Capability"
 ```
 
 ---
@@ -2110,8 +2110,8 @@ package com.tightening.lifecycle.capability;
 
 import com.tightening.device.contract.ITool;
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.entity.ProductTask;
+import com.tightening.lifecycle.TaskContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -2140,8 +2140,8 @@ class SendPSetTest {
     @Test
     @DisplayName("precondition 不满足时返回 false（bolt 为 null）")
     void preconditionShouldReturnFalseWhenBoltNull() {
-        MissionContext ctx = MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask())
             .boltConfigs(List.of()).deviceRegistry(Map.of())
             .shouldSelfLoop(false).build();
         assertThat(cap.precondition(ctx)).isFalse();
@@ -2151,8 +2151,8 @@ class SendPSetTest {
     @DisplayName("precondition 不满足时返回 false（parameterSetId 为 null）")
     void preconditionShouldReturnFalseWhenNoPSet() {
         ProductBolt bolt = new ProductBolt().setBoltSerialNum(1);
-        MissionContext ctx = MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask())
             .boltConfigs(List.of(bolt)).deviceRegistry(Map.of())
             .shouldSelfLoop(false).build();
         assertThat(cap.precondition(ctx)).isFalse();
@@ -2165,8 +2165,8 @@ class SendPSetTest {
 ```java
 package com.tightening.lifecycle.capability;
 
-import com.tightening.entity.ProductMission;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.entity.ProductTask;
+import com.tightening.lifecycle.TaskContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -2210,7 +2210,7 @@ import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.device.contract.ITool;
 import com.tightening.entity.ProductBolt;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -2222,13 +2222,13 @@ public class SendPSet implements Capability {
     @Override public int priority() { return 2; }
 
     @Override
-    public boolean precondition(MissionContext ctx) {
+    public boolean precondition(TaskContext ctx) {
         ProductBolt bolt = ctx.currentBolt();
         return bolt != null && bolt.getParameterSetId() != null;
     }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
+    public CapabilityResult execute(TaskContext ctx) {
         ProductBolt bolt = ctx.currentBolt();
         ITool tool = resolveTool(ctx);
         if (tool == null) {
@@ -2245,7 +2245,7 @@ public class SendPSet implements Capability {
         return CapabilityResult.Pass;
     }
 
-    private ITool resolveTool(MissionContext ctx) {
+    private ITool resolveTool(TaskContext ctx) {
         return ctx.getDeviceRegistry().values().stream()
             .findFirst().orElse(null);
     }
@@ -2260,7 +2260,7 @@ package com.tightening.lifecycle.capability;
 
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 
 public class SendArrangerSignal implements Capability {
     @Override public String id() { return "SendArrangerSignal"; }
@@ -2269,10 +2269,10 @@ public class SendArrangerSignal implements Capability {
     @Override public int priority() { return 0; }
 
     @Override
-    public boolean precondition(MissionContext ctx) { return false; }
+    public boolean precondition(TaskContext ctx) { return false; }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) { return CapabilityResult.Skip; }
+    public CapabilityResult execute(TaskContext ctx) { return CapabilityResult.Skip; }
 }
 ```
 
@@ -2282,7 +2282,7 @@ package com.tightening.lifecycle.capability;
 
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 
 public class SendSetterSelector implements Capability {
     @Override public String id() { return "SendSetterSelector"; }
@@ -2291,10 +2291,10 @@ public class SendSetterSelector implements Capability {
     @Override public int priority() { return 1; }
 
     @Override
-    public boolean precondition(MissionContext ctx) { return false; }
+    public boolean precondition(TaskContext ctx) { return false; }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) { return CapabilityResult.Skip; }
+    public CapabilityResult execute(TaskContext ctx) { return CapabilityResult.Skip; }
 }
 ```
 
@@ -2304,7 +2304,7 @@ package com.tightening.lifecycle.capability;
 
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 
 public class BoltBarCodeCheck implements Capability {
     @Override public String id() { return "BoltBarCodeCheck"; }
@@ -2313,10 +2313,10 @@ public class BoltBarCodeCheck implements Capability {
     @Override public int priority() { return 3; }
 
     @Override
-    public boolean precondition(MissionContext ctx) { return false; }
+    public boolean precondition(TaskContext ctx) { return false; }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) { return CapabilityResult.Skip; }
+    public CapabilityResult execute(TaskContext ctx) { return CapabilityResult.Skip; }
 }
 ```
 
@@ -2343,9 +2343,9 @@ git commit -m "feat: add SendPSet and SWITCH_BOLT stub Capabilities"
 package com.tightening.lifecycle.capability;
 
 import com.tightening.constant.TighteningStatus;
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.ProductTask;
 import com.tightening.entity.TighteningData;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -2362,7 +2362,7 @@ class ControllerStatusCheckTest {
     @Test
     @DisplayName("控制器 OK → Pass，写 tighteningStatus")
     void shouldPassWhenStatusOk() {
-        MissionContext ctx = ctxWithData(TighteningStatus.OK.getCode());
+        TaskContext ctx = ctxWithData(TighteningStatus.OK.getCode());
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Pass);
         assertThat(ctx.getTighteningStatus()).isEqualTo(TighteningStatus.OK.getCode());
     }
@@ -2370,7 +2370,7 @@ class ControllerStatusCheckTest {
     @Test
     @DisplayName("控制器 NG → 仍然 Pass（不阻断，留给综合判定）")
     void shouldPassEvenWhenStatusNg() {
-        MissionContext ctx = ctxWithData(TighteningStatus.NG.getCode());
+        TaskContext ctx = ctxWithData(TighteningStatus.NG.getCode());
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Pass);
         assertThat(ctx.getTighteningStatus()).isEqualTo(TighteningStatus.NG.getCode());
     }
@@ -2378,21 +2378,21 @@ class ControllerStatusCheckTest {
     @Test
     @DisplayName("无 currentOperationData → Fail")
     void shouldFailWhenNoData() {
-        MissionContext ctx = minimalContext();
+        TaskContext ctx = minimalContext();
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Fail);
     }
 
-    private static MissionContext ctxWithData(int status) {
+    private static TaskContext ctxWithData(int status) {
         var data = new TighteningData().setTighteningStatus(status);
-        return MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission())
+        return TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask())
             .boltConfigs(List.of()).deviceRegistry(Map.of())
             .shouldSelfLoop(false).currentOperationData(data).build();
     }
 
-    private static MissionContext minimalContext() {
-        return MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission())
+    private static TaskContext minimalContext() {
+        return TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask())
             .boltConfigs(List.of()).deviceRegistry(Map.of())
             .shouldSelfLoop(false).build();
     }
@@ -2406,11 +2406,11 @@ package com.tightening.lifecycle.capability;
 
 import com.tightening.constant.DeviceType;
 import com.tightening.dto.TighteningDataDTO;
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.ProductTask;
 import com.tightening.entity.TighteningData;
 import com.tightening.judgment.JudgmentResult;
 import com.tightening.judgment.JudgmentStrategy;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -2438,8 +2438,8 @@ class ExecuteJudgmentTest {
 
         var cap = new ExecuteJudgment(Map.of(DeviceType.ATLAS_PF4000, judgmentStrategy));
         var data = new TighteningData().setTighteningId(100L);
-        var ctx = MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission())
+        var ctx = TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask())
             .boltConfigs(List.of()).deviceRegistry(Map.of())
             .shouldSelfLoop(false).currentOperationData(data).build();
         ctx.setCurrentDeviceType(DeviceType.ATLAS_PF4000);
@@ -2452,8 +2452,8 @@ class ExecuteJudgmentTest {
     @DisplayName("无 currentOperationData → precondition 返回 false")
     void shouldSkipWhenNoData() {
         var cap = new ExecuteJudgment(Map.of());
-        var ctx = MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission())
+        var ctx = TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask())
             .boltConfigs(List.of()).deviceRegistry(Map.of())
             .shouldSelfLoop(false).build();
 
@@ -2469,7 +2469,7 @@ package com.tightening.lifecycle.capability;
 
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -2481,7 +2481,7 @@ public class ControllerStatusCheck implements Capability {
     @Override public int priority() { return 0; }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
+    public CapabilityResult execute(TaskContext ctx) {
         var data = ctx.getCurrentOperationData();
         if (data == null) {
             log.warn("No current operation data");
@@ -2505,7 +2505,7 @@ import com.tightening.constant.SubState;
 import com.tightening.dto.TighteningDataDTO;
 import com.tightening.entity.TighteningData;
 import com.tightening.judgment.JudgmentStrategy;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import com.tightening.util.Converter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -2524,12 +2524,12 @@ public class ExecuteJudgment implements Capability {
     @Override public int priority() { return 1; }
 
     @Override
-    public boolean precondition(MissionContext ctx) {
+    public boolean precondition(TaskContext ctx) {
         return ctx.getCurrentOperationData() != null;
     }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
+    public CapabilityResult execute(TaskContext ctx) {
         TighteningData data = ctx.getCurrentOperationData();
         TighteningDataDTO dto = Converter.entity2Dto(data, TighteningDataDTO::new);
 
@@ -2567,10 +2567,10 @@ git commit -m "feat: add JUDGING Capabilities — ControllerStatusCheck and Exec
 ```java
 package com.tightening.lifecycle.capability;
 
-import com.tightening.entity.MissionRecord;
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.TaskRecord;
+import com.tightening.entity.ProductTask;
 import com.tightening.entity.TighteningData;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import com.tightening.service.TighteningDataService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -2598,14 +2598,14 @@ class StoreDataTest {
     }
 
     @Test
-    @DisplayName("存储数据并关联 MissionRecord")
-    void shouldStoreDataWithMissionRecordId() {
+    @DisplayName("存储数据并关联 TaskRecord")
+    void shouldStoreDataWithTaskRecordId() {
         var data = new TighteningData().setTighteningId(100L);
-        var record = new MissionRecord().setId(42L);
-        MissionContext ctx = ctxWith(data, record);
+        var record = new TaskRecord().setId(42L);
+        TaskContext ctx = ctxWith(data, record);
 
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Pass);
-        assertThat(data.getMissionRecordId()).isEqualTo(42L);
+        assertThat(data.getTaskRecordId()).isEqualTo(42L);
         verify(tighteningDataService).save(data);
         assertThat(ctx.getTighteningDataList()).contains(data);
         assertThat(ctx.getPreviousOperationData()).isSameAs(data);
@@ -2615,16 +2615,16 @@ class StoreDataTest {
     @Test
     @DisplayName("无 data 时 precondition 返回 false")
     void shouldSkipWhenNoData() {
-        MissionContext ctx = ctxWith(null, new MissionRecord().setId(1L));
+        TaskContext ctx = ctxWith(null, new TaskRecord().setId(1L));
         assertThat(cap.precondition(ctx)).isFalse();
     }
 
-    private static MissionContext ctxWith(TighteningData data, MissionRecord record) {
-        return MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission())
+    private static TaskContext ctxWith(TighteningData data, TaskRecord record) {
+        return TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask())
             .boltConfigs(List.of()).deviceRegistry(Map.of())
             .shouldSelfLoop(false).currentOperationData(data)
-            .missionRecord(record).build();
+            .taskRecord(record).build();
     }
 }
 ```
@@ -2637,7 +2637,7 @@ package com.tightening.lifecycle.capability;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.entity.TighteningData;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import com.tightening.service.TighteningDataService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -2654,21 +2654,21 @@ public class StoreData implements Capability {
     @Override public int priority() { return 0; }
 
     @Override
-    public boolean precondition(MissionContext ctx) {
+    public boolean precondition(TaskContext ctx) {
         return ctx.getCurrentOperationData() != null;
     }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
+    public CapabilityResult execute(TaskContext ctx) {
         TighteningData data = ctx.getCurrentOperationData();
-        if (ctx.getMissionRecord() != null) {
-            data.setMissionRecordId(ctx.getMissionRecord().getId());
+        if (ctx.getTaskRecord() != null) {
+            data.setTaskRecordId(ctx.getTaskRecord().getId());
         }
         tighteningDataService.save(data);
         ctx.getTighteningDataList().add(data);
         ctx.setPreviousOperationData(data);
         ctx.setCurrentOperationData(null);
-        log.info("StoreData: id={}, missionRecordId={}", data.getId(), data.getMissionRecordId());
+        log.info("StoreData: id={}, taskRecordId={}", data.getId(), data.getTaskRecordId());
         return CapabilityResult.Pass;
     }
 }
@@ -2697,12 +2697,12 @@ package com.tightening.lifecycle.capability;
 import com.tightening.constant.BoltState;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
-import com.tightening.entity.MissionRecord;
+import com.tightening.entity.TaskRecord;
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.ProductTask;
 import com.tightening.judgment.JudgmentResult;
-import com.tightening.lifecycle.MissionContext;
-import com.tightening.service.MissionRecordService;
+import com.tightening.lifecycle.TaskContext;
+import com.tightening.service.TaskRecordService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -2721,18 +2721,18 @@ import static org.mockito.Mockito.verify;
 @DisplayName("AdvanceBolt Capability")
 class AdvanceBoltTest {
 
-    @Mock private MissionRecordService missionRecordService;
+    @Mock private TaskRecordService taskRecordService;
     private AdvanceBolt cap;
 
     @BeforeEach
     void setUp() {
-        cap = new AdvanceBolt(missionRecordService);
+        cap = new AdvanceBolt(taskRecordService);
     }
 
     @Test
     @DisplayName("OK 判定后标记为 JUDGED_OK 并推进索引")
     void shouldMarkBoltJudgedOk() {
-        MissionContext ctx = ctxWithBolts(2);
+        TaskContext ctx = ctxWithBolts(2);
         ctx.setCurrentBoltIndex(0);
         ctx.setJudgeResult(new JudgmentResult(true, "OK"));
 
@@ -2745,7 +2745,7 @@ class AdvanceBoltTest {
     @Test
     @DisplayName("NG 判定后标记为 JUDGED_NG 并推进")
     void shouldMarkBoltJudgedNg() {
-        MissionContext ctx = ctxWithBolts(2);
+        TaskContext ctx = ctxWithBolts(2);
         ctx.setCurrentBoltIndex(0);
         ctx.setJudgeResult(new JudgmentResult(false, "NG"));
 
@@ -2758,7 +2758,7 @@ class AdvanceBoltTest {
     @Test
     @DisplayName("全部螺栓完成 → 进入 FINALIZATION")
     void shouldEnterFinalizationWhenAllDone() {
-        MissionContext ctx = ctxWithBolts(1);
+        TaskContext ctx = ctxWithBolts(1);
         ctx.setCurrentBoltIndex(0);
 
         cap.execute(ctx);
@@ -2769,24 +2769,24 @@ class AdvanceBoltTest {
 
     @Test
     @DisplayName("最后一个螺栓 OK 时调用 markAsOk")
-    void shouldMarkMissionOkWhenAllJudgedOk() {
-        MissionContext ctx = ctxWithBolts(1);
+    void shouldMarkTaskOkWhenAllJudgedOk() {
+        TaskContext ctx = ctxWithBolts(1);
         ctx.setCurrentBoltIndex(0);
         ctx.setBoltStates(new BoltState[]{BoltState.JUDGED_OK});
         ctx.setJudgeResult(new JudgmentResult(true, "OK"));
-        ctx.setMissionRecord(new MissionRecord().setId(42L));
+        ctx.setTaskRecord(new TaskRecord().setId(42L));
 
         cap.execute(ctx);
 
-        verify(missionRecordService).markAsOk(42L);
+        verify(taskRecordService).markAsOk(42L);
     }
 
-    private static MissionContext ctxWithBolts(int count) {
+    private static TaskContext ctxWithBolts(int count) {
         List<ProductBolt> bolts = IntStream.range(0, count)
             .mapToObj(i -> new ProductBolt().setBoltSerialNum(i + 1))
             .toList();
-        return MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission())
+        return TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask())
             .boltConfigs(bolts).deviceRegistry(Map.of())
             .shouldSelfLoop(false)
             .boltStates(new BoltState[count])
@@ -2804,8 +2804,8 @@ import com.tightening.constant.BoltState;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.judgment.JudgmentResult;
-import com.tightening.lifecycle.MissionContext;
-import com.tightening.service.MissionRecordService;
+import com.tightening.lifecycle.TaskContext;
+import com.tightening.service.TaskRecordService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -2815,7 +2815,7 @@ import java.util.Arrays;
 @RequiredArgsConstructor
 public class AdvanceBolt implements Capability {
 
-    private final MissionRecordService missionRecordService;
+    private final TaskRecordService taskRecordService;
 
     @Override public String id() { return "AdvanceBolt"; }
     @Override public Stage stage() { return Stage.OPERATION; }
@@ -2823,7 +2823,7 @@ public class AdvanceBolt implements Capability {
     @Override public int priority() { return 0; }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
+    public CapabilityResult execute(TaskContext ctx) {
         JudgmentResult jr = ctx.getJudgeResult();
         if (jr != null) {
             BoltState state = jr.isOk() ? BoltState.JUDGED_OK : BoltState.JUDGED_NG;
@@ -2834,9 +2834,9 @@ public class AdvanceBolt implements Capability {
             log.info("Bolt {} result: {}", idx + 1, state);
 
             boolean allOk = Arrays.stream(ctx.getBoltStates()).allMatch(s -> s == BoltState.JUDGED_OK);
-            if (allOk && ctx.getMissionRecord() != null) {
-                missionRecordService.markAsOk(ctx.getMissionRecord().getId());
-                log.info("MissionRecord {} marked OK", ctx.getMissionRecord().getId());
+            if (allOk && ctx.getTaskRecord() != null) {
+                taskRecordService.markAsOk(ctx.getTaskRecord().getId());
+                log.info("TaskRecord {} marked OK", ctx.getTaskRecord().getId());
             }
         }
 
@@ -2848,7 +2848,7 @@ public class AdvanceBolt implements Capability {
             return CapabilityResult.Pass;
         }
 
-        log.info("All bolts completed for mission {}", ctx.getProductMissionId());
+        log.info("All bolts completed for task {}", ctx.getProductTaskId());
         ctx.setCurrentStage(Stage.FINALIZATION);
         ctx.setCurrentSubState(SubState.CLEANING_TASKS);
         return CapabilityResult.Pass;
@@ -2878,9 +2878,9 @@ package com.tightening.lifecycle;
 
 import com.tightening.constant.DeviceType;
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.ProductTask;
 import com.tightening.judgment.JudgmentStrategy;
-import com.tightening.service.MissionRecordService;
+import com.tightening.service.TaskRecordService;
 import com.tightening.service.TighteningDataService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -2898,7 +2898,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("LifecycleEngineFactory")
 class LifecycleEngineFactoryTest {
 
-    @Mock private MissionRecordService missionRecordService;
+    @Mock private TaskRecordService taskRecordService;
     @Mock private TighteningDataService tighteningDataService;
     @Mock private JudgmentStrategy judgmentStrategy;
 
@@ -2907,18 +2907,18 @@ class LifecycleEngineFactoryTest {
     @BeforeEach
     void setUp() {
         factory = new LifecycleEngineFactory(
-            missionRecordService, tighteningDataService,
+            taskRecordService, tighteningDataService,
             Map.of(DeviceType.ATLAS_PF4000, judgmentStrategy));
     }
 
     @Test
     @DisplayName("createEngine 返回已组装的引擎")
     void shouldCreateEngineWithContext() {
-        var mission = new ProductMission().setId(1L);
-        var engine = factory.createEngine(mission, List.of(), Map.of(), false);
+        var task = new ProductTask().setId(1L);
+        var engine = factory.createEngine(task, List.of(), Map.of(), false);
 
         assertThat(engine).isNotNull();
-        assertThat(engine.getContext().getProductMissionId()).isEqualTo(1L);
+        assertThat(engine.getContext().getProductTaskId()).isEqualTo(1L);
         assertThat(engine.isAlive()).isFalse();
     }
 }
@@ -2932,13 +2932,13 @@ package com.tightening.lifecycle;
 import com.tightening.constant.DeviceType;
 import com.tightening.device.contract.ITool;
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.ProductTask;
 import com.tightening.judgment.JudgmentStrategy;
 import com.tightening.lifecycle.capability.*;
 import com.tightening.lifecycle.monitor.DeviceConnectionMonitor;
 import com.tightening.lifecycle.monitor.LockStateMonitor;
 import com.tightening.lifecycle.monitor.PersistentMonitor;
-import com.tightening.service.MissionRecordService;
+import com.tightening.service.TaskRecordService;
 import com.tightening.service.TighteningDataService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -2950,19 +2950,19 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class LifecycleEngineFactory {
 
-    private final MissionRecordService missionRecordService;
+    private final TaskRecordService taskRecordService;
     private final TighteningDataService tighteningDataService;
     private final Map<DeviceType, JudgmentStrategy> judgmentStrategies;
 
     public LifecycleEngine createEngine(
-            ProductMission mission,
+            ProductTask task,
             List<ProductBolt> bolts,
             Map<Long, ITool> deviceMap,
             boolean shouldSelfLoop) {
 
-        MissionContext ctx = MissionContext.builder()
-            .productMissionId(mission.getId())
-            .missionData(mission)
+        TaskContext ctx = TaskContext.builder()
+            .productTaskId(task.getId())
+            .taskData(task)
             .boltConfigs(bolts)
             .deviceRegistry(deviceMap)
             .shouldSelfLoop(shouldSelfLoop)
@@ -2972,14 +2972,14 @@ public class LifecycleEngineFactory {
 
         List<Capability> capabilities = List.of(
             new PrepareBolts(),
-            new CreateMissionRecord(missionRecordService),
+            new CreateTaskRecord(taskRecordService),
             new SendArrangerSignal(),
             new SendSetterSelector(),
             new SendPSet(),
             new ControllerStatusCheck(),
             new ExecuteJudgment(judgmentStrategies),
             new StoreData(tighteningDataService),
-            new AdvanceBolt(missionRecordService)
+            new AdvanceBolt(taskRecordService)
         );
 
         List<PersistentMonitor> monitors = List.of(
@@ -2987,7 +2987,7 @@ public class LifecycleEngineFactory {
             new DeviceConnectionMonitor()
         );
 
-        LifecycleEngine engine = new LifecycleEngine(pipeline, missionRecordService, capabilities, monitors);
+        LifecycleEngine engine = new LifecycleEngine(pipeline, taskRecordService, capabilities, monitors);
 
         engine.onFaulted(reason -> { /* 后续接事件发布 */ });
         engine.onCompleted(recordId -> { /* 后续接完成通知 */ });
@@ -3019,9 +3019,9 @@ git commit -m "feat: add LifecycleEngineFactory"
 ```java
 package com.tightening.lifecycle.monitor;
 
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.ProductTask;
 import com.tightening.lifecycle.LockMessage;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -3063,9 +3063,9 @@ class LockStateMonitorTest {
         assertThat(new DeviceConnectionMonitor().intervalMs()).isPositive();
     }
 
-    private static MissionContext minimalContext() {
-        return MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission())
+    private static TaskContext minimalContext() {
+        return TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask())
             .boltConfigs(List.of()).deviceRegistry(Map.of())
             .shouldSelfLoop(false).build();
     }
@@ -3077,11 +3077,11 @@ class LockStateMonitorTest {
 ```java
 package com.tightening.lifecycle.monitor;
 
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 
 public interface PersistentMonitor {
     long intervalMs();
-    void execute(MissionContext ctx);
+    void execute(TaskContext ctx);
 }
 ```
 
@@ -3091,7 +3091,7 @@ public interface PersistentMonitor {
 package com.tightening.lifecycle.monitor;
 
 import com.tightening.lifecycle.LockMessage;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -3103,7 +3103,7 @@ public class LockStateMonitor implements PersistentMonitor {
     }
 
     @Override
-    public void execute(MissionContext ctx) {
+    public void execute(TaskContext ctx) {
         for (LockMessage lm : ctx.getLockMessages()) {
             if (lm.isManual()) {
                 log.debug("LockStateMonitor: {} — {}", lm.source(), lm.reason());
@@ -3119,7 +3119,7 @@ public class LockStateMonitor implements PersistentMonitor {
 package com.tightening.lifecycle.monitor;
 
 import com.tightening.device.contract.ITool;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -3131,7 +3131,7 @@ public class DeviceConnectionMonitor implements PersistentMonitor {
     }
 
     @Override
-    public void execute(MissionContext ctx) {
+    public void execute(TaskContext ctx) {
         for (ITool tool : ctx.getDeviceRegistry().values()) {
             if (!tool.isConnected()) {
                 log.warn("Device {} disconnected", tool.id());
@@ -3150,30 +3150,30 @@ git commit -m "feat: add PersistentMonitor, LockStateMonitor, and DeviceConnecti
 
 ---
 
-### Task 10: MissionRecordService 补充方法 + 数据 Fork 接线
+### Task 10: TaskRecordService 补充方法 + 数据 Fork 接线
 
 **Files:**
-- Modify: `src/main/java/com/tightening/service/MissionRecordService.java`
+- Modify: `src/main/java/com/tightening/service/TaskRecordService.java`
 - Create: 无新文件（接线代码在 Task 8 的 `LifecycleEngineFactory` 回调中体现）
-- Create: `src/test/java/com/tightening/service/MissionRecordServiceTest.java`（如不存在）
+- Create: `src/test/java/com/tightening/service/TaskRecordServiceTest.java`（如不存在）
 
-- [ ] **Step 1: 先读取现有 MissionRecordService.java 确认目标位置**
+- [ ] **Step 1: 先读取现有 TaskRecordService.java 确认目标位置**
 
-- [ ] **Step 2: 修改 MissionRecordService.java — 新增 markFaulted 和 updateSnapshot**
+- [ ] **Step 2: 修改 TaskRecordService.java — 新增 markFaulted 和 updateSnapshot**
 
 在现有 `markAsOk` 方法后追加：
 
 ```java
 public void markFaulted(Long recordId, String message) {
-    lambdaUpdate().eq(MissionRecord::getId, recordId)
-            .set(MissionRecord::getMissionResult, MissionResult.NG.getCode())
-            .set(MissionRecord::getFaultMessage, message)
+    lambdaUpdate().eq(TaskRecord::getId, recordId)
+            .set(TaskRecord::getTaskResult, TaskResult.NG.getCode())
+            .set(TaskRecord::getFaultMessage, message)
             .update();
 }
 
 public void updateSnapshot(Long recordId, String snapshotJson) {
-    lambdaUpdate().eq(MissionRecord::getId, recordId)
-            .set(MissionRecord::getContextSnapshot, snapshotJson)
+    lambdaUpdate().eq(TaskRecord::getId, recordId)
+            .set(TaskRecord::getContextSnapshot, snapshotJson)
             .update();
 }
 ```
@@ -3194,8 +3194,8 @@ mvn test -DfailIfNoTests=false
 - [ ] **Step 5: 提交**
 
 ```bash
-git add src/main/java/com/tightening/service/MissionRecordService.java
-git commit -m "feat: add markFaulted and updateSnapshot to MissionRecordService"
+git add src/main/java/com/tightening/service/TaskRecordService.java
+git commit -m "feat: add markFaulted and updateSnapshot to TaskRecordService"
 ```
 
 ---

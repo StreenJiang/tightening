@@ -29,19 +29,19 @@
 | `dto/SseEvent.java` | SSE 事件 record |
 | `dto/WorkplaceStatusPayload.java` | WorkplaceStatus SSE payload |
 | `service/SseService.java` | SSE 推送服务，单 SseEmitter，登录生命周期 |
-| `service/WorkplaceStatusService.java` | 工作台状态服务，独立于 MissionOrchestrator |
+| `service/WorkplaceStatusService.java` | 工作台状态服务，独立于 TaskOrchestrator |
 
 **修改:**
 | 文件 | 改动 |
 |------|------|
 | `device/contract/ITool.java` | 新增 `isUnlocked()` |
 | `device/contract/ToolAdapter.java` | 实现 `isUnlocked()` |
-| `lifecycle/MissionContext.java` | lockMessages → lockReasons，+boltUnlockOverride |
+| `lifecycle/TaskContext.java` | lockMessages → lockReasons，+boltUnlockOverride |
 | `lifecycle/monitor/LockStateMonitor.java` | 完整重写（lockReasons 驱动 + boltUnlockOverride 检查） |
 | `lifecycle/monitor/DeviceConnectionMonitor.java` | 重写（不再实现 PersistentMonitor，系统级） |
 | `lifecycle/LifecycleEngineFactory.java` | 移除 DeviceConnectionMonitor 注册 |
 | `lifecycle/LifecycleEngine.java` | 注入 WorkplaceStatusService，触发点调用 |
-| `lifecycle/MissionOrchestrator.java` | 传递 WorkplaceStatusService 到引擎 |
+| `lifecycle/TaskOrchestrator.java` | 传递 WorkplaceStatusService 到引擎 |
 | `device/DeviceManager.java` | 启动/停止 DeviceConnectionMonitor + SseService |
 | `lifecycle/capability/SendPSet.java` | 改用 lockReasons |
 | `lifecycle/capability/AdvanceBolt.java` | SWITCH_BOLT 时重置 boltUnlockOverride |
@@ -758,27 +758,27 @@ Expected: PASS
 ```bash
 git add src/main/java/com/tightening/service/WorkplaceStatusService.java \
         src/test/java/com/tightening/service/WorkplaceStatusServiceTest.java
-git commit -m "feat: add WorkplaceStatusService with SSE emission"
+git commit -m "feat: add WorkplaceStatusService with SSE etask"
 ```
 
 ---
 
-### Task 7: MissionContext 变更
+### Task 7: TaskContext 变更
 
 **Files:**
-- Modify: `src/main/java/com/tightening/lifecycle/MissionContext.java`
+- Modify: `src/main/java/com/tightening/lifecycle/TaskContext.java`
 - Delete: `src/main/java/com/tightening/lifecycle/LockMessage.java`
 - Modify: `src/test/java/com/tightening/lifecycle/capability/StoreDataTest.java` — 如有引用旧 lockMessages
-- Modify: `src/test/java/com/tightening/lifecycle/MissionContextTest.java` — 如有
+- Modify: `src/test/java/com/tightening/lifecycle/TaskContextTest.java` — 如有
 
 **Interfaces:**
 - Consumes: `LockReason` (Task 1)
-- Produces: `MissionContext.getLockReasons() -> Set<LockReason>`, `isBoltUnlockOverride() -> boolean`, `setBoltUnlockOverride(boolean)`
+- Produces: `TaskContext.getLockReasons() -> Set<LockReason>`, `isBoltUnlockOverride() -> boolean`, `setBoltUnlockOverride(boolean)`
 
 - [ ] **Step 1: 写测试**
 
 ```java
-// src/test/java/com/tightening/lifecycle/MissionContextLockReasonsTest.java
+// src/test/java/com/tightening/lifecycle/TaskContextLockReasonsTest.java
 package com.tightening.lifecycle;
 
 import com.tightening.constant.LockReason;
@@ -787,13 +787,13 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class MissionContextLockReasonsTest {
+class TaskContextLockReasonsTest {
 
     @Test
     @DisplayName("lockReasons 初始应为空集合")
     void shouldStartWithEmptyLockReasons() {
-        var ctx = MissionContext.builder()
-            .productMissionId(1L)
+        var ctx = TaskContext.builder()
+            .productTaskId(1L)
             .shouldSelfLoop(false)
             .boltConfigs(java.util.List.of())
             .deviceRegistry(java.util.Map.of())
@@ -805,8 +805,8 @@ class MissionContextLockReasonsTest {
     @Test
     @DisplayName("boltUnlockOverride 初始应为 false")
     void shouldStartWithBoltUnlockOverrideFalse() {
-        var ctx = MissionContext.builder()
-            .productMissionId(1L)
+        var ctx = TaskContext.builder()
+            .productTaskId(1L)
             .shouldSelfLoop(false)
             .boltConfigs(java.util.List.of())
             .deviceRegistry(java.util.Map.of())
@@ -818,8 +818,8 @@ class MissionContextLockReasonsTest {
     @Test
     @DisplayName("lockReasons 应可增删")
     void shouldAddAndRemoveLockReasons() {
-        var ctx = MissionContext.builder()
-            .productMissionId(1L)
+        var ctx = TaskContext.builder()
+            .productTaskId(1L)
             .shouldSelfLoop(false)
             .boltConfigs(java.util.List.of())
             .deviceRegistry(java.util.Map.of())
@@ -836,8 +836,8 @@ class MissionContextLockReasonsTest {
     @Test
     @DisplayName("boltUnlockOverride 应可设置")
     void shouldSetBoltUnlockOverride() {
-        var ctx = MissionContext.builder()
-            .productMissionId(1L)
+        var ctx = TaskContext.builder()
+            .productTaskId(1L)
             .shouldSelfLoop(false)
             .boltConfigs(java.util.List.of())
             .deviceRegistry(java.util.Map.of())
@@ -855,13 +855,13 @@ class MissionContextLockReasonsTest {
 - [ ] **Step 2: 运行测试验证失败**
 
 ```bash
-mvn test -pl . -Dtest="MissionContextLockReasonsTest" -DfailIfNoTests=false
+mvn test -pl . -Dtest="TaskContextLockReasonsTest" -DfailIfNoTests=false
 ```
 Expected: FAIL（lockReasons 字段仍是 Set<LockMessage>）
 
-- [ ] **Step 3: 修改 MissionContext**
+- [ ] **Step 3: 修改 TaskContext**
 
-在 `MissionContext.java` 中：
+在 `TaskContext.java` 中：
 
 删除或替换第 3 行 import：
 ```java
@@ -903,7 +903,7 @@ grep -rn "LockMessage\|getLockMessages" src/main/java/ src/test/java/
 - [ ] **Step 5: 运行测试验证通过**
 
 ```bash
-mvn test -pl . -Dtest="MissionContextLockReasonsTest" -DfailIfNoTests=false
+mvn test -pl . -Dtest="TaskContextLockReasonsTest" -DfailIfNoTests=false
 mvn compile -q  # 确认无编译错误
 ```
 Expected: PASS + 编译无错误
@@ -911,10 +911,10 @@ Expected: PASS + 编译无错误
 - [ ] **Step 6: 提交**
 
 ```bash
-git add src/main/java/com/tightening/lifecycle/MissionContext.java \
-        src/test/java/com/tightening/lifecycle/MissionContextLockReasonsTest.java
+git add src/main/java/com/tightening/lifecycle/TaskContext.java \
+        src/test/java/com/tightening/lifecycle/TaskContextLockReasonsTest.java
 git rm src/main/java/com/tightening/lifecycle/LockMessage.java
-git commit -m "refactor: replace LockMessage with LockReason enum in MissionContext
+git commit -m "refactor: replace LockMessage with LockReason enum in TaskContext
 
 - Replace Set<LockMessage> lockMessages with Set<LockReason> lockReasons
 - Add volatile boolean boltUnlockOverride field
@@ -930,7 +930,7 @@ git commit -m "refactor: replace LockMessage with LockReason enum in MissionCont
 - Modify: `src/test/java/com/tightening/lifecycle/monitor/LockStateMonitorTest.java`（如存在）或 Create 新测试
 
 **Interfaces:**
-- Consumes: `MissionContext.getLockReasons()`, `MissionContext.isBoltUnlockOverride()`, `ITool.isUnlocked()`, `WorkplaceStatusService`
+- Consumes: `TaskContext.getLockReasons()`, `TaskContext.isBoltUnlockOverride()`, `ITool.isUnlocked()`, `WorkplaceStatusService`
 - Produces: LockStateMonitor 成为 lock/unlock 的唯一执行者
 
 - [ ] **Step 1: 写测试**
@@ -943,7 +943,7 @@ import com.tightening.constant.DeviceType;
 import com.tightening.constant.LockReason;
 import com.tightening.constant.WorkplaceStatus;
 import com.tightening.device.contract.ITool;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import com.tightening.service.WorkplaceStatusService;
 import org.junit.jupiter.api.*;
 import org.mockito.ArgumentCaptor;
@@ -1027,9 +1027,9 @@ class LockStateMonitorTest {
         verify(tool, never()).sendUnlock();
     }
 
-    private static MissionContext ctxWithTool(ITool tool) {
-        return MissionContext.builder()
-            .productMissionId(1L)
+    private static TaskContext ctxWithTool(ITool tool) {
+        return TaskContext.builder()
+            .productTaskId(1L)
             .shouldSelfLoop(false)
             .boltConfigs(java.util.List.of())
             .deviceRegistry(Map.of(1L, tool))
@@ -1053,7 +1053,7 @@ package com.tightening.lifecycle.monitor;
 
 import com.tightening.constant.WorkplaceStatus;
 import com.tightening.device.contract.ITool;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import com.tightening.service.WorkplaceStatusService;
 import lombok.extern.slf4j.Slf4j;
 
@@ -1074,7 +1074,7 @@ public class LockStateMonitor implements PersistentMonitor {
     }
 
     @Override
-    public void execute(MissionContext ctx) {
+    public void execute(TaskContext ctx) {
         if (ctx.isBoltUnlockOverride()) {
             return;
         }
@@ -1127,7 +1127,7 @@ git commit -m "feat: rewrite LockStateMonitor with lockReasons-driven logic"
 - Modify: `src/test/java/com/tightening/lifecycle/capability/SendPSetTest.java`（如存在）
 
 **Interfaces:**
-- Consumes: `LockReason.PSET_SENDING`, `MissionContext.getLockReasons()`
+- Consumes: `LockReason.PSET_SENDING`, `TaskContext.getLockReasons()`
 
 - [ ] **Step 1: 写测试**
 
@@ -1369,7 +1369,7 @@ git commit -m "refactor: upgrade DeviceConnectionMonitor to system-level, remove
 
 ---
 
-### Task 11: LifecycleEngine + MissionOrchestrator + DeviceManager 集成
+### Task 11: LifecycleEngine + TaskOrchestrator + DeviceManager 集成
 
 **Files:**
 - Modify: `src/main/java/com/tightening/lifecycle/LifecycleEngine.java`

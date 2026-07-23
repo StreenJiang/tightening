@@ -3,7 +3,7 @@ package com.tightening.lifecycle.capability;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.device.contract.ITool;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -15,7 +15,7 @@ public class LockTools implements Capability {
     @Override public int priority() { return 0; }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
+    public CapabilityResult execute(TaskContext ctx) {
         for (ITool tool : ctx.getDeviceRegistry().values()) {
             log.info("LockTools: locking deviceId={}", tool.id());
             tool.sendLock().whenComplete((ok, ex) -> {

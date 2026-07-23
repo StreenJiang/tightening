@@ -4,7 +4,7 @@ import com.tightening.constant.DeviceType;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.entity.TighteningData;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -16,13 +16,13 @@ public class ReceiveData implements Capability {
     @Override public int priority() { return 0; }
 
     @Override
-    public boolean precondition(MissionContext ctx) {
+    public boolean precondition(TaskContext ctx) {
         if (ctx.getCurrentDeviceType() == DeviceType.SUDONG_X7) return false;
         return true;
     }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
+    public CapabilityResult execute(TaskContext ctx) {
         TighteningData data = ctx.getCurrentOperationData();
         if (data == null) {
             log.warn("ReceiveData FAIL: no current operation data");

@@ -15,7 +15,7 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 @TableName("tightening_data")
 public class TighteningData extends BaseEntity {
-    private Long missionRecordId;
+    private Long taskRecordId;
     private String workstationName;
     private String toolName;
     private String toolTypeName;

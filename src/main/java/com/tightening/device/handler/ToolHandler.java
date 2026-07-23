@@ -190,7 +190,7 @@ public abstract class ToolHandler extends TCPDeviceHandler {
                 matched = cache.latest;
             }
             if (matched != null) {
-                data.setMissionRecordId(matched.getMissionRecordId());
+                data.setTaskRecordId(matched.getTaskRecordId());
                 data.setBoltSerialNum(matched.getBoltSerialNum());
                 data.setWorkstationName(matched.getWorkstationName());
                 data.setParameterSet(matched.getParameterSet());

@@ -17,7 +17,7 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 @TableName(value = "product_side", autoResultMap = true)
 public class ProductSide extends BaseEntity {
-    private Long productMissionId;
+    private Long productTaskId;
     private String name;
 
     @JsonIgnore

@@ -15,10 +15,10 @@ import java.util.List;
 @Service
 public class ExportTaskService extends ServiceImpl<ExportTaskMapper, ExportTask> {
 
-    public void createTask(String type, Long missionRecordId, String payload) {
+    public void createTask(String type, Long taskRecordId, String payload) {
         ExportTask task = new ExportTask()
                 .setType(type)
-                .setMissionRecordId(missionRecordId)
+                .setTaskRecordId(taskRecordId)
                 .setPayload(payload)
                 .setStatus(ExportTaskStatus.PENDING.getCode())
                 .setRetryCount(0)

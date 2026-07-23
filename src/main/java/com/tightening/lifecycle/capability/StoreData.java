@@ -3,7 +3,7 @@ package com.tightening.lifecycle.capability;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.entity.TighteningData;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import com.tightening.service.TighteningDataService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,20 +20,20 @@ public class StoreData implements Capability {
     @Override public int priority() { return 0; }
 
     @Override
-    public boolean precondition(MissionContext ctx) {
+    public boolean precondition(TaskContext ctx) {
         return ctx.getCurrentOperationData() != null;
     }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
+    public CapabilityResult execute(TaskContext ctx) {
         TighteningData data = ctx.getCurrentOperationData();
-        if (ctx.getMissionRecord() != null) {
-            data.setMissionRecordId(ctx.getMissionRecord().getId());
+        if (ctx.getTaskRecord() != null) {
+            data.setTaskRecordId(ctx.getTaskRecord().getId());
         }
         tighteningDataService.save(data);
         ctx.getTighteningDataList().add(data);
         ctx.setCurrentOperationData(null);
-        log.info("StoreData: id={}, missionRecordId={}", data.getId(), data.getMissionRecordId());
+        log.info("StoreData: id={}, taskRecordId={}", data.getId(), data.getTaskRecordId());
         return CapabilityResult.Pass;
     }
 }

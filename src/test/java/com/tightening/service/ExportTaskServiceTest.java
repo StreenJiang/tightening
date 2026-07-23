@@ -54,7 +54,7 @@ class ExportTaskServiceTest {
         verify(mapper).insert(captor.capture());
         ExportTask task = captor.getValue();
         assertThat(task.getType()).isEqualTo("standard_excel");
-        assertThat(task.getMissionRecordId()).isEqualTo(42L);
+        assertThat(task.getTaskRecordId()).isEqualTo(42L);
         assertThat(task.getPayload()).isEqualTo("{\"k\":\"v\"}");
         assertThat(task.getStatus()).isEqualTo(ExportTaskStatus.PENDING.getCode());
         assertThat(task.getRetryCount()).isZero();

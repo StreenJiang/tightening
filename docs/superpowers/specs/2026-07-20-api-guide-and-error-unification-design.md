@@ -16,7 +16,7 @@
 1. **`ApiResponse<T>` 响应体包装** — code 200/500，业务失败也是 HTTP 200
 2. **分页约定** — page 从 1 开始
 3. **SSE 单连接模式** — 只有一个 emitter，新连接替换旧连接
-4. **Mission 调用时序** — validate-product → validate-parts → trigger → SSE
+4. **Task 调用时序** — validate-product → validate-parts → trigger → SSE
 5. **BarcodeValidationResult 状态机** — MATCHED/WRONG_MISSION/NOT_MATCHED/PASS/FAIL
 6. **check-name 返回值语义** — true=重复（不可用），false=可用
 7. **自动填充字段** — createTime/modifyTime 自动填充，deleted 软删除自动过滤
@@ -36,8 +36,8 @@
 
 | Controller | 模式 |
 |---|---|
-| MissionLifecycleController | `ResponseEntity.badRequest()` + `ApiResponse.fail()` |
-| ProductMissionController | `ResponseEntity.ok()` + `ApiResponse.fail()` |
+| TaskLifecycleController | `ResponseEntity.badRequest()` + `ApiResponse.fail()` |
+| ProductTaskController | `ResponseEntity.ok()` + `ApiResponse.fail()` |
 | DeviceController | `ResponseEntity.status(408/500)` + 裸 `Boolean`，没用 `ApiResponse` |
 
 ### 目标
@@ -46,7 +46,7 @@
 
 ### 改动范围
 
-1. `MissionLifecycleController` — 5 处 `badRequest()` → `ok()`
+1. `TaskLifecycleController` — 5 处 `badRequest()` → `ok()`
 2. `DeviceController` — 4 处改为 `ApiResponse<Boolean>`，`status(408/500)` → `ok()`
 
 ### 不做的事
@@ -58,5 +58,5 @@
 | 文件 | 操作 |
 |---|---|
 | `docs/api-guide.md` | 新增 |
-| `MissionLifecycleController.java` | 修改 — badRequest → ok |
+| `TaskLifecycleController.java` | 修改 — badRequest → ok |
 | `DeviceController.java` | 修改 — ResponseEntity<Boolean> → ApiResponse<Boolean> |

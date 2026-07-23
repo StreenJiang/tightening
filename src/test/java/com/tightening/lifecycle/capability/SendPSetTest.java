@@ -3,8 +3,8 @@ package com.tightening.lifecycle.capability;
 import com.tightening.constant.LockReason;
 import com.tightening.device.contract.ITool;
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.entity.ProductTask;
+import com.tightening.lifecycle.TaskContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,8 +36,8 @@ class SendPSetTest {
     @Test
     @DisplayName("precondition 不满足时返回 false（bolt 为 null）")
     void preconditionShouldReturnFalseWhenBoltNull() {
-        MissionContext ctx = MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask())
             .boltConfigs(List.of()).deviceRegistry(Map.of())
             .build();
         assertThat(cap.precondition(ctx)).isFalse();
@@ -47,8 +47,8 @@ class SendPSetTest {
     @DisplayName("precondition 不满足时返回 false（parameterSetId 为 null）")
     void preconditionShouldReturnFalseWhenNoPSet() {
         ProductBolt bolt = new ProductBolt().setSerialNum(1);
-        MissionContext ctx = MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask())
             .boltConfigs(List.of(bolt)).deviceRegistry(Map.of())
             .build();
         assertThat(cap.precondition(ctx)).isFalse();
@@ -58,8 +58,8 @@ class SendPSetTest {
     @DisplayName("execute 应在发送前添加 PSET_SENDING 到 lockReasons，完成后移除")
     void shouldAddAndRemovePsetSwitchingLockReason() {
         ProductBolt bolt = new ProductBolt().setSerialNum(1).setParameterSetId(2L);
-        MissionContext ctx = MissionContext.builder()
-            .productMissionId(1L).missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+            .productTaskId(1L).taskData(new ProductTask())
             .boltConfigs(List.of(bolt)).deviceRegistry(Map.of(1L, tool))
             .build();
         // 通过 Answer 验证 sendPSet 被调用时 lockReasons 中已包含 PSET_SENDING

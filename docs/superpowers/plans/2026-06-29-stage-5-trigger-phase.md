@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 实现 Mission 生命周期的触发入口 — 产品码校验、物料码校验、触发管道、SkipScrew 快速通道、CheckCanActivate 门控。
+**Goal:** 实现 Task 生命周期的触发入口 — 产品码校验、物料码校验、触发管道、SkipScrew 快速通道、CheckCanActivate 门控。
 
 **Architecture:** 两条独立路径：(1) 引擎外的 REST 校验端点（纯查询，复用已有 `BarCodeMatchingRule` 位置匹配）；(2) 引擎内的触发管道（TriggerRequest → 3 个触发 Capability → CheckCanActivate → onTriggered → 正常生命周期）。触发 Capability 独立于 4 阶段管道，由引擎单独执行。
 
@@ -17,22 +17,22 @@
 - 使用 Lombok（`@Slf4j`, `@Getter`, `@Setter`）
 - 测试用 JUnit 5 + AssertJ，`mvn test` 验证
 - 触发 Capability 不注册到 PipelineDefinition 的 4 阶段管道
-- 条码仅在 MissionContext 内存中持有，不持久化
-- 已有实体（BarCodeMatchingRule, ProductMission）不变更
+- 条码仅在 TaskContext 内存中持有，不持久化
+- 已有实体（BarCodeMatchingRule, ProductTask）不变更
 
 ---
 
-### Task 1: MissionContext 新增条码字段
+### Task 1: TaskContext 新增条码字段
 
 **Files:**
-- Modify: `src/main/java/com/tightening/lifecycle/MissionContext.java`
+- Modify: `src/main/java/com/tightening/lifecycle/TaskContext.java`
 
 **Interfaces:**
-- Produces: `MissionContext.getProductCode(): String`, `MissionContext.getPartsCode(): String`, `MissionContext.setProductCode(String)`, `MissionContext.setPartsCode(String)`
+- Produces: `TaskContext.getProductCode(): String`, `TaskContext.getPartsCode(): String`, `TaskContext.setProductCode(String)`, `TaskContext.setPartsCode(String)`
 
 - [ ] **Step 1: 添加字段并验证编译**
 
-在 `MissionContext` 的 Builder 中添加两个字段：
+在 `TaskContext` 的 Builder 中添加两个字段：
 
 ```java
 // 在 @Builder.Default private final List<TighteningData> tighteningDataList 之后
@@ -54,9 +54,9 @@ Expected: 无错误输出
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/main/java/com/tightening/lifecycle/MissionContext.java
+git add src/main/java/com/tightening/lifecycle/TaskContext.java
 git commit -m "$(cat <<'EOF'
-feat: add productCode and partsCode fields to MissionContext
+feat: add productCode and partsCode fields to TaskContext
 
 Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
 EOF
@@ -75,7 +75,7 @@ EOF
 
 - [ ] **Step 1: 添加 TriggerRequest**
 
-在 `InboundCommand.java` 的 sealed 接口中新增 record，在 `InterruptMission` 之后：
+在 `InboundCommand.java` 的 sealed 接口中新增 record，在 `InterruptTask` 之后：
 
 ```java
 /** 触发激活请求 — 携带条码信息，投递到引擎 inbox */
@@ -239,16 +239,16 @@ EOF
 - Create: `src/test/java/com/tightening/service/BarcodeValidationServiceTest.java`
 
 **Interfaces:**
-- Consumes: `BarCodeMatchingRuleService.listByMissionId(Long)`, `BarCodeMatchingRule` 实体
-- Produces: `BarcodeValidationService.validateProductCode(Long missionId, String code): ProductCodeResult`, `BarcodeValidationService.validatePartsCode(Long missionId, String code): boolean`
+- Consumes: `BarCodeMatchingRuleService.listByTaskId(Long)`, `BarCodeMatchingRule` 实体
+- Produces: `BarcodeValidationService.validateProductCode(Long taskId, String code): ProductCodeResult`, `BarcodeValidationService.validatePartsCode(Long taskId, String code): boolean`
 
 **ProductCodeResult** 为内部 record：
 
 ```java
-public record ProductCodeResult(boolean matched, Long suggestedMissionId) {
+public record ProductCodeResult(boolean matched, Long suggestedTaskId) {
     public static ProductCodeResult matched() { return new ProductCodeResult(true, null); }
     public static ProductCodeResult notMatched() { return new ProductCodeResult(false, null); }
-    public static ProductCodeResult wrongMission(Long id) { return new ProductCodeResult(false, id); }
+    public static ProductCodeResult wrongTask(Long id) { return new ProductCodeResult(false, id); }
 }
 ```
 
@@ -290,12 +290,12 @@ class BarcodeValidationServiceTest {
         @Test
         @DisplayName("无 PRODUCT_TRACE 规则 → matched")
         void noProductTraceRule() {
-            when(ruleService.listByMissionId(1L)).thenReturn(List.of());
+            when(ruleService.listByTaskId(1L)).thenReturn(List.of());
 
             var result = service.validateProductCode(1L, "ABC123");
 
             assertThat(result.matched()).isTrue();
-            assertThat(result.suggestedMissionId()).isNull();
+            assertThat(result.suggestedTaskId()).isNull();
         }
 
         @Test
@@ -304,8 +304,8 @@ class BarcodeValidationServiceTest {
             var rule = new BarCodeMatchingRule()
                     .setRuleType(BarCodeRuleType.PRODUCT_TRACE.getCode())
                     .setKeyStartPosition(0).setKeyEndPosition(2).setKeyChar("AB")
-                    .setExpectedLength(6).setProductMissionId(1L);
-            when(ruleService.listByMissionId(1L)).thenReturn(List.of(rule));
+                    .setExpectedLength(6).setProductTaskId(1L);
+            when(ruleService.listByTaskId(1L)).thenReturn(List.of(rule));
 
             var result = service.validateProductCode(1L, "ABC123");
 
@@ -313,26 +313,26 @@ class BarcodeValidationServiceTest {
         }
 
         @Test
-        @DisplayName("有规则但不匹配当前 Mission → 查其它 Mission")
-        void wrongMission() {
+        @DisplayName("有规则但不匹配当前 Task → 查其它 Task")
+        void wrongTask() {
             var rule1 = new BarCodeMatchingRule()
                     .setRuleType(BarCodeRuleType.PRODUCT_TRACE.getCode())
                     .setKeyStartPosition(0).setKeyEndPosition(1).setKeyChar("X")
-                    .setExpectedLength(6).setProductMissionId(1L);
-            when(ruleService.listByMissionId(1L)).thenReturn(List.of(rule1));
-            // 模拟全库查询：只有 mission 2 匹配
+                    .setExpectedLength(6).setProductTaskId(1L);
+            when(ruleService.listByTaskId(1L)).thenReturn(List.of(rule1));
+            // 模拟全库查询：只有 task 2 匹配
             when(ruleService.list()).thenReturn(List.of(
                 rule1,
                 new BarCodeMatchingRule()
                     .setRuleType(BarCodeRuleType.PRODUCT_TRACE.getCode())
                     .setKeyStartPosition(0).setKeyEndPosition(1).setKeyChar("A")
-                    .setExpectedLength(6).setProductMissionId(2L)
+                    .setExpectedLength(6).setProductTaskId(2L)
             ));
 
             var result = service.validateProductCode(1L, "ABC123");
 
             assertThat(result.matched()).isFalse();
-            assertThat(result.suggestedMissionId()).isEqualTo(2L);
+            assertThat(result.suggestedTaskId()).isEqualTo(2L);
         }
     }
 
@@ -343,7 +343,7 @@ class BarcodeValidationServiceTest {
         @Test
         @DisplayName("无 PARTS_BARCODE 规则 → true")
         void noPartsRule() {
-            when(ruleService.listByMissionId(1L)).thenReturn(List.of());
+            when(ruleService.listByTaskId(1L)).thenReturn(List.of());
 
             assertThat(service.validatePartsCode(1L, "MAT456")).isTrue();
         }
@@ -354,8 +354,8 @@ class BarcodeValidationServiceTest {
             var rule = new BarCodeMatchingRule()
                     .setRuleType(BarCodeRuleType.PARTS_BARCODE.getCode())
                     .setKeyStartPosition(0).setKeyEndPosition(2).setKeyChar("MA")
-                    .setExpectedLength(6).setProductMissionId(1L);
-            when(ruleService.listByMissionId(1L)).thenReturn(List.of(rule));
+                    .setExpectedLength(6).setProductTaskId(1L);
+            when(ruleService.listByTaskId(1L)).thenReturn(List.of(rule));
 
             assertThat(service.validatePartsCode(1L, "MAT456")).isTrue();
         }
@@ -366,8 +366,8 @@ class BarcodeValidationServiceTest {
             var rule = new BarCodeMatchingRule()
                     .setRuleType(BarCodeRuleType.PARTS_BARCODE.getCode())
                     .setKeyStartPosition(0).setKeyEndPosition(2).setKeyChar("XX")
-                    .setExpectedLength(6).setProductMissionId(1L);
-            when(ruleService.listByMissionId(1L)).thenReturn(List.of(rule));
+                    .setExpectedLength(6).setProductTaskId(1L);
+            when(ruleService.listByTaskId(1L)).thenReturn(List.of(rule));
 
             assertThat(service.validatePartsCode(1L, "MAT456")).isFalse();
         }
@@ -403,35 +403,35 @@ public class BarcodeValidationService {
 
     private final BarCodeMatchingRuleService ruleService;
 
-    public record ProductCodeResult(boolean matched, Long suggestedMissionId) {
+    public record ProductCodeResult(boolean matched, Long suggestedTaskId) {
         public static ProductCodeResult matched() { return new ProductCodeResult(true, null); }
         public static ProductCodeResult notMatched() { return new ProductCodeResult(false, null); }
-        public static ProductCodeResult wrongMission(Long id) { return new ProductCodeResult(false, id); }
+        public static ProductCodeResult wrongTask(Long id) { return new ProductCodeResult(false, id); }
     }
 
-    public ProductCodeResult validateProductCode(Long missionId, String productCode) {
-        List<BarCodeMatchingRule> rules = ruleService.listByMissionId(missionId).stream()
+    public ProductCodeResult validateProductCode(Long taskId, String productCode) {
+        List<BarCodeMatchingRule> rules = ruleService.listByTaskId(taskId).stream()
                 .filter(r -> r.getRuleType() == BarCodeRuleType.PRODUCT_TRACE.getCode())
                 .toList();
 
         if (rules.isEmpty()) return ProductCodeResult.matched();
         if (rules.stream().anyMatch(r -> BarcodeMatcher.matches(r, productCode))) return ProductCodeResult.matched();
 
-        // 不匹配 → 查其它 Mission
+        // 不匹配 → 查其它 Task
         List<BarCodeMatchingRule> allRules = ruleService.list().stream()
                 .filter(r -> r.getRuleType() == BarCodeRuleType.PRODUCT_TRACE.getCode())
-                .filter(r -> !r.getProductMissionId().equals(missionId))
+                .filter(r -> !r.getProductTaskId().equals(taskId))
                 .toList();
 
         return allRules.stream()
                 .filter(r -> BarcodeMatcher.matches(r, productCode))
                 .findFirst()
-                .map(r -> ProductCodeResult.wrongMission(r.getProductMissionId()))
+                .map(r -> ProductCodeResult.wrongTask(r.getProductTaskId()))
                 .orElse(ProductCodeResult.notMatched());
     }
 
-    public boolean validatePartsCode(Long missionId, String partsCode) {
-        List<BarCodeMatchingRule> rules = ruleService.listByMissionId(missionId).stream()
+    public boolean validatePartsCode(Long taskId, String partsCode) {
+        List<BarCodeMatchingRule> rules = ruleService.listByTaskId(taskId).stream()
                 .filter(r -> r.getRuleType() == BarCodeRuleType.PARTS_BARCODE.getCode())
                 .toList();
 
@@ -514,12 +514,12 @@ import org.springframework.lang.Nullable;
 public record BarcodeValidationResult(
     String result,
     @Nullable String reason,
-    @Nullable Long suggestedMissionId
+    @Nullable Long suggestedTaskId
 ) {
     public static BarcodeValidationResult matched() {
         return new BarcodeValidationResult("MATCHED", null, null);
     }
-    public static BarcodeValidationResult wrongMission(Long id) {
+    public static BarcodeValidationResult wrongTask(Long id) {
         return new BarcodeValidationResult("WRONG_MISSION", null, id);
     }
     public static BarcodeValidationResult notMatched() {
@@ -565,7 +565,7 @@ EOF
 - Create: `src/test/java/com/tightening/lifecycle/capability/ProductBarCodeCheckTest.java`
 
 **Interfaces:**
-- Consumes: `BarCodeMatchingRuleService.listByMissionId(Long)`, `MissionContext.getProductCode()`, `MissionContext.getProductMissionId()`
+- Consumes: `BarCodeMatchingRuleService.listByTaskId(Long)`, `TaskContext.getProductCode()`, `TaskContext.getProductTaskId()`
 - Produces: `ProductBarCodeCheck` (implements `TriggerCapability`, 触发阶段专用)
 
 - [ ] **Step 1: 写测试**
@@ -577,8 +577,8 @@ import com.tightening.constant.BarCodeRuleType;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.entity.BarCodeMatchingRule;
-import com.tightening.entity.ProductMission;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.entity.ProductTask;
+import com.tightening.lifecycle.TaskContext;
 import com.tightening.service.BarCodeMatchingRuleService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -610,10 +610,10 @@ class ProductBarCodeCheckTest {
     @Test
     @DisplayName("无 PRODUCT_TRACE 规则 → Skip")
     void noRule() {
-        var ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission().setId(1L))
+        var ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask().setId(1L))
                 .productCode("ABC").build();
-        when(ruleService.listByMissionId(1L))
+        when(ruleService.listByTaskId(1L))
                 .thenReturn(List.of(new BarCodeMatchingRule()
                         .setRuleType(BarCodeRuleType.PARTS_BARCODE.getCode())));
 
@@ -623,10 +623,10 @@ class ProductBarCodeCheckTest {
     @Test
     @DisplayName("有规则 + productCode 为空 → Fail")
     void rulePresentNoCode() {
-        var ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission().setId(1L))
+        var ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask().setId(1L))
                 .productCode(null).build();
-        when(ruleService.listByMissionId(1L))
+        when(ruleService.listByTaskId(1L))
                 .thenReturn(List.of(new BarCodeMatchingRule()
                         .setRuleType(BarCodeRuleType.PRODUCT_TRACE.getCode())
                         .setKeyStartPosition(0).setKeyEndPosition(3).setKeyChar("ABC")));
@@ -637,10 +637,10 @@ class ProductBarCodeCheckTest {
     @Test
     @DisplayName("有规则 + 匹配 → Pass")
     void ruleMatch() {
-        var ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission().setId(1L))
+        var ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask().setId(1L))
                 .productCode("ABC123").build();
-        when(ruleService.listByMissionId(1L))
+        when(ruleService.listByTaskId(1L))
                 .thenReturn(List.of(new BarCodeMatchingRule()
                         .setRuleType(BarCodeRuleType.PRODUCT_TRACE.getCode())
                         .setKeyStartPosition(0).setKeyEndPosition(3).setKeyChar("ABC")));
@@ -651,10 +651,10 @@ class ProductBarCodeCheckTest {
     @Test
     @DisplayName("有规则 + 不匹配 → Fail")
     void ruleNoMatch() {
-        var ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission().setId(1L))
+        var ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask().setId(1L))
                 .productCode("XYZ123").build();
-        when(ruleService.listByMissionId(1L))
+        when(ruleService.listByTaskId(1L))
                 .thenReturn(List.of(new BarCodeMatchingRule()
                         .setRuleType(BarCodeRuleType.PRODUCT_TRACE.getCode())
                         .setKeyStartPosition(0).setKeyEndPosition(3).setKeyChar("ABC")));
@@ -680,7 +680,7 @@ import com.tightening.constant.BarCodeRuleType;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.entity.BarCodeMatchingRule;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import com.tightening.service.BarCodeMatchingRuleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -699,13 +699,13 @@ public class ProductBarCodeCheck implements TriggerCapability {
     @Override public int priority() { return 1; }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
-        List<BarCodeMatchingRule> rules = ruleService.listByMissionId(ctx.getProductMissionId()).stream()
+    public CapabilityResult execute(TaskContext ctx) {
+        List<BarCodeMatchingRule> rules = ruleService.listByTaskId(ctx.getProductTaskId()).stream()
                 .filter(r -> r.getRuleType() == BarCodeRuleType.PRODUCT_TRACE.getCode())
                 .toList();
 
         if (rules.isEmpty()) {
-            log.debug("No PRODUCT_TRACE rule for mission {}", ctx.getProductMissionId());
+            log.debug("No PRODUCT_TRACE rule for task {}", ctx.getProductTaskId());
             return CapabilityResult.Skip;
         }
 
@@ -755,7 +755,7 @@ EOF
 - Create: `src/test/java/com/tightening/lifecycle/capability/PartsBarCodeMatchingTest.java`
 
 **Interfaces:**
-- Consumes: `BarCodeMatchingRuleService.listByMissionId(Long)`, `MissionContext.getPartsCode()`
+- Consumes: `BarCodeMatchingRuleService.listByTaskId(Long)`, `TaskContext.getPartsCode()`
 - Produces: `PartsBarCodeMatching`
 
 - [ ] **Step 1: 写测试**
@@ -765,8 +765,8 @@ package com.tightening.lifecycle.capability;
 
 import com.tightening.constant.BarCodeRuleType;
 import com.tightening.entity.BarCodeMatchingRule;
-import com.tightening.entity.ProductMission;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.entity.ProductTask;
+import com.tightening.lifecycle.TaskContext;
 import com.tightening.service.BarCodeMatchingRuleService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -798,10 +798,10 @@ class PartsBarCodeMatchingTest {
     @Test
     @DisplayName("无 PARTS_BARCODE 规则 → Skip")
     void noRule() {
-        var ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission().setId(1L))
+        var ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask().setId(1L))
                 .partsCode("MAT").build();
-        when(ruleService.listByMissionId(1L)).thenReturn(List.of());
+        when(ruleService.listByTaskId(1L)).thenReturn(List.of());
 
         assertThat(cap.execute(ctx)).isEqualTo(Skip);
     }
@@ -809,10 +809,10 @@ class PartsBarCodeMatchingTest {
     @Test
     @DisplayName("有规则 + partsCode 为空 → Fail")
     void rulePresentNoCode() {
-        var ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission().setId(1L))
+        var ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask().setId(1L))
                 .partsCode(null).build();
-        when(ruleService.listByMissionId(1L))
+        when(ruleService.listByTaskId(1L))
                 .thenReturn(List.of(new BarCodeMatchingRule()
                         .setRuleType(BarCodeRuleType.PARTS_BARCODE.getCode())
                         .setKeyStartPosition(0).setKeyEndPosition(3).setKeyChar("MAT")));
@@ -823,10 +823,10 @@ class PartsBarCodeMatchingTest {
     @Test
     @DisplayName("有规则 + 匹配 → Pass")
     void ruleMatch() {
-        var ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission().setId(1L))
+        var ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask().setId(1L))
                 .partsCode("MAT456").build();
-        when(ruleService.listByMissionId(1L))
+        when(ruleService.listByTaskId(1L))
                 .thenReturn(List.of(new BarCodeMatchingRule()
                         .setRuleType(BarCodeRuleType.PARTS_BARCODE.getCode())
                         .setKeyStartPosition(0).setKeyEndPosition(3).setKeyChar("MAT")));
@@ -852,7 +852,7 @@ import com.tightening.constant.BarCodeRuleType;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.entity.BarCodeMatchingRule;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import com.tightening.service.BarCodeMatchingRuleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -871,13 +871,13 @@ public class PartsBarCodeMatching implements TriggerCapability {
     @Override public int priority() { return 2; }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
-        List<BarCodeMatchingRule> rules = ruleService.listByMissionId(ctx.getProductMissionId()).stream()
+    public CapabilityResult execute(TaskContext ctx) {
+        List<BarCodeMatchingRule> rules = ruleService.listByTaskId(ctx.getProductTaskId()).stream()
                 .filter(r -> r.getRuleType() == BarCodeRuleType.PARTS_BARCODE.getCode())
                 .toList();
 
         if (rules.isEmpty()) {
-            log.debug("No PARTS_BARCODE rule for mission {}", ctx.getProductMissionId());
+            log.debug("No PARTS_BARCODE rule for task {}", ctx.getProductTaskId());
             return CapabilityResult.Skip;
         }
 
@@ -927,16 +927,16 @@ EOF
 - Create: `src/test/java/com/tightening/lifecycle/capability/SkipScrewCheckTest.java`
 
 **Interfaces:**
-- Consumes: `MissionContext.getMissionData().getSkipScrew()`
-- Produces: `SkipScrewCheck` — 当 mission.skipScrew=true 时返回 Interrupt
+- Consumes: `TaskContext.getTaskData().getSkipScrew()`
+- Produces: `SkipScrewCheck` — 当 task.skipScrew=true 时返回 Interrupt
 
 - [ ] **Step 1: 写测试**
 
 ```java
 package com.tightening.lifecycle.capability;
 
-import com.tightening.entity.ProductMission;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.entity.ProductTask;
+import com.tightening.lifecycle.TaskContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -959,16 +959,16 @@ class SkipScrewCheckTest {
     @Test
     @DisplayName("skipScrew=false → precondition false")
     void notEnabled() {
-        var ctx = MissionContext.builder()
-                .missionData(new ProductMission().setSkipScrew(0)).build();
+        var ctx = TaskContext.builder()
+                .taskData(new ProductTask().setSkipScrew(0)).build();
         assertThat(cap.precondition(ctx)).isFalse();
     }
 
     @Test
     @DisplayName("skipScrew=true → precondition true, execute returns Interrupt")
     void enabled() {
-        var ctx = MissionContext.builder()
-                .missionData(new ProductMission().setSkipScrew(1)).build();
+        var ctx = TaskContext.builder()
+                .taskData(new ProductTask().setSkipScrew(1)).build();
         assertThat(cap.precondition(ctx)).isTrue();
         assertThat(cap.execute(ctx)).isEqualTo(Interrupt);
     }
@@ -989,7 +989,7 @@ package com.tightening.lifecycle.capability;
 
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -1001,14 +1001,14 @@ public class SkipScrewCheck implements TriggerCapability {
     @Override public int priority() { return 3; }
 
     @Override
-    public boolean precondition(MissionContext ctx) {
-        return ctx.getMissionData() != null
-            && Integer.valueOf(1).equals(ctx.getMissionData().getSkipScrew());
+    public boolean precondition(TaskContext ctx) {
+        return ctx.getTaskData() != null
+            && Integer.valueOf(1).equals(ctx.getTaskData().getSkipScrew());
     }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
-        log.info("SkipScrew fast track for mission {}", ctx.getProductMissionId());
+    public CapabilityResult execute(TaskContext ctx) {
+        log.info("SkipScrew fast track for task {}", ctx.getProductTaskId());
         return CapabilityResult.Interrupt;
     }
 }
@@ -1054,12 +1054,12 @@ private final List<TriggerCapability> triggerCaps;
 private final BarCodeMatchingRuleService barCodeMatchingRuleService;
 private Consumer<Long> onTriggered;
 
-public LifecycleEngine(PipelineDefinition pipeline, MissionRecordService missionRecordService,
+public LifecycleEngine(PipelineDefinition pipeline, TaskRecordService taskRecordService,
                        List<Capability> capabilities, List<PersistentMonitor> monitors,
                        List<TriggerCapability> triggerCapabilities,
                        BarCodeMatchingRuleService barCodeMatchingRuleService) {
     this.pipeline = pipeline;
-    this.missionRecordService = missionRecordService;
+    this.taskRecordService = taskRecordService;
     this.monitors = monitors != null ? monitors : List.of();
     this.triggerCaps = triggerCapabilities != null ? triggerCapabilities : List.of();
     this.barCodeMatchingRuleService = barCodeMatchingRuleService;
@@ -1068,7 +1068,7 @@ public LifecycleEngine(PipelineDefinition pipeline, MissionRecordService mission
 }
 ```
 
-**重要行为变更**: `LifecycleEngine.start()` 不再自动往 inbox 投递 `ActivateMission`。`start()` 仅启动 actor 线程。初始化消息由调用方显式投递：`startMission` 路径投递 `ActivateMission`；`trigger` 路径投递 `TriggerRequest`。需修改 `start()` 源码，删除其中 `inbox.offer(new InboundCommand.ActivateMission(...))` 逻辑。
+**重要行为变更**: `LifecycleEngine.start()` 不再自动往 inbox 投递 `ActivateTask`。`start()` 仅启动 actor 线程。初始化消息由调用方显式投递：`startTask` 路径投递 `ActivateTask`；`trigger` 路径投递 `TriggerRequest`。需修改 `start()` 源码，删除其中 `inbox.offer(new InboundCommand.ActivateTask(...))` 逻辑。
 
 - [ ] **Step 2: 注册 TriggerRequest handler**
 
@@ -1087,7 +1087,7 @@ public void onTriggered(Consumer<Long> callback) { this.onTriggered = callback; 
 - [ ] **Step 4: 实现 handleTriggerRequest**
 
 ```java
-void handleTriggerRequest(InboundMessage msg, MissionContext ctx, LifecycleEngine engine) {
+void handleTriggerRequest(InboundMessage msg, TaskContext ctx, LifecycleEngine engine) {
     var cmd = (InboundCommand.TriggerRequest) msg;
     log.info("Trigger request: productCode={}, partsCode={}", cmd.productCode(), cmd.partsCode());
 
@@ -1103,9 +1103,9 @@ void handleTriggerRequest(InboundMessage msg, MissionContext ctx, LifecycleEngin
     }
 
     if (triggerResult == CapabilityResult.Interrupt) {
-        // SkipScrew fast track — 不绑定设备，直接创建 OK MissionRecord 进 FINALIZATION
+        // SkipScrew fast track — 不绑定设备，直接创建 OK TaskRecord 进 FINALIZATION
         log.info("SkipScrew fast track — entering FINALIZATION");
-        handleActivateMissionSkipScrew(ctx);
+        handleActivateTaskSkipScrew(ctx);
         return;
     }
 
@@ -1118,16 +1118,16 @@ void handleTriggerRequest(InboundMessage msg, MissionContext ctx, LifecycleEngin
     }
 
     log.info("Trigger passed, entering lifecycle");
-    if (onTriggered != null) onTriggered.accept(ctx.getProductMissionId());
+    if (onTriggered != null) onTriggered.accept(ctx.getProductTaskId());
     // 正常进入生命周期
-    handleActivateMissionInternal(ctx);
+    handleActivateTaskInternal(ctx);
 }
 ```
 
 - [ ] **Step 5: 实现 executeTriggerPipeline**
 
 ```java
-private CapabilityResult executeTriggerPipeline(MissionContext ctx) {
+private CapabilityResult executeTriggerPipeline(TaskContext ctx) {
     for (TriggerCapability cap : triggerCaps) {
         if (!cap.precondition(ctx)) continue;
         try {
@@ -1150,11 +1150,11 @@ private CapabilityResult executeTriggerPipeline(MissionContext ctx) {
 - [ ] **Step 6: 实现 checkCanActivate**
 
 ```java
-private boolean checkCanActivate(MissionContext ctx) {
+private boolean checkCanActivate(TaskContext ctx) {
     // 最终门控：触发管道已校验匹配，此处仅检查"有规则但调用方未提供码"的兜底场景
     // 查询 PRODUCT_TRACE / PARTS_BARCODE 规则，确认需要的码都已提供
     // ruleService 已在构造器中作为 barCodeMatchingRuleService 注入（LifecycleEngine 新增字段）
-    List<BarCodeMatchingRule> rules = barCodeMatchingRuleService.listByMissionId(ctx.getProductMissionId());
+    List<BarCodeMatchingRule> rules = barCodeMatchingRuleService.listByTaskId(ctx.getProductTaskId());
     boolean hasProductRule = rules.stream().anyMatch(
             r -> r.getRuleType() == BarCodeRuleType.PRODUCT_TRACE.getCode());
     boolean hasPartsRule = rules.stream().anyMatch(
@@ -1171,10 +1171,10 @@ private boolean checkCanActivate(MissionContext ctx) {
 }
 ```
 
-- [ ] **Step 7: 实现 handleActivateMissionInternal（从 handleActivateMission 提取）**
+- [ ] **Step 7: 实现 handleActivateTaskInternal（从 handleActivateTask 提取）**
 
 ```java
-private void handleActivateMissionInternal(MissionContext ctx) {
+private void handleActivateTaskInternal(TaskContext ctx) {
     int boltCount = ctx.getBoltConfigs().size();
     BoltState[] states = new BoltState[boltCount];
     Arrays.fill(states, BoltState.PENDING);
@@ -1184,12 +1184,12 @@ private void handleActivateMissionInternal(MissionContext ctx) {
     postMessage(new InboundCommand.AdvancePipeline());
 }
 
-private void handleActivateMissionSkipScrew(MissionContext ctx) {
-    // 创建 OK MissionRecord — createRecord 默认设 missionResult=NG，需后续 markAsOk
-    var record = missionRecordService.createRecord(
-            ctx.getProductMissionId(), ctx.getProductCode(), 0);
-    missionRecordService.markAsOk(record.getId());
-    ctx.setMissionRecord(record);
+private void handleActivateTaskSkipScrew(TaskContext ctx) {
+    // 创建 OK TaskRecord — createRecord 默认设 taskResult=NG，需后续 markAsOk
+    var record = taskRecordService.createRecord(
+            ctx.getProductTaskId(), ctx.getProductCode(), 0);
+    taskRecordService.markAsOk(record.getId());
+    ctx.setTaskRecord(record);
     ctx.setCurrentStage(Stage.FINALIZATION);
     ctx.setCurrentSubState(SubState.CLEANING_TASKS);
     ctx.setShouldSelfLoop(false);
@@ -1197,13 +1197,13 @@ private void handleActivateMissionSkipScrew(MissionContext ctx) {
 }
 ```
 
-`handleActivateMission` 原有逻辑改为调用 `handleActivateMissionInternal`：
+`handleActivateTask` 原有逻辑改为调用 `handleActivateTaskInternal`：
 
 ```java
-void handleActivateMission(InboundMessage msg, MissionContext ctx, LifecycleEngine engine) {
-    var cmd = (InboundCommand.ActivateMission) msg;
-    log.info("Engine activating mission: {}", cmd.missionData().getId());
-    handleActivateMissionInternal(ctx);
+void handleActivateTask(InboundMessage msg, TaskContext ctx, LifecycleEngine engine) {
+    var cmd = (InboundCommand.ActivateTask) msg;
+    log.info("Engine activating task: {}", cmd.taskData().getId());
+    handleActivateTaskInternal(ctx);
 }
 ```
 
@@ -1253,7 +1253,7 @@ EOF
 @RequiredArgsConstructor
 public class LifecycleEngineFactory {
 
-    private final MissionRecordService missionRecordService;
+    private final TaskRecordService taskRecordService;
     private final TighteningDataService tighteningDataService;
     private final ExportTaskService exportTaskService;
     private final LocalSettings settings;
@@ -1261,7 +1261,7 @@ public class LifecycleEngineFactory {
     private final BarCodeMatchingRuleService barcodeRuleService;  // 新增
 
     public LifecycleEngine createEngine(
-            ProductMission mission,
+            ProductTask task,
             List<ProductBolt> bolts,
             Map<Long, ITool> deviceMap,
             boolean shouldSelfLoop,
@@ -1269,9 +1269,9 @@ public class LifecycleEngineFactory {
             String partsCode        // 新增，可为 null
     ) {
 
-        MissionContext ctx = MissionContext.builder()
-            .productMissionId(mission.getId())
-            .missionData(mission)
+        TaskContext ctx = TaskContext.builder()
+            .productTaskId(task.getId())
+            .taskData(task)
             .boltConfigs(bolts)
             .deviceRegistry(deviceMap)
             .shouldSelfLoop(shouldSelfLoop)
@@ -1296,7 +1296,7 @@ public class LifecycleEngineFactory {
         );
 
         LifecycleEngine engine = new LifecycleEngine(
-            pipeline, missionRecordService, capabilities, monitors, triggerCapabilities,
+            pipeline, taskRecordService, capabilities, monitors, triggerCapabilities,
             barcodeRuleService);
 
         engine.initContext(ctx);
@@ -1336,112 +1336,112 @@ EOF
 
 ---
 
-### Task 11: MissionOrchestrator — trigger() 方法
+### Task 11: TaskOrchestrator — trigger() 方法
 
 **Files:**
-- Modify: `src/main/java/com/tightening/lifecycle/MissionOrchestrator.java`
-- Modify: `src/main/java/com/tightening/lifecycle/MissionCompletedEvent.java` — 新增 `@Nullable String productCode, @Nullable String partsCode` 字段，所有现有发布点传 null
+- Modify: `src/main/java/com/tightening/lifecycle/TaskOrchestrator.java`
+- Modify: `src/main/java/com/tightening/lifecycle/TaskCompletedEvent.java` — 新增 `@Nullable String productCode, @Nullable String partsCode` 字段，所有现有发布点传 null
 
 **Interfaces:**
 - Consumes: `LifecycleEngineFactory`, `DeviceRegistry`
-- Produces: `MissionOrchestrator.trigger(ProductMission, List<ProductBolt>, String productCode, String partsCode): LifecycleEngine`
+- Produces: `TaskOrchestrator.trigger(ProductTask, List<ProductBolt>, String productCode, String partsCode): LifecycleEngine`
 
 - [ ] **Step 1: 新增 `trigger()` 方法**
 
-原 `startMission` 方法保留（后续 stage 可从 trigger 调用）。新增 `trigger()` 作为触发阶段入口：
+原 `startTask` 方法保留（后续 stage 可从 trigger 调用）。新增 `trigger()` 作为触发阶段入口：
 
 ```java
-public LifecycleEngine trigger(ProductMission mission, List<ProductBolt> bolts,
+public LifecycleEngine trigger(ProductTask task, List<ProductBolt> bolts,
                                 String productCode, String partsCode) {
-    Long missionId = mission.getId();
-    if (activeEngines.containsKey(missionId)) {
-        log.warn("Mission {} already active", missionId);
+    Long taskId = task.getId();
+    if (activeEngines.containsKey(taskId)) {
+        log.warn("Task {} already active", taskId);
         return null;
     }
 
-    int loopCount = selfLoopCounts.getOrDefault(missionId, 0);
+    int loopCount = selfLoopCounts.getOrDefault(taskId, 0);
     if (loopCount >= MAX_SELF_LOOPS) {
-        log.warn("Mission {} reached maxSelfLoops", missionId);
-        selfLoopCounts.remove(missionId);
+        log.warn("Task {} reached maxSelfLoops", taskId);
+        selfLoopCounts.remove(taskId);
         return null;
     }
-    selfLoopCounts.put(missionId, loopCount + 1);
+    selfLoopCounts.put(taskId, loopCount + 1);
 
     boolean shouldSelfLoop = settings.selfLoopEnabled();
     Map<Long, ITool> devices = deviceRegistry.getAllTools().stream()
             .collect(Collectors.toMap(ITool::id, t -> t));
     LifecycleEngine engine = factory.createEngine(
-            mission, bolts, devices, shouldSelfLoop,
+            task, bolts, devices, shouldSelfLoop,
             productCode, partsCode);
 
     engine.onTriggered(mId -> {
-        // 触发通过 — 建立 device→mission 路由映射，启动监控（Actor 线程内安全）
+        // 触发通过 — 建立 device→task 路由映射，启动监控（Actor 线程内安全）
         engine.getContext().getDeviceRegistry().keySet()
-                .forEach(deviceId -> deviceToMissionId.put(deviceId, mId));
+                .forEach(deviceId -> deviceToTaskId.put(deviceId, mId));
         engine.startMonitorTicks();
     });
 
     engine.onCompleted(recordId -> {
-        boolean ok = isMissionOk(engine);
-        MissionContext ctx = engine.getContext();
-        cleanup(missionId);
+        boolean ok = isTaskOk(engine);
+        TaskContext ctx = engine.getContext();
+        cleanup(taskId);
         if (shouldSelfLoop && ok) {
-            publisher.publishEvent(new MissionCompletedEvent(
-                    missionId, mission, bolts, true,
+            publisher.publishEvent(new TaskCompletedEvent(
+                    taskId, task, bolts, true,
                     ctx != null ? ctx.getProductCode() : null,
                     ctx != null ? ctx.getPartsCode() : null));
         } else {
-            selfLoopCounts.remove(missionId);
+            selfLoopCounts.remove(taskId);
         }
     });
 
     engine.onFaulted(reason -> {
-        cleanup(missionId);
-        selfLoopCounts.remove(missionId);
-        log.warn("Mission {} trigger faulted: {}", missionId, reason);
+        cleanup(taskId);
+        selfLoopCounts.remove(taskId);
+        log.warn("Task {} trigger faulted: {}", taskId, reason);
     });
 
-    LifecycleEngine prev = activeEngines.putIfAbsent(missionId, engine);
+    LifecycleEngine prev = activeEngines.putIfAbsent(taskId, engine);
     if (prev != null) {
         // 并发触发防护 — 另一个请求先到，丢弃当前引擎
         engine.shutdown();
-        log.warn("Concurrent trigger for mission {}, rejected", missionId);
+        log.warn("Concurrent trigger for task {}, rejected", taskId);
         return null;
     }
     engine.start(engine.getContext());
     engine.postMessage(new InboundCommand.TriggerRequest(productCode, partsCode));
-    log.info("Mission {} trigger posted (selfLoop={}, loopCount={})",
-            missionId, shouldSelfLoop, loopCount);
+    log.info("Task {} trigger posted (selfLoop={}, loopCount={})",
+            taskId, shouldSelfLoop, loopCount);
     return engine;
 }
 ```
 
 **修复自循环路径** — `handleRestart` 改为调用 `trigger()`。自循环时：无 PRODUCT_TRACE 规则 → event.productCode 为 null → Capability Skip；有规则 → event.productCode 非 null → Capability 正常校验。partsCode 同理。
 
-`MissionCompletedEvent` 新增两个字段（`@Nullable String productCode, @Nullable String partsCode`），onCompleted 回调发布事件时传入 `ctx.getProductCode()` 和 `ctx.getPartsCode()`。
+`TaskCompletedEvent` 新增两个字段（`@Nullable String productCode, @Nullable String partsCode`），onCompleted 回调发布事件时传入 `ctx.getProductCode()` 和 `ctx.getPartsCode()`。
 
 ```java
 @Async
 @EventListener
-void handleRestart(MissionCompletedEvent event) {
+void handleRestart(TaskCompletedEvent event) {
     if (!event.ok()) return;
-    log.info("Restarting mission {} (loop {})", event.missionId(),
-            selfLoopCounts.getOrDefault(event.missionId(), 0));
-    trigger(event.mission(), event.bolts(), event.productCode(), event.partsCode());
+    log.info("Restarting task {} (loop {})", event.taskId(),
+            selfLoopCounts.getOrDefault(event.taskId(), 0));
+    trigger(event.task(), event.bolts(), event.productCode(), event.partsCode());
 }
 ```
 
-**修复 `startMission`** — 仍被旧流程使用（兼容），更新 `createEngine` 调用和初始化逻辑：
+**修复 `startTask`** — 仍被旧流程使用（兼容），更新 `createEngine` 调用和初始化逻辑：
 
 ```java
 boolean shouldSelfLoop = settings.selfLoopEnabled();
 LifecycleEngine engine = factory.createEngine(
-        mission, bolts, devices, shouldSelfLoop, null, null);
-// ... onCompleted/onFaulted 回调保持不变，但 MissionCompletedEvent 发布时传 null productCode/partsCode ...
+        task, bolts, devices, shouldSelfLoop, null, null);
+// ... onCompleted/onFaulted 回调保持不变，但 TaskCompletedEvent 发布时传 null productCode/partsCode ...
 engine.start(engine.getContext());
-// start() 不再自动投递 ActivateMission — 调用方显式投递
-engine.postMessage(new InboundCommand.ActivateMission(
-        mission, List.of(), bolts, List.of()));
+// start() 不再自动投递 ActivateTask — 调用方显式投递
+engine.postMessage(new InboundCommand.ActivateTask(
+        task, List.of(), bolts, List.of()));
 ```
 
 - [ ] **Step 2: 验证编译**
@@ -1461,7 +1461,7 @@ Expected: `BUILD SUCCESS`
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/main/java/com/tightening/lifecycle/MissionOrchestrator.java
+git add src/main/java/com/tightening/lifecycle/TaskOrchestrator.java
 git commit -m "$(cat <<'EOF'
 feat: add trigger() with device binding, putIfAbsent, and self-loop barcode reuse
 
@@ -1472,13 +1472,13 @@ EOF
 
 ---
 
-### Task 12: MissionLifecycleController — 新端点
+### Task 12: TaskLifecycleController — 新端点
 
 **Files:**
-- Modify: `src/main/java/com/tightening/controller/MissionLifecycleController.java`
+- Modify: `src/main/java/com/tightening/controller/TaskLifecycleController.java`
 
 **Interfaces:**
-- Consumes: `BarcodeValidationService`, `MissionOrchestrator`, `ProductMissionService`, `ProductBoltService`
+- Consumes: `BarcodeValidationService`, `TaskOrchestrator`, `ProductTaskService`, `ProductBoltService`
 - Produces: `POST /validate-product-barcode`, `POST /validate-parts-barcode`, `POST /trigger`
 
 - [ ] **Step 1: 重写 Controller**
@@ -1488,12 +1488,12 @@ package com.tightening.controller;
 
 import com.tightening.dto.*;
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
-import com.tightening.lifecycle.MissionContext;
-import com.tightening.lifecycle.MissionOrchestrator;
+import com.tightening.entity.ProductTask;
+import com.tightening.lifecycle.TaskContext;
+import com.tightening.lifecycle.TaskOrchestrator;
 import com.tightening.service.BarcodeValidationService;
 import com.tightening.service.ProductBoltService;
-import com.tightening.service.ProductMissionService;
+import com.tightening.service.ProductTaskService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -1501,12 +1501,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/missions")
+@RequestMapping("/api/tasks")
 @RequiredArgsConstructor
-public class MissionLifecycleController {
+public class TaskLifecycleController {
 
-    private final MissionOrchestrator orchestrator;
-    private final ProductMissionService missionService;
+    private final TaskOrchestrator orchestrator;
+    private final ProductTaskService taskService;
     private final ProductBoltService boltService;
     private final BarcodeValidationService barcodeService;
 
@@ -1518,9 +1518,9 @@ public class MissionLifecycleController {
         if (result.matched()) {
             return ResponseEntity.ok(ApiResponse.ok(BarcodeValidationResult.matched()));
         }
-        if (result.suggestedMissionId() != null) {
+        if (result.suggestedTaskId() != null) {
             return ResponseEntity.ok(ApiResponse.ok(
-                    BarcodeValidationResult.wrongMission(result.suggestedMissionId())));
+                    BarcodeValidationResult.wrongTask(result.suggestedTaskId())));
         }
         return ResponseEntity.ok(ApiResponse.ok(BarcodeValidationResult.notMatched()));
     }
@@ -1543,23 +1543,23 @@ public class MissionLifecycleController {
             @RequestBody TriggerRequestDto req) {
         if (orchestrator.getActiveEngine(id).isPresent()) {
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.fail("mission already active: " + id));
+                    .body(ApiResponse.fail("task already active: " + id));
         }
-        ProductMission mission = missionService.getById(id);
-        if (mission == null) {
+        ProductTask task = taskService.getById(id);
+        if (task == null) {
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.fail("mission not found: " + id));
+                    .body(ApiResponse.fail("task not found: " + id));
         }
-        List<ProductBolt> bolts = boltService.listByMissionId(id);
+        List<ProductBolt> bolts = boltService.listByTaskId(id);
         if (bolts.isEmpty()) {
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.fail("mission has no bolts: " + id));
+                    .body(ApiResponse.fail("task has no bolts: " + id));
         }
-        var engine = orchestrator.trigger(mission, bolts,
+        var engine = orchestrator.trigger(task, bolts,
                 req.productCode(), req.partsCode());
         if (engine == null) {
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.fail("mission already active: " + id));
+                    .body(ApiResponse.fail("task already active: " + id));
         }
         return ResponseEntity.accepted()
                 .body(ApiResponse.ok("trigger request accepted"));
@@ -1567,25 +1567,25 @@ public class MissionLifecycleController {
 
     // 原有端点保留
     @PostMapping("/{id}/interrupt")
-    public ResponseEntity<ApiResponse<String>> interruptMission(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<String>> interruptTask(@PathVariable Long id) {
         var engine = orchestrator.getActiveEngine(id);
         if (engine.isEmpty()) {
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.fail("no active mission: " + id));
+                    .body(ApiResponse.fail("no active task: " + id));
         }
         engine.get().interrupt("user interrupt");
         return ResponseEntity.ok(ApiResponse.ok("interrupted"));
     }
 
     @GetMapping("/{id}/status")
-    public ResponseEntity<ApiResponse<MissionStatus>> getMissionStatus(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<TaskStatus>> getTaskStatus(@PathVariable Long id) {
         var engineOpt = orchestrator.getActiveEngine(id);
         if (engineOpt.isEmpty()) {
             return ResponseEntity.ok(ApiResponse.ok(
-                    new MissionStatus("idle", null, null, 0, 0, null)));
+                    new TaskStatus("idle", null, null, 0, 0, null)));
         }
         var engine = engineOpt.get();
-        MissionContext ctx = engine.getContext();
+        TaskContext ctx = engine.getContext();
         String status = engine.isAlive() ? "running" : "finished";
         String stage = ctx != null && ctx.getCurrentStage() != null
                 ? ctx.getCurrentStage().name() : null;
@@ -1593,10 +1593,10 @@ public class MissionLifecycleController {
                 ? ctx.getCurrentSubState().name() : null;
         int currentBoltIndex = ctx != null ? ctx.getCurrentBoltIndex() : 0;
         int totalBolts = ctx != null ? ctx.totalBolts() : 0;
-        Long missionRecordId = ctx != null && ctx.getMissionRecord() != null
-                ? ctx.getMissionRecord().getId() : null;
+        Long taskRecordId = ctx != null && ctx.getTaskRecord() != null
+                ? ctx.getTaskRecord().getId() : null;
         return ResponseEntity.ok(ApiResponse.ok(
-                new MissionStatus(status, stage, subState, currentBoltIndex, totalBolts, missionRecordId)));
+                new TaskStatus(status, stage, subState, currentBoltIndex, totalBolts, taskRecordId)));
     }
 }
 ```
@@ -1618,9 +1618,9 @@ Expected: `BUILD SUCCESS`
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/main/java/com/tightening/controller/MissionLifecycleController.java
+git add src/main/java/com/tightening/controller/TaskLifecycleController.java
 git commit -m "$(cat <<'EOF'
-feat: add trigger endpoints to MissionLifecycleController
+feat: add trigger endpoints to TaskLifecycleController
 
 Replace /activate with /validate-product-barcode, /validate-parts-barcode, /trigger
 

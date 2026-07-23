@@ -1,8 +1,8 @@
 package com.tightening.lifecycle.monitor;
 
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 
 public interface PersistentMonitor {
     long intervalMs();
-    void execute(MissionContext ctx);
+    void execute(TaskContext ctx);
 }

@@ -20,31 +20,31 @@
 ### Task 1: N1 — 删除 Self-loop 后端逻辑
 
 **Files:**
-- Modify: `src/main/java/com/tightening/lifecycle/MissionOrchestrator.java`
-- Delete: `src/main/java/com/tightening/lifecycle/MissionCompletedEvent.java`
+- Modify: `src/main/java/com/tightening/lifecycle/TaskOrchestrator.java`
+- Delete: `src/main/java/com/tightening/lifecycle/TaskCompletedEvent.java`
 - Modify: `src/main/java/com/tightening/lifecycle/LifecycleEngineFactory.java`
-- Modify: `src/main/java/com/tightening/lifecycle/MissionContext.java`
+- Modify: `src/main/java/com/tightening/lifecycle/TaskContext.java`
 - Modify: `src/main/java/com/tightening/lifecycle/LifecycleEngine.java`
-- Modify: `src/test/java/com/tightening/lifecycle/MissionOrchestratorTest.java`
+- Modify: `src/test/java/com/tightening/lifecycle/TaskOrchestratorTest.java`
 
 **Interfaces:**
-- Produces: `MissionOrchestrator.trigger()` 签名不变，内部不再接受/传递 self-loop 参数；`LifecycleEngineFactory.createEngine()` 删除 `boolean shouldSelfLoop` 参数
+- Produces: `TaskOrchestrator.trigger()` 签名不变，内部不再接受/传递 self-loop 参数；`LifecycleEngineFactory.createEngine()` 删除 `boolean shouldSelfLoop` 参数
 
-- [ ] **Step 1: 修改 MissionOrchestrator.java — 删除自循环逻辑**
+- [ ] **Step 1: 修改 TaskOrchestrator.java — 删除自循环逻辑**
 
-删除 `MAX_SELF_LOOPS`、`selfLoopCounts`、`settings`、`publisher` 字段和相关 import，简化 `trigger()`、`onCompleted`、`onFaulted`，删除 `handleRestart()`、`isMissionOk()`。
+删除 `MAX_SELF_LOOPS`、`selfLoopCounts`、`settings`、`publisher` 字段和相关 import，简化 `trigger()`、`onCompleted`、`onFaulted`，删除 `handleRestart()`、`isTaskOk()`。
 
 最终文件：
 
 ```java
 package com.tightening.lifecycle;
 
-import com.tightening.constant.MissionResult;
+import com.tightening.constant.TaskResult;
 import com.tightening.device.DeviceRegistry;
 import com.tightening.device.contract.ITool;
 import com.tightening.dto.TighteningDataDTO;
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.ProductTask;
 import com.tightening.entity.TighteningData;
 import com.tightening.lifecycle.message.DeviceEvent;
 import com.tightening.lifecycle.message.InboundCommand;
@@ -62,17 +62,17 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Component
-public class MissionOrchestrator implements DataRouter {
+public class TaskOrchestrator implements DataRouter {
 
     private final LifecycleEngineFactory factory;
     private final DeviceRegistry deviceRegistry;
 
-    /** missionId -> 活跃引擎 */
+    /** taskId -> 活跃引擎 */
     private final Map<Long, LifecycleEngine> activeEngines = new ConcurrentHashMap<>();
-    /** deviceId -> missionId（数据路由用） */
-    private final Map<Long, Long> deviceToMissionId = new ConcurrentHashMap<>();
+    /** deviceId -> taskId（数据路由用） */
+    private final Map<Long, Long> deviceToTaskId = new ConcurrentHashMap<>();
 
-    public MissionOrchestrator(LifecycleEngineFactory factory,
+    public TaskOrchestrator(LifecycleEngineFactory factory,
                                @Lazy DeviceRegistry deviceRegistry) {
         this.factory = factory;
         this.deviceRegistry = deviceRegistry;
@@ -82,14 +82,14 @@ public class MissionOrchestrator implements DataRouter {
 
     @Override
     public void routeTighteningData(long deviceId, TighteningDataDTO dto) {
-        Long missionId = deviceToMissionId.get(deviceId);
-        if (missionId == null) {
-            log.warn("No active mission for deviceId={}, dropping tightening data", deviceId);
+        Long taskId = deviceToTaskId.get(deviceId);
+        if (taskId == null) {
+            log.warn("No active task for deviceId={}, dropping tightening data", deviceId);
             return;
         }
-        LifecycleEngine engine = activeEngines.get(missionId);
+        LifecycleEngine engine = activeEngines.get(taskId);
         if (engine == null) {
-            log.warn("Engine for missionId={} not alive, dropping tightening data", missionId);
+            log.warn("Engine for taskId={} not alive, dropping tightening data", taskId);
             return;
         }
         TighteningData data = Converter.dto2Entity(dto, TighteningData::new);
@@ -98,88 +98,88 @@ public class MissionOrchestrator implements DataRouter {
 
     // === 触发阶段入口 ===
 
-    public LifecycleEngine trigger(ProductMission mission, List<ProductBolt> bolts,
+    public LifecycleEngine trigger(ProductTask task, List<ProductBolt> bolts,
                                     String productCode, String partsCode) {
-        Long missionId = mission.getId();
-        if (activeEngines.containsKey(missionId)) {
-            log.warn("Mission {} already active", missionId);
+        Long taskId = task.getId();
+        if (activeEngines.containsKey(taskId)) {
+            log.warn("Task {} already active", taskId);
             return null;
         }
 
         Map<Long, ITool> devices = deviceRegistry.getAllTools().stream()
                 .collect(Collectors.toMap(ITool::id, t -> t));
         LifecycleEngine engine = factory.createEngine(
-                mission, bolts, devices,
+                task, bolts, devices,
                 productCode, partsCode);
 
         engine.onTriggered(mId -> {
             engine.getContext().getDeviceRegistry().keySet()
-                    .forEach(deviceId -> deviceToMissionId.put(deviceId, mId));
+                    .forEach(deviceId -> deviceToTaskId.put(deviceId, mId));
             engine.startMonitorTicks();
         });
 
-        engine.onCompleted(recordId -> cleanup(missionId));
+        engine.onCompleted(recordId -> cleanup(taskId));
 
         engine.onFaulted(reason -> {
-            cleanup(missionId);
-            log.warn("Mission {} trigger faulted: {}", missionId, reason);
+            cleanup(taskId);
+            log.warn("Task {} trigger faulted: {}", taskId, reason);
         });
 
-        LifecycleEngine prev = activeEngines.putIfAbsent(missionId, engine);
+        LifecycleEngine prev = activeEngines.putIfAbsent(taskId, engine);
         if (prev != null) {
             engine.shutdown();
-            log.warn("Concurrent trigger for mission {}, rejected", missionId);
+            log.warn("Concurrent trigger for task {}, rejected", taskId);
             return null;
         }
         engine.start(engine.getContext());
         engine.postMessage(new InboundCommand.TriggerRequest(productCode, partsCode));
-        log.info("Mission {} trigger posted", missionId);
+        log.info("Task {} trigger posted", taskId);
         return engine;
     }
 
     // === 内部辅助 ===
 
-    private void cleanup(Long missionId) {
-        activeEngines.remove(missionId);
-        deviceToMissionId.values().removeIf(v -> v.equals(missionId));
+    private void cleanup(Long taskId) {
+        activeEngines.remove(taskId);
+        deviceToTaskId.values().removeIf(v -> v.equals(taskId));
     }
 
-    public Optional<LifecycleEngine> getActiveEngine(Long missionId) {
-        return Optional.ofNullable(activeEngines.get(missionId));
+    public Optional<LifecycleEngine> getActiveEngine(Long taskId) {
+        return Optional.ofNullable(activeEngines.get(taskId));
     }
 
-    public void postMessage(Long missionId, InboundMessage msg) {
-        LifecycleEngine engine = activeEngines.get(missionId);
+    public void postMessage(Long taskId, InboundMessage msg) {
+        LifecycleEngine engine = activeEngines.get(taskId);
         if (engine != null) {
             engine.postMessage(msg);
         } else {
-            log.debug("No active engine for missionId={}", missionId);
+            log.debug("No active engine for taskId={}", taskId);
         }
     }
 }
 ```
 
-- [ ] **Step 2: 删除 MissionCompletedEvent.java**
+- [ ] **Step 2: 删除 TaskCompletedEvent.java**
 
 ```bash
-rm src/main/java/com/tightening/lifecycle/MissionCompletedEvent.java
+rm src/main/java/com/tightening/lifecycle/TaskCompletedEvent.java
 ```
 
 - [ ] **Step 3: 修改 LifecycleEngineFactory.java — 删除 shouldSelfLoop 参数**
 
-`createEngine()` 方法签名和 MissionContext builder 移除 `shouldSelfLoop`：
+`createEngine()` 方法签名和 TaskContext builder 移除 `shouldSelfLoop`：
 
 ```java
 public LifecycleEngine createEngine(
-        ProductMission mission,
+        ProductTask task,
         List<ProductBolt> bolts,
         Map<Long, ITool> deviceMap,
         @Nullable String productCode,
         @Nullable String partsCode) {
 
-    MissionContext ctx = MissionContext.builder()
-        .productMissionId(mission.getId())
-        .missionData(mission)
+    TaskContext ctx = TaskContext.builder()
+        .productTaskId(task.getId())
+        .taskData(task)
         .boltConfigs(bolts)
         .deviceRegistry(deviceMap)
         .productCode(productCode)
@@ -191,7 +191,7 @@ public LifecycleEngine createEngine(
 
 同时删除已无用的 `import com.tightening.config.LocalSettings;`（settings 字段仍被 ExportData 使用，检查后确认保留）。
 
-- [ ] **Step 4: 修改 MissionContext.java — 删除 shouldSelfLoop 字段**
+- [ ] **Step 4: 修改 TaskContext.java — 删除 shouldSelfLoop 字段**
 
 删除第 29-30 行：
 
@@ -205,20 +205,20 @@ public LifecycleEngine createEngine(
 `startSkipScrewLifecycle()` 中删除 `ctx.setShouldSelfLoop(false);` 行（第 196 行），变成：
 
 ```java
-    private void startSkipScrewLifecycle(MissionContext ctx) {
-        var record = missionRecordService.createRecord(
-                ctx.getProductMissionId(), ctx.getProductCode(), 0);
-        missionRecordService.markAsOk(record.getId());
-        ctx.setMissionRecord(record);
+    private void startSkipScrewLifecycle(TaskContext ctx) {
+        var record = taskRecordService.createRecord(
+                ctx.getProductTaskId(), ctx.getProductCode(), 0);
+        taskRecordService.markAsOk(record.getId());
+        ctx.setTaskRecord(record);
         ctx.setCurrentStage(Stage.FINALIZATION);
         ctx.setCurrentSubState(SubState.CLEANING_TASKS);
         postMessage(new InboundCommand.AdvancePipeline());
     }
 ```
 
-- [ ] **Step 6: 修改 MissionOrchestratorTest.java — 替换自循环测试为基本 trigger 测试**
+- [ ] **Step 6: 修改 TaskOrchestratorTest.java — 替换自循环测试为基本 trigger 测试**
 
-删除两个自循环测试，替换为 trigger 基本行为验证。注意：测试中 `LifecycleEngineFactory` 构造不再需要 `settings`（LocalSettings 字段仍需 — 传给 ExportData），`MissionOrchestrator` 构造不再需要 `settings` 和 `publisher`。
+删除两个自循环测试，替换为 trigger 基本行为验证。注意：测试中 `LifecycleEngineFactory` 构造不再需要 `settings`（LocalSettings 字段仍需 — 传给 ExportData），`TaskOrchestrator` 构造不再需要 `settings` 和 `publisher`。
 
 ```java
 package com.tightening.lifecycle;
@@ -226,14 +226,14 @@ package com.tightening.lifecycle;
 import com.tightening.constant.DeviceType;
 import com.tightening.device.DeviceRegistry;
 import com.tightening.device.contract.ITool;
-import com.tightening.entity.MissionRecord;
+import com.tightening.entity.TaskRecord;
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.ProductTask;
 import com.tightening.judgment.JudgmentResult;
 import com.tightening.judgment.JudgmentStrategy;
 import com.tightening.service.BarCodeMatchingRuleService;
 import com.tightening.service.ExportTaskService;
-import com.tightening.service.MissionRecordService;
+import com.tightening.service.TaskRecordService;
 import com.tightening.service.TighteningDataService;
 import com.tightening.service.WorkplaceStatusService;
 import com.tightening.config.LocalSettings;
@@ -253,10 +253,10 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("MissionOrchestrator")
-class MissionOrchestratorTest {
+@DisplayName("TaskOrchestrator")
+class TaskOrchestratorTest {
 
-    @Mock private MissionRecordService missionRecordService;
+    @Mock private TaskRecordService taskRecordService;
     @Mock private TighteningDataService tighteningDataService;
     @Mock private ExportTaskService exportTaskService;
     @Mock private JudgmentStrategy judgmentStrategy;
@@ -267,7 +267,7 @@ class MissionOrchestratorTest {
     @Mock private ITool mockTool;
 
     private LifecycleEngineFactory factory;
-    private MissionOrchestrator orchestrator;
+    private TaskOrchestrator orchestrator;
 
     @BeforeEach
     void setUp() {
@@ -276,21 +276,21 @@ class MissionOrchestratorTest {
         lenient().when(mockTool.type()).thenReturn(DeviceType.ATLAS_PF4000);
         lenient().doNothing().when(exportTaskService).createTask(anyString(), anyLong(), anyString());
         factory = new LifecycleEngineFactory(
-            missionRecordService, tighteningDataService, exportTaskService, settings,
+            taskRecordService, tighteningDataService, exportTaskService, settings,
             Map.of(DeviceType.ATLAS_PF4000, judgmentStrategy), barCodeMatchingRuleService,
             workplaceStatusService);
-        orchestrator = new MissionOrchestrator(factory, deviceRegistry);
+        orchestrator = new TaskOrchestrator(factory, deviceRegistry);
     }
 
-    private static MissionRecord missionRecordWithId(long id, Integer missionResult) {
-        MissionRecord r = new MissionRecord();
+    private static TaskRecord taskRecordWithId(long id, Integer taskResult) {
+        TaskRecord r = new TaskRecord();
         r.setId(id);
-        if (missionResult != null) r.setMissionResult(missionResult);
+        if (taskResult != null) r.setTaskResult(taskResult);
         return r;
     }
 
-    private static ProductMission missionWithId(long id) {
-        ProductMission m = new ProductMission();
+    private static ProductTask taskWithId(long id) {
+        ProductTask m = new ProductTask();
         m.setId(id);
         return m;
     }
@@ -305,30 +305,30 @@ class MissionOrchestratorTest {
     @Test
     @DisplayName("trigger 成功创建引擎")
     void shouldCreateEngineOnTrigger() {
-        when(missionRecordService.createRecord(anyLong(), any(), anyInt()))
-            .thenReturn(missionRecordWithId(42L, null));
+        when(taskRecordService.createRecord(anyLong(), any(), anyInt()))
+            .thenReturn(taskRecordWithId(42L, null));
         when(deviceRegistry.getAllTools()).thenReturn(List.of(mockTool));
         when(mockTool.sendLock()).thenReturn(CompletableFuture.completedFuture(true));
         when(judgmentStrategy.judge(any())).thenReturn(JudgmentResult.ok());
 
         LifecycleEngine engine = orchestrator.trigger(
-            missionWithId(1L), List.of(boltWithId(10L, 1)), null, null);
+            taskWithId(1L), List.of(boltWithId(10L, 1)), null, null);
 
         assertThat(engine).isNotNull();
     }
 
     @Test
-    @DisplayName("重复 trigger 同一 mission 返回 null")
+    @DisplayName("重复 trigger 同一 task 返回 null")
     void shouldRejectDuplicateTrigger() {
-        when(missionRecordService.createRecord(anyLong(), any(), anyInt()))
-            .thenReturn(missionRecordWithId(42L, null));
+        when(taskRecordService.createRecord(anyLong(), any(), anyInt()))
+            .thenReturn(taskRecordWithId(42L, null));
         when(deviceRegistry.getAllTools()).thenReturn(List.of(mockTool));
         when(mockTool.sendLock()).thenReturn(CompletableFuture.completedFuture(true));
         when(judgmentStrategy.judge(any())).thenReturn(JudgmentResult.ok());
 
-        orchestrator.trigger(missionWithId(1L), List.of(boltWithId(10L, 1)), null, null);
+        orchestrator.trigger(taskWithId(1L), List.of(boltWithId(10L, 1)), null, null);
         LifecycleEngine second = orchestrator.trigger(
-            missionWithId(1L), List.of(boltWithId(10L, 1)), null, null);
+            taskWithId(1L), List.of(boltWithId(10L, 1)), null, null);
 
         assertThat(second).isNull();
     }
@@ -339,7 +339,7 @@ class MissionOrchestratorTest {
 
 ```bash
 mvn compile
-mvn test -pl . -Dtest=MissionOrchestratorTest
+mvn test -pl . -Dtest=TaskOrchestratorTest
 ```
 
 预期: COMPILE SUCCESS, Tests PASS (2/2)
@@ -352,14 +352,14 @@ mvn test -pl . -Dtest=MissionOrchestratorTest
 - Delete: `src/main/java/com/tightening/constant/DeleteStatus.java`
 - Delete: `src/main/java/com/tightening/constant/TCPCommand.java`
 - Modify: `src/main/java/com/tightening/constant/InspectionScope.java`
-- Modify: `src/main/java/com/tightening/entity/ProductMission.java`
-- Modify: `src/main/java/com/tightening/dto/ProductMissionDTO.java`
+- Modify: `src/main/java/com/tightening/entity/ProductTask.java`
+- Modify: `src/main/java/com/tightening/dto/ProductTaskDTO.java`
 - Modify: `src/main/resources/application.yaml`
 - Modify: `src/test/resources/application.yaml`
 
 **Interfaces:**
 - Consumes: `application.yaml` mybatis-plus 段
-- Produces: `InspectionScope` 枚举实现 MyBatis-Plus `@EnumValue` + Jackson `@JsonValue`；`ProductMission.inspectionScope` / `ProductMissionDTO.inspectionScope` 类型变为 `InspectionScope`
+- Produces: `InspectionScope` 枚举实现 MyBatis-Plus `@EnumValue` + Jackson `@JsonValue`；`ProductTask.inspectionScope` / `ProductTaskDTO.inspectionScope` 类型变为 `InspectionScope`
 
 - [ ] **Step 1: 删除 DeleteStatus.java**
 
@@ -411,7 +411,7 @@ public enum InspectionScope {
 }
 ```
 
-- [ ] **Step 4: 修改 ProductMission.java**
+- [ ] **Step 4: 修改 ProductTask.java**
 
 `inspectionScope` 字段从 `Integer` 改为 `InspectionScope`，新增 import：
 
@@ -432,8 +432,8 @@ import lombok.experimental.Accessors;
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
 @Accessors(chain = true)
-@TableName("product_mission")
-public class ProductMission extends BaseEntity {
+@TableName("product_task")
+public class ProductTask extends BaseEntity {
     private String name;
     private Integer maxNgCount;
     private Integer passwordRequiredAfterNg;
@@ -445,7 +445,7 @@ public class ProductMission extends BaseEntity {
 }
 ```
 
-- [ ] **Step 5: 修改 ProductMissionDTO.java**
+- [ ] **Step 5: 修改 ProductTaskDTO.java**
 
 同上，`inspectionScope` 字段从 `Integer` 改为 `InspectionScope`，新增 import：
 
@@ -465,7 +465,7 @@ import lombok.experimental.Accessors;
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
 @Accessors(chain = true)
-public class ProductMissionDTO extends BaseDTO {
+public class ProductTaskDTO extends BaseDTO {
     private String name;
     private Integer maxNgCount;
     private Integer passwordRequiredAfterNg;

@@ -2,8 +2,8 @@ package com.tightening.lifecycle.capability;
 
 import com.tightening.constant.BarCodeRuleType;
 import com.tightening.entity.BarCodeMatchingRule;
-import com.tightening.entity.ProductMission;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.entity.ProductTask;
+import com.tightening.lifecycle.TaskContext;
 import com.tightening.service.BarCodeMatchingRuleService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,10 +35,10 @@ class PartsBarCodeMatchingTest {
     @Test
     @DisplayName("无 MATERIAL_BARCODE 规则 → Skip")
     void noRule() {
-        var ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission())
+        var ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask())
                 .partsCode("MAT").build();
-        when(ruleService.listByMissionId(1L)).thenReturn(List.of());
+        when(ruleService.listByTaskId(1L)).thenReturn(List.of());
 
         assertThat(cap.execute(ctx)).isEqualTo(Skip);
     }
@@ -46,10 +46,10 @@ class PartsBarCodeMatchingTest {
     @Test
     @DisplayName("有规则 + partsCode 为空 → Fail")
     void rulePresentNoCode() {
-        var ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission())
+        var ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask())
                 .partsCode(null).build();
-        when(ruleService.listByMissionId(1L))
+        when(ruleService.listByTaskId(1L))
                 .thenReturn(List.of(new BarCodeMatchingRule()
                         .setRuleType(BarCodeRuleType.MATERIAL_BARCODE.getCode())
                         .setSegments("[{\"s\":0,\"e\":3,\"v\":\"MAT\"}]")));
@@ -60,10 +60,10 @@ class PartsBarCodeMatchingTest {
     @Test
     @DisplayName("有规则 + 匹配 → Pass")
     void ruleMatch() {
-        var ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission())
+        var ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask())
                 .partsCode("MAT456").build();
-        when(ruleService.listByMissionId(1L))
+        when(ruleService.listByTaskId(1L))
                 .thenReturn(List.of(new BarCodeMatchingRule()
                         .setRuleType(BarCodeRuleType.MATERIAL_BARCODE.getCode())
                         .setSegments("[{\"s\":0,\"e\":3,\"v\":\"MAT\"}]")));

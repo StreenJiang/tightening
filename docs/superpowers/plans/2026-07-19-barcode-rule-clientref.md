@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 前端通过 `clientRef`/`barcodeRuleRef` 在一次 saveMission 请求中关联新增条码规则和前置条件
+**Goal:** 前端通过 `clientRef`/`barcodeRuleRef` 在一次 saveTask 请求中关联新增条码规则和前置条件
 
-**Architecture:** DTO 层新增两个 String 字段做客户端引用，`diffBarcodeRules` 保存规则后构建 clientRef→realId 映射，`diffPrerequisites` 用该映射解析 `barcodeRuleRef`，校验逻辑委托至 `MissionConfigValidator`
+**Architecture:** DTO 层新增两个 String 字段做客户端引用，`diffBarcodeRules` 保存规则后构建 clientRef→realId 映射，`diffPrerequisites` 用该映射解析 `barcodeRuleRef`，校验逻辑委托至 `TaskConfigValidator`
 
 **Tech Stack:** Java 21, Spring Boot 3.5.10, MyBatis-Plus 3.5.9, JUnit 5 + AssertJ 3.27.7
 
@@ -14,7 +14,7 @@
 - 只新增规则（`id == null`）设置 `clientRef`
 - `barcodeRuleRef` 和 `barcodeRuleId` 互斥，同时存在抛异常
 - MATERIAL_TRACE 必须有 barcode 引用，非 MATERIAL_TRACE 不可有
-- 校验放 `MissionConfigValidator`，解析放 `diffPrerequisites`
+- 校验放 `TaskConfigValidator`，解析放 `diffPrerequisites`
 
 ---
 
@@ -59,18 +59,18 @@ git commit -m "feat: add clientRef and barcodeRuleRef fields for barcode-to-prer
 
 ---
 
-### Task 2: MissionConfigValidator 新增校验方法 + 测试
+### Task 2: TaskConfigValidator 新增校验方法 + 测试
 
 **Files:**
-- Modify: `src/main/java/com/tightening/service/MissionConfigValidator.java`
-- Modify: `src/test/java/com/tightening/service/MissionConfigValidatorTest.java`
+- Modify: `src/main/java/com/tightening/service/TaskConfigValidator.java`
+- Modify: `src/test/java/com/tightening/service/TaskConfigValidatorTest.java`
 
 **Interfaces:**
-- Produces: `MissionConfigValidator.validateBarcodeRuleForPrerequisite(BarCodeMatchingRule rule, PrerequisiteType prerequisiteType)` — 校验条码规则与前置类型的匹配
+- Produces: `TaskConfigValidator.validateBarcodeRuleForPrerequisite(BarCodeMatchingRule rule, PrerequisiteType prerequisiteType)` — 校验条码规则与前置类型的匹配
 
 - [ ] **Step 1: 写失败测试**
 
-在 `MissionConfigValidatorTest` 的 `src/test/java/com/tightening/service/MissionConfigValidatorTest.java` 中添加 nested test class：
+在 `TaskConfigValidatorTest` 的 `src/test/java/com/tightening/service/TaskConfigValidatorTest.java` 中添加 nested test class：
 
 ```java
 @Nested
@@ -133,13 +133,13 @@ class ValidateBarcodeRuleForPrerequisite {
 - [ ] **Step 2: 运行测试确认失败**
 
 ```bash
-mvn test -pl . -Dtest="MissionConfigValidatorTest#ValidateBarcodeRuleForPrerequisite" -DfailIfNoTests=false
+mvn test -pl . -Dtest="TaskConfigValidatorTest#ValidateBarcodeRuleForPrerequisite" -DfailIfNoTests=false
 ```
 Expected: 编译失败（方法不存在）
 
 - [ ] **Step 3: 实现校验方法**
 
-在 `MissionConfigValidator` 中添加：
+在 `TaskConfigValidator` 中添加：
 
 ```java
 public void validateBarcodeRuleForPrerequisite(BarCodeMatchingRule rule, PrerequisiteType prerequisiteType) {
@@ -161,15 +161,15 @@ public void validateBarcodeRuleForPrerequisite(BarCodeMatchingRule rule, Prerequ
 - [ ] **Step 4: 运行测试确认通过**
 
 ```bash
-mvn test -pl . -Dtest="MissionConfigValidatorTest" -DfailIfNoTests=false
+mvn test -pl . -Dtest="TaskConfigValidatorTest" -DfailIfNoTests=false
 ```
 Expected: 全部 PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/main/java/com/tightening/service/MissionConfigValidator.java src/test/java/com/tightening/service/MissionConfigValidatorTest.java
-git commit -m "feat: add barcode rule prerequisite validation in MissionConfigValidator"
+git add src/main/java/com/tightening/service/TaskConfigValidator.java src/test/java/com/tightening/service/TaskConfigValidatorTest.java
+git commit -m "feat: add barcode rule prerequisite validation in TaskConfigValidator"
 ```
 
 ---
@@ -177,7 +177,7 @@ git commit -m "feat: add barcode rule prerequisite validation in MissionConfigVa
 ### Task 3: BarcodeDiffResult + diffBarcodeRules 改造
 
 **Files:**
-- Modify: `src/main/java/com/tightening/service/ProductMissionService.java`
+- Modify: `src/main/java/com/tightening/service/ProductTaskService.java`
 
 **Interfaces:**
 - Produces: `BarcodeDiffResult(List<BarCodeMatchingRule> rules, Map<String, Long> clientRefMap)` — private record
@@ -185,7 +185,7 @@ git commit -m "feat: add barcode rule prerequisite validation in MissionConfigVa
 
 - [ ] **Step 1: 添加 BarcodeDiffResult record 和 import**
 
-在 `ProductMissionService` 类内部末尾（`}` 前）添加 record，并在文件顶部添加 `HashMap` import：
+在 `ProductTaskService` 类内部末尾（`}` 前）添加 record，并在文件顶部添加 `HashMap` import：
 
 ```java
 import java.util.HashMap;
@@ -199,9 +199,9 @@ private record BarcodeDiffResult(List<BarCodeMatchingRule> rules, Map<String, Lo
 修改 `diffBarcodeRules` 方法签名和内部逻辑，在循环内构建 `clientRefMap`：
 
 ```java
-private BarcodeDiffResult diffBarcodeRules(Long missionId, List<BarCodeRuleSaveItem> dtoItems) {
+private BarcodeDiffResult diffBarcodeRules(Long taskId, List<BarCodeRuleSaveItem> dtoItems) {
     List<BarCodeMatchingRule> existing = barcodeRuleService.lambdaQuery()
-            .eq(BarCodeMatchingRule::getProductMissionId, missionId)
+            .eq(BarCodeMatchingRule::getProductTaskId, taskId)
             .eq(BarCodeMatchingRule::getDeleted, 0)
             .list();
 
@@ -212,11 +212,11 @@ private BarcodeDiffResult diffBarcodeRules(Long missionId, List<BarCodeRuleSaveI
     if (dtoItems != null) {
         for (BarCodeRuleSaveItem item : dtoItems) {
             BarCodeMatchingRule entity = Converter.dto2Entity(item, BarCodeMatchingRule::new);
-            entity.setProductMissionId(missionId);
+            entity.setProductTaskId(taskId);
             entity.setRuleType(item.getRuleType().getCode());
             validator.validateKeyCharLength(entity);
             if (BarCodeRuleType.PRODUCT_TRACE.getCode() == entity.getRuleType()) {
-                validator.validateProductTraceUnique(missionId, entity.getId());
+                validator.validateProductTraceUnique(taskId, entity.getId());
             }
             if (item.getId() != null) {
                 dtoIds.add(item.getId());
@@ -250,19 +250,19 @@ mvn compile -q
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/main/java/com/tightening/service/ProductMissionService.java
+git add src/main/java/com/tightening/service/ProductTaskService.java
 git commit -m "feat: return BarcodeDiffResult from diffBarcodeRules with clientRef mapping"
 ```
 
 ---
 
-### Task 4: diffPrerequisites 改造 + saveMission 接线
+### Task 4: diffPrerequisites 改造 + saveTask 接线
 
 **Files:**
-- Modify: `src/main/java/com/tightening/service/ProductMissionService.java`
+- Modify: `src/main/java/com/tightening/service/ProductTaskService.java`
 
 **Interfaces:**
-- Consumes: `BarcodeDiffResult` (from Task 3), `PrerequisiteSaveItem.barcodeRuleRef` (from Task 1), `MissionConfigValidator.validateBarcodeRuleForPrerequisite` (from Task 2)
+- Consumes: `BarcodeDiffResult` (from Task 3), `PrerequisiteSaveItem.barcodeRuleRef` (from Task 1), `TaskConfigValidator.validateBarcodeRuleForPrerequisite` (from Task 2)
 - Produces: 无新接口
 
 - [ ] **Step 1: 修改 diffPrerequisites 签名并添加解析/校验逻辑**
@@ -270,27 +270,27 @@ git commit -m "feat: return BarcodeDiffResult from diffBarcodeRules with clientR
 将 `diffPrerequisites` 签名改为接收 `BarcodeDiffResult`，并在 for 循环内添加 barcode 解析逻辑（在 `entity.setPrerequisiteType` 之后，`save/update` 之前）：
 
 ```java
-private void diffPrerequisites(Long missionId, List<PrerequisiteSaveItem> dtoItems, BarcodeDiffResult barcodeResult) {
-    List<MissionPrerequisite> existing = prerequisiteService.lambdaQuery()
-            .eq(MissionPrerequisite::getMissionId, missionId)
-            .eq(MissionPrerequisite::getDeleted, 0)
+private void diffPrerequisites(Long taskId, List<PrerequisiteSaveItem> dtoItems, BarcodeDiffResult barcodeResult) {
+    List<TaskPrerequisite> existing = prerequisiteService.lambdaQuery()
+            .eq(TaskPrerequisite::getTaskId, taskId)
+            .eq(TaskPrerequisite::getDeleted, 0)
             .list();
 
     Set<Long> dtoIds = new HashSet<>();
 
     if (dtoItems != null && !dtoItems.isEmpty()) {
         List<Long> targetIds = dtoItems.stream()
-                .map(PrerequisiteSaveItem::getPrerequisiteMissionId).toList();
-        List<ProductMission> targets = lambdaQuery().in(ProductMission::getId, targetIds).list();
-        Map<Long, ProductMission> targetMap = targets.stream()
-                .collect(java.util.stream.Collectors.toMap(ProductMission::getId, m -> m));
+                .map(PrerequisiteSaveItem::getPrerequisiteTaskId).toList();
+        List<ProductTask> targets = lambdaQuery().in(ProductTask::getId, targetIds).list();
+        Map<Long, ProductTask> targetMap = targets.stream()
+                .collect(java.util.stream.Collectors.toMap(ProductTask::getId, m -> m));
 
         for (PrerequisiteSaveItem item : dtoItems) {
-            MissionPrerequisite entity = Converter.dto2Entity(item, MissionPrerequisite::new);
-            entity.setMissionId(missionId);
+            TaskPrerequisite entity = Converter.dto2Entity(item, TaskPrerequisite::new);
+            entity.setTaskId(taskId);
             entity.setPrerequisiteType(item.getPrerequisiteType().getCode());
-            validator.validateNoCircularDependency(missionId, item.getPrerequisiteMissionId());
-            validator.validatePrerequisiteType(targetMap.get(item.getPrerequisiteMissionId()), item.getPrerequisiteType());
+            validator.validateNoCircularDependency(taskId, item.getPrerequisiteTaskId());
+            validator.validatePrerequisiteType(targetMap.get(item.getPrerequisiteTaskId()), item.getPrerequisiteType());
 
             // Resolve barcodeRuleId
             Long resolvedBarcodeRuleId;
@@ -325,7 +325,7 @@ private void diffPrerequisites(Long missionId, List<PrerequisiteSaveItem> dtoIte
         }
     }
 
-    for (MissionPrerequisite ex : existing) {
+    for (TaskPrerequisite ex : existing) {
         if (!dtoIds.contains(ex.getId())) {
             prerequisiteService.removeById(ex.getId());
         }
@@ -333,15 +333,15 @@ private void diffPrerequisites(Long missionId, List<PrerequisiteSaveItem> dtoIte
 }
 ```
 
-- [ ] **Step 2: 修改 saveMission 接线**
+- [ ] **Step 2: 修改 saveTask 接线**
 
-在 `saveMission` 中，将 line 94-97 改为：
+在 `saveTask` 中，将 line 94-97 改为：
 
 ```java
-BarcodeDiffResult barcodeResult = diffBarcodeRules(missionId, dto.getBarcodeRules());
+BarcodeDiffResult barcodeResult = diffBarcodeRules(taskId, dto.getBarcodeRules());
 validator.validateBarcodeRules(barcodeResult.rules());
 
-diffPrerequisites(missionId, dto.getPrerequisites(), barcodeResult);
+diffPrerequisites(taskId, dto.getPrerequisites(), barcodeResult);
 ```
 
 - [ ] **Step 3: 验证编译**
@@ -359,6 +359,6 @@ mvn test
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/main/java/com/tightening/service/ProductMissionService.java
+git add src/main/java/com/tightening/service/ProductTaskService.java
 git commit -m "feat: resolve barcodeRuleRef in diffPrerequisites via clientRef mapping"
 ```

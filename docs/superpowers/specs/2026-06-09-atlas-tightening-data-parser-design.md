@@ -41,7 +41,7 @@ Atlas 拧紧控制器通过 MID 0061 消息（`AtlasFrame.mid=61`）上报拧紧
 
 | 字段 | 类型 | 来源 |
 |---|---|---|
-| missionRecordId | long | 业务层填入 |
+| taskRecordId | long | 业务层填入 |
 | workstationName | String | 业务层填入 |
 | toolName | String | 业务层填入 |
 | toolTypeName | String | Handler 层设 DeviceType 名称 |

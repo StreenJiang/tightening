@@ -2,7 +2,7 @@ package com.tightening.lifecycle.capability;
 
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -14,7 +14,7 @@ public class WorkstationConfigCheck implements Capability {
     @Override public int priority() { return 0; }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
+    public CapabilityResult execute(TaskContext ctx) {
         if (ctx.getBoltConfigs() == null || ctx.getBoltConfigs().isEmpty()) {
             log.warn("WorkstationConfigCheck FAIL: no bolt configs");
             return CapabilityResult.Fail;
@@ -23,8 +23,8 @@ public class WorkstationConfigCheck implements Capability {
             log.warn("WorkstationConfigCheck FAIL: no devices in registry");
             return CapabilityResult.Fail;
         }
-        if (ctx.getMissionData() == null) {
-            log.warn("WorkstationConfigCheck FAIL: no mission data");
+        if (ctx.getTaskData() == null) {
+            log.warn("WorkstationConfigCheck FAIL: no task data");
             return CapabilityResult.Fail;
         }
         log.info("WorkstationConfigCheck PASS: {} bolts, {} devices",

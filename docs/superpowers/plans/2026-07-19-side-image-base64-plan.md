@@ -4,7 +4,7 @@
 
 **Goal:** 将 side 图片从 multipart 上传改为 Base64 嵌入 JSON，删除 `/api/sides` 相关端点，精简任务接口。
 
-**Architecture:** ProductMissionSaveDTO 重命名为 ProductMissionDetailDTO 同时承担保存入参和详情出参，ProductMissionDTO 保持列表专用。diffSides 直接从 DTO 字段取 Base64 解码，不再依赖 imageMap。
+**Architecture:** ProductTaskSaveDTO 重命名为 ProductTaskDetailDTO 同时承担保存入参和详情出参，ProductTaskDTO 保持列表专用。diffSides 直接从 DTO 字段取 Base64 解码，不再依赖 imageMap。
 
 **Tech Stack:** Java 21, Spring Boot 3.5.10, MyBatis-Plus 3.5.9, Lombok
 
@@ -21,11 +21,11 @@
 
 **Files:**
 - Modify: `src/main/java/com/tightening/dto/ProductSideSaveItem.java`
-- Rename: `src/main/java/com/tightening/dto/ProductMissionSaveDTO.java` → `ProductMissionDetailDTO.java`
+- Rename: `src/main/java/com/tightening/dto/ProductTaskSaveDTO.java` → `ProductTaskDetailDTO.java`
 
 **Interfaces:**
 - Produces: `ProductSideSaveItem.getImage()/getRenderedImage()/getThumbnail()` → String (Base64, null=保持, ""=删除)
-- Produces: `ProductMissionDetailDTO` (same structure as old ProductMissionSaveDTO, new name)
+- Produces: `ProductTaskDetailDTO` (same structure as old ProductTaskSaveDTO, new name)
 
 - [ ] **Step 1: 给 ProductSideSaveItem 添加三个图片字段**
 
@@ -64,17 +64,17 @@ public class ProductSideSaveItem extends BaseDTO {
 }
 ```
 
-- [ ] **Step 2: 重命名 ProductMissionSaveDTO → ProductMissionDetailDTO**
+- [ ] **Step 2: 重命名 ProductTaskSaveDTO → ProductTaskDetailDTO**
 
 ```bash
 cd /Users/streen/IdeaProjects/tightening
-mv src/main/java/com/tightening/dto/ProductMissionSaveDTO.java \
-   src/main/java/com/tightening/dto/ProductMissionDetailDTO.java
+mv src/main/java/com/tightening/dto/ProductTaskSaveDTO.java \
+   src/main/java/com/tightening/dto/ProductTaskDetailDTO.java
 ```
 
 - [ ] **Step 3: 更新类名和构造函数引用**
 
-编辑 `src/main/java/com/tightening/dto/ProductMissionDetailDTO.java`：
+编辑 `src/main/java/com/tightening/dto/ProductTaskDetailDTO.java`：
 
 ```java
 package com.tightening.dto;
@@ -92,7 +92,7 @@ import lombok.experimental.Accessors;
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
 @Accessors(chain = true)
-public class ProductMissionDetailDTO extends BaseDTO {
+public class ProductTaskDetailDTO extends BaseDTO {
     private String name;
     private Integer maxNgCount;
     private Integer passwordRequiredNgCount;
@@ -102,84 +102,84 @@ public class ProductMissionDetailDTO extends BaseDTO {
     private Integer isInspection;
     private InspectionScope inspectionScope;
 
-    private List<Long> inspectionBoundMissionIds;
+    private List<Long> inspectionBoundTaskIds;
     private List<PrerequisiteSaveItem> prerequisites;
     private List<BarCodeRuleSaveItem> barcodeRules;
     private List<ProductSideSaveItem> sides;
 }
 ```
 
-- [ ] **Step 4: 更新所有引用 ProductMissionSaveDTO 的文件**
+- [ ] **Step 4: 更新所有引用 ProductTaskSaveDTO 的文件**
 
-在 `src/main/java/com/tightening/service/ProductMissionService.java:13`：
+在 `src/main/java/com/tightening/service/ProductTaskService.java:13`：
 ```java
 // 改前
-import com.tightening.dto.ProductMissionSaveDTO;
+import com.tightening.dto.ProductTaskSaveDTO;
 // 改后
-import com.tightening.dto.ProductMissionDetailDTO;
+import com.tightening.dto.ProductTaskDetailDTO;
 ```
 
-在 `src/main/java/com/tightening/service/ProductMissionService.java:86`：
+在 `src/main/java/com/tightening/service/ProductTaskService.java:86`：
 ```java
 // 改前
-public ProductMissionSaveDTO saveMission(ProductMissionSaveDTO dto, Map<String, byte[]> imageMap) {
+public ProductTaskSaveDTO saveTask(ProductTaskSaveDTO dto, Map<String, byte[]> imageMap) {
 // 改后
-public ProductMissionDetailDTO saveMission(ProductMissionDetailDTO dto) {
+public ProductTaskDetailDTO saveTask(ProductTaskDetailDTO dto) {
 ```
 
-在 `src/main/java/com/tightening/controller/ProductMissionController.java:9`：
+在 `src/main/java/com/tightening/controller/ProductTaskController.java:9`：
 ```java
 // 改前
-import com.tightening.dto.ProductMissionSaveDTO;
+import com.tightening.dto.ProductTaskSaveDTO;
 // 改后
-import com.tightening.dto.ProductMissionDetailDTO;
+import com.tightening.dto.ProductTaskDetailDTO;
 ```
 
 - [ ] **Step 5: 提交**
 
 ```bash
 git add src/main/java/com/tightening/dto/
-git rm src/main/java/com/tightening/dto/ProductMissionSaveDTO.java
-git add src/main/java/com/tightening/service/ProductMissionService.java
-git add src/main/java/com/tightening/controller/ProductMissionController.java
-git commit -m "refactor: add Base64 image fields to ProductSideSaveItem, rename ProductMissionSaveDTO to ProductMissionDetailDTO"
+git rm src/main/java/com/tightening/dto/ProductTaskSaveDTO.java
+git add src/main/java/com/tightening/service/ProductTaskService.java
+git add src/main/java/com/tightening/controller/ProductTaskController.java
+git commit -m "refactor: add Base64 image fields to ProductSideSaveItem, rename ProductTaskSaveDTO to ProductTaskDetailDTO"
 ```
 
 ---
 
-### Task 2: Service 层 — saveMission 和 diffSides 改造
+### Task 2: Service 层 — saveTask 和 diffSides 改造
 
 **Files:**
-- Modify: `src/main/java/com/tightening/service/ProductMissionService.java`
+- Modify: `src/main/java/com/tightening/service/ProductTaskService.java`
 
 **Interfaces:**
-- Consumes: `ProductMissionDetailDTO`, `ProductSideSaveItem.getImage()/getRenderedImage()/getThumbnail()`
-- Produces: `saveMission(ProductMissionDetailDTO dto)` (去掉 imageMap 参数)
+- Consumes: `ProductTaskDetailDTO`, `ProductSideSaveItem.getImage()/getRenderedImage()/getThumbnail()`
+- Produces: `saveTask(ProductTaskDetailDTO dto)` (去掉 imageMap 参数)
 
-- [ ] **Step 1: 修改 saveMission 签名和实现**
+- [ ] **Step 1: 修改 saveTask 签名和实现**
 
-`src/main/java/com/tightening/service/ProductMissionService.java:85-106`：
+`src/main/java/com/tightening/service/ProductTaskService.java:85-106`：
 
 ```java
     @Transactional
-    public ProductMissionDetailDTO saveMission(ProductMissionDetailDTO dto) {
-        ProductMission mission = Converter.dto2Entity(dto, ProductMission::new);
-        if (mission.getInspectionScope() == null) mission.setInspectionScope(InspectionScope.NONE);
-        saveOrUpdate(mission);
-        Long missionId = mission.getId();
-        dto.setId(missionId);
+    public ProductTaskDetailDTO saveTask(ProductTaskDetailDTO dto) {
+        ProductTask task = Converter.dto2Entity(dto, ProductTask::new);
+        if (task.getInspectionScope() == null) task.setInspectionScope(InspectionScope.NONE);
+        saveOrUpdate(task);
+        Long taskId = task.getId();
+        dto.setId(taskId);
 
-        validator.validateInspectionScope(mission, dto.getInspectionBoundMissionIds());
+        validator.validateInspectionScope(task, dto.getInspectionBoundTaskIds());
 
-        syncInspectionBindings(missionId, dto.getInspectionBoundMissionIds());
+        syncInspectionBindings(taskId, dto.getInspectionBoundTaskIds());
 
-        BarcodeDiffResult barcodeResult = diffBarcodeRules(missionId, dto.getBarcodeRules());
+        BarcodeDiffResult barcodeResult = diffBarcodeRules(taskId, dto.getBarcodeRules());
         validator.validateBarcodeRules(barcodeResult.rules());
 
-        diffPrerequisites(missionId, dto.getPrerequisites(), barcodeResult);
-        validator.validateInspectionChainSelfInspection(mission, dto.getPrerequisites());
+        diffPrerequisites(taskId, dto.getPrerequisites(), barcodeResult);
+        validator.validateInspectionChainSelfInspection(task, dto.getPrerequisites());
 
-        diffSides(missionId, dto.getSides(), barcodeResult);
+        diffSides(taskId, dto.getSides(), barcodeResult);
 
         return dto;
     }
@@ -187,13 +187,13 @@ git commit -m "refactor: add Base64 image fields to ProductSideSaveItem, rename 
 
 - [ ] **Step 2: 修改 diffSides 方法签名和图片处理逻辑**
 
-`src/main/java/com/tightening/service/ProductMissionService.java:241-280`：
+`src/main/java/com/tightening/service/ProductTaskService.java:241-280`：
 
 ```java
-    private void diffSides(Long missionId, List<ProductSideSaveItem> dtoSides,
+    private void diffSides(Long taskId, List<ProductSideSaveItem> dtoSides,
                             BarcodeDiffResult barcodeResult) {
         List<ProductSide> existingSides = sideService.lambdaQuery()
-                .eq(ProductSide::getProductMissionId, missionId)
+                .eq(ProductSide::getProductTaskId, taskId)
                 .eq(ProductSide::getDeleted, 0)
                 .list();
 
@@ -203,7 +203,7 @@ git commit -m "refactor: add Base64 image fields to ProductSideSaveItem, rename 
             for (int i = 0; i < dtoSides.size(); i++) {
                 ProductSideSaveItem sideItem = dtoSides.get(i);
                 ProductSide sideEntity = Converter.dto2Entity(sideItem, ProductSide::new);
-                sideEntity.setProductMissionId(missionId);
+                sideEntity.setProductTaskId(taskId);
 
                 if (sideItem.getId() != null) {
                     // 更新：null 图片字段需保留 DB 原值
@@ -226,7 +226,7 @@ git commit -m "refactor: add Base64 image fields to ProductSideSaveItem, rename 
                     sideItem.setId(sideEntity.getId());
                 }
 
-                diffBolts(sideEntity.getId(), missionId, sideItem.getBolts(), barcodeResult);
+                diffBolts(sideEntity.getId(), taskId, sideItem.getBolts(), barcodeResult);
             }
         }
 
@@ -255,7 +255,7 @@ git commit -m "refactor: add Base64 image fields to ProductSideSaveItem, rename 
 
 - [ ] **Step 3: 移除 Map import（如果不再需要）**
 
-检查 `saveMission` 方法体中是否还有对 `Map` 的引用：`import java.util.Map;` — 如果 diffSides 签名变了之后不再需要 Map，则移除。但 `BarcodeDiffResult` 内部使用了 Map，所以保留。
+检查 `saveTask` 方法体中是否还有对 `Map` 的引用：`import java.util.Map;` — 如果 diffSides 签名变了之后不再需要 Map，则移除。但 `BarcodeDiffResult` 内部使用了 Map，所以保留。
 
 - [ ] **Step 4: 运行编译检查**
 
@@ -267,7 +267,7 @@ Expected: BUILD SUCCESS
 - [ ] **Step 5: 提交**
 
 ```bash
-git add src/main/java/com/tightening/service/ProductMissionService.java
+git add src/main/java/com/tightening/service/ProductTaskService.java
 git commit -m "refactor: replace imageMap with Base64 decoding in diffSides"
 ```
 
@@ -276,24 +276,24 @@ git commit -m "refactor: replace imageMap with Base64 decoding in diffSides"
 ### Task 3: Service 层 — 新增 getDetail 方法
 
 **Files:**
-- Modify: `src/main/java/com/tightening/service/ProductMissionService.java`
+- Modify: `src/main/java/com/tightening/service/ProductTaskService.java`
 
 **Interfaces:**
-- Produces: `ProductMissionDetailDTO getDetail(Long missionId)` — 返回包含 sides（含 Base64 图片）的完整详情
+- Produces: `ProductTaskDetailDTO getDetail(Long taskId)` — 返回包含 sides（含 Base64 图片）的完整详情
 
 - [ ] **Step 1: 新增 getDetail 方法**
 
-在 `ProductMissionService.java` 中 `listByPage` 方法后添加：
+在 `ProductTaskService.java` 中 `listByPage` 方法后添加：
 
 ```java
-    public ProductMissionDetailDTO getDetail(Long missionId) {
-        ProductMission mission = getById(missionId);
-        if (mission == null) return null;
+    public ProductTaskDetailDTO getDetail(Long taskId) {
+        ProductTask task = getById(taskId);
+        if (task == null) return null;
 
-        ProductMissionDetailDTO dto = Converter.entity2Dto(mission, ProductMissionDetailDTO::new);
+        ProductTaskDetailDTO dto = Converter.entity2Dto(task, ProductTaskDetailDTO::new);
 
         List<ProductSide> sides = sideService.lambdaQuery()
-                .eq(ProductSide::getProductMissionId, missionId)
+                .eq(ProductSide::getProductTaskId, taskId)
                 .eq(ProductSide::getDeleted, 0)
                 .list();
 
@@ -325,7 +325,7 @@ Expected: BUILD SUCCESS
 - [ ] **Step 3: 提交**
 
 ```bash
-git add src/main/java/com/tightening/service/ProductMissionService.java
+git add src/main/java/com/tightening/service/ProductTaskService.java
 git commit -m "feat: add getDetail method with Base64-encoded side images"
 ```
 
@@ -334,33 +334,33 @@ git commit -m "feat: add getDetail method with Base64-encoded side images"
 ### Task 4: Controller 层改造
 
 **Files:**
-- Modify: `src/main/java/com/tightening/controller/ProductMissionController.java`
+- Modify: `src/main/java/com/tightening/controller/ProductTaskController.java`
 
 **Interfaces:**
-- Consumes: `ProductMissionDetailDTO` from `ProductMissionService`
-- Changes: create/update 从 multipart 改为 `@RequestBody` JSON，get 返回 `ProductMissionDetailDTO`
+- Consumes: `ProductTaskDetailDTO` from `ProductTaskService`
+- Changes: create/update 从 multipart 改为 `@RequestBody` JSON，get 返回 `ProductTaskDetailDTO`
 
 - [ ] **Step 1: 重写 Controller**
 
-`src/main/java/com/tightening/controller/ProductMissionController.java` 完整替换为：
+`src/main/java/com/tightening/controller/ProductTaskController.java` 完整替换为：
 
 ```java
 package com.tightening.controller;
 
 import com.tightening.dto.ApiResponse;
 import com.tightening.dto.BarCodeMatchingRuleDTO;
-import com.tightening.dto.InspectionMissionBindingDTO;
-import com.tightening.dto.MissionPrerequisiteDTO;
+import com.tightening.dto.InspectionTaskBindingDTO;
+import com.tightening.dto.TaskPrerequisiteDTO;
 import com.tightening.dto.PageResult;
-import com.tightening.dto.ProductMissionDTO;
-import com.tightening.dto.ProductMissionDetailDTO;
+import com.tightening.dto.ProductTaskDTO;
+import com.tightening.dto.ProductTaskDetailDTO;
 import com.tightening.entity.BarCodeMatchingRule;
-import com.tightening.entity.InspectionMissionBinding;
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.InspectionTaskBinding;
+import com.tightening.entity.ProductTask;
 import com.tightening.service.BarCodeMatchingRuleService;
-import com.tightening.service.InspectionMissionBindingService;
-import com.tightening.service.MissionPrerequisiteService;
-import com.tightening.service.ProductMissionService;
+import com.tightening.service.InspectionTaskBindingService;
+import com.tightening.service.TaskPrerequisiteService;
+import com.tightening.service.ProductTaskService;
 import com.tightening.util.Converter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -380,27 +380,27 @@ import java.util.List;
 
 @Slf4j
 @RestController
-@RequestMapping("api/missions")
+@RequestMapping("api/tasks")
 @RequiredArgsConstructor
-public class ProductMissionController {
+public class ProductTaskController {
 
-    private final ProductMissionService missionService;
-    private final MissionPrerequisiteService prerequisiteService;
-    private final InspectionMissionBindingService bindingService;
+    private final ProductTaskService taskService;
+    private final TaskPrerequisiteService prerequisiteService;
+    private final InspectionTaskBindingService bindingService;
     private final BarCodeMatchingRuleService barcodeRuleService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<PageResult<ProductMissionDTO>>> list(@RequestParam(defaultValue = "1") int page,
+    public ResponseEntity<ApiResponse<PageResult<ProductTaskDTO>>> list(@RequestParam(defaultValue = "1") int page,
                                                         @RequestParam(defaultValue = "100") int size,
                                                         @RequestParam(required = false) String name) {
-        var resultPage = missionService.listByPage(page, size, name);
-        var dtos = Converter.entity2Dto(resultPage.getRecords(), ProductMissionDTO::new);
+        var resultPage = taskService.listByPage(page, size, name);
+        var dtos = Converter.entity2Dto(resultPage.getRecords(), ProductTaskDTO::new);
         return ResponseEntity.ok(ApiResponse.ok(PageResult.of(resultPage, dtos)));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<ProductMissionDetailDTO>> get(@PathVariable Long id) {
-        ProductMissionDetailDTO detail = missionService.getDetail(id);
+    public ResponseEntity<ApiResponse<ProductTaskDetailDTO>> get(@PathVariable Long id) {
+        ProductTaskDetailDTO detail = taskService.getDetail(id);
         if (detail == null) return ResponseEntity.ok(ApiResponse.fail("not found"));
         return ResponseEntity.ok(ApiResponse.ok(detail));
     }
@@ -408,69 +408,69 @@ public class ProductMissionController {
     @GetMapping("/check-name")
     public ResponseEntity<ApiResponse<Boolean>> checkName(@RequestParam String name,
                                                            @RequestParam(required = false) Long excludeId) {
-        boolean exists = missionService.isNameDuplicate(name, excludeId);
+        boolean exists = taskService.isNameDuplicate(name, excludeId);
         return ResponseEntity.ok(ApiResponse.ok(exists));
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<ProductMissionDetailDTO>> create(@RequestBody ProductMissionDetailDTO dto) {
+    public ResponseEntity<ApiResponse<ProductTaskDetailDTO>> create(@RequestBody ProductTaskDetailDTO dto) {
         try {
-            ProductMissionDetailDTO result = missionService.saveMission(dto);
+            ProductTaskDetailDTO result = taskService.saveTask(dto);
             return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (DuplicateKeyException e) {
             return ResponseEntity.ok(ApiResponse.fail("任务名称已存在"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.ok(ApiResponse.fail(e.getMessage()));
         } catch (RuntimeException e) {
-            log.error("Create mission failed", e);
+            log.error("Create task failed", e);
             return ResponseEntity.ok(ApiResponse.fail("新增失败: " + unwrapCause(e)));
         } catch (Exception e) {
-            log.error("Create mission failed", e);
+            log.error("Create task failed", e);
             return ResponseEntity.ok(ApiResponse.fail("新增失败"));
         }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<ProductMissionDetailDTO>> update(@PathVariable Long id,
-                                                                         @RequestBody ProductMissionDetailDTO dto) {
+    public ResponseEntity<ApiResponse<ProductTaskDetailDTO>> update(@PathVariable Long id,
+                                                                         @RequestBody ProductTaskDetailDTO dto) {
         try {
             dto.setId(id);
-            ProductMissionDetailDTO result = missionService.saveMission(dto);
+            ProductTaskDetailDTO result = taskService.saveTask(dto);
             return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (DuplicateKeyException e) {
             return ResponseEntity.ok(ApiResponse.fail("任务名称已存在"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.ok(ApiResponse.fail(e.getMessage()));
         } catch (RuntimeException e) {
-            log.error("Update mission failed: id={}", id, e);
+            log.error("Update task failed: id={}", id, e);
             return ResponseEntity.ok(ApiResponse.fail("更新失败: " + unwrapCause(e)));
         } catch (Exception e) {
-            log.error("Update mission failed: id={}", id, e);
+            log.error("Update task failed: id={}", id, e);
             return ResponseEntity.ok(ApiResponse.fail("更新失败"));
         }
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<String>> delete(@PathVariable Long id) {
-        missionService.cascadeDelete(id);
+        taskService.cascadeDelete(id);
         return ResponseEntity.ok(ApiResponse.ok());
     }
 
-    @GetMapping("/{missionId}/prerequisites")
-    public ResponseEntity<ApiResponse<List<MissionPrerequisiteDTO>>> listPrerequisites(@PathVariable Long missionId) {
-        List<MissionPrerequisiteDTO> prerequisites = prerequisiteService.listByMissionId(missionId);
+    @GetMapping("/{taskId}/prerequisites")
+    public ResponseEntity<ApiResponse<List<TaskPrerequisiteDTO>>> listPrerequisites(@PathVariable Long taskId) {
+        List<TaskPrerequisiteDTO> prerequisites = prerequisiteService.listByTaskId(taskId);
         return ResponseEntity.ok(ApiResponse.ok(prerequisites));
     }
 
-    @GetMapping("/{missionId}/inspection-bindings")
-    public ResponseEntity<ApiResponse<List<InspectionMissionBindingDTO>>> listInspectionBindings(@PathVariable Long missionId) {
-        List<InspectionMissionBinding> bindings = bindingService.listByInspectionMissionId(missionId);
-        return ResponseEntity.ok(ApiResponse.ok(Converter.entity2Dto(bindings, InspectionMissionBindingDTO::new)));
+    @GetMapping("/{taskId}/inspection-bindings")
+    public ResponseEntity<ApiResponse<List<InspectionTaskBindingDTO>>> listInspectionBindings(@PathVariable Long taskId) {
+        List<InspectionTaskBinding> bindings = bindingService.listByInspectionTaskId(taskId);
+        return ResponseEntity.ok(ApiResponse.ok(Converter.entity2Dto(bindings, InspectionTaskBindingDTO::new)));
     }
 
-    @GetMapping("/{missionId}/barcode-rules")
-    public ResponseEntity<ApiResponse<List<BarCodeMatchingRuleDTO>>> listBarcodeRules(@PathVariable Long missionId) {
-        List<BarCodeMatchingRule> rules = barcodeRuleService.listByMissionId(missionId);
+    @GetMapping("/{taskId}/barcode-rules")
+    public ResponseEntity<ApiResponse<List<BarCodeMatchingRuleDTO>>> listBarcodeRules(@PathVariable Long taskId) {
+        List<BarCodeMatchingRule> rules = barcodeRuleService.listByTaskId(taskId);
         return ResponseEntity.ok(ApiResponse.ok(Converter.entity2Dto(rules, BarCodeMatchingRuleDTO::new)));
     }
 
@@ -494,8 +494,8 @@ Expected: BUILD SUCCESS
 - [ ] **Step 4: 提交**
 
 ```bash
-git add src/main/java/com/tightening/controller/ProductMissionController.java
-git commit -m "refactor: switch mission create/update from multipart to JSON, add detail endpoint"
+git add src/main/java/com/tightening/controller/ProductTaskController.java
+git commit -m "refactor: switch task create/update from multipart to JSON, add detail endpoint"
 ```
 
 ---
@@ -535,10 +535,10 @@ import java.util.List;
 public class ProductSideService extends ServiceImpl<ProductSideMapper, ProductSide> {
     private final ProductBoltService boltService;
 
-    public List<Long> listSideIdsByMissionId(Long missionId) {
+    public List<Long> listSideIdsByTaskId(Long taskId) {
         return lambdaQuery()
                 .select(ProductSide::getId)
-                .eq(ProductSide::getProductMissionId, missionId)
+                .eq(ProductSide::getProductTaskId, taskId)
                 .eq(ProductSide::getDeleted, 0)
                 .list().stream().map(ProductSide::getId).toList();
     }
@@ -555,7 +555,7 @@ public class ProductSideService extends ServiceImpl<ProductSideMapper, ProductSi
 }
 ```
 
-移除的方法：`getByIdWithoutBlobs`、`listByMissionId`、`getImageData`、`updateImageData`、`updateRenderedImageData`、`updateThumbnailData`。
+移除的方法：`getByIdWithoutBlobs`、`listByTaskId`、`getImageData`、`updateImageData`、`updateRenderedImageData`、`updateThumbnailData`。
 
 移除对应的 import：`ImageType`、`ProductBolt`。
 

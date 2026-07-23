@@ -3,7 +3,7 @@ package com.tightening.lifecycle.monitor;
 import com.tightening.constant.LockReason;
 import com.tightening.constant.WorkplaceStatus;
 import com.tightening.device.contract.ITool;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import com.tightening.service.WorkplaceStatusService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -89,9 +89,9 @@ class LockStateMonitorTest {
         verify(tool, never()).sendUnlock();
     }
 
-    private static MissionContext ctxWithTool(ITool tool) {
-        return MissionContext.builder()
-            .productMissionId(1L)
+    private static TaskContext ctxWithTool(ITool tool) {
+        return TaskContext.builder()
+            .productTaskId(1L)
             
             .boltConfigs(java.util.List.of())
             .deviceRegistry(Map.of(1L, tool))

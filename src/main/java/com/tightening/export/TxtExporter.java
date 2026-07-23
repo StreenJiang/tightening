@@ -39,16 +39,16 @@ public class TxtExporter implements Exporter {
         try {
             Files.createDirectories(Path.of(EXPORT_DIR));
 
-            List<TighteningData> dataList = tighteningDataService.listByMissionRecordId(payload.missionRecordId());
+            List<TighteningData> dataList = tighteningDataService.listByTaskRecordId(payload.taskRecordId());
 
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-            String filename = payload.missionRecordId() + "_" + timestamp + ".txt";
+            String filename = payload.taskRecordId() + "_" + timestamp + ".txt";
             Path filePath = Path.of(EXPORT_DIR, filename);
 
             try (BufferedWriter writer = Files.newBufferedWriter(filePath, StandardCharsets.UTF_8)) {
                 String[] header = {
                         "id", "deleted", "creatorId", "modifierId", "createTime", "modifyTime",
-                        "missionRecordId", "workstationName", "toolName", "toolTypeName", "productSideName",
+                        "taskRecordId", "workstationName", "toolName", "toolTypeName", "productSideName",
                         "boltSerialNum", "armLocation", "parameterSet", "parameterSetName",
                         "tighteningId", "tighteningStatus", "resultType", "torqueStatus", "angleStatus",
                         "rundownAngleStatus", "torqueValuesUnit",
@@ -86,7 +86,7 @@ public class TxtExporter implements Exporter {
                 csv(data.getModifierId()),
                 csv(data.getCreateTime()),
                 csv(data.getModifyTime()),
-                csv(data.getMissionRecordId()),
+                csv(data.getTaskRecordId()),
                 csv(data.getWorkstationName()),
                 csv(data.getToolName()),
                 csv(data.getToolTypeName()),

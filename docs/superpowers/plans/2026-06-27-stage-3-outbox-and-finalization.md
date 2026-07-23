@@ -1,10 +1,10 @@
-# Stage 3: 锁语义修正 + Outbox + FINALIZATION + MissionOrchestrator — Implementation Plan
+# Stage 3: 锁语义修正 + Outbox + FINALIZATION + TaskOrchestrator — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the Outbox subsystem (export_task table, Exporter, ExportWorker), add `settings.yml` external config, implement 4 FINALIZATION-stage Capabilities, and create `MissionOrchestrator` as the engine lifecycle manager with event-driven self-loop restart. Rename ToolHandler enable/disable → lock/unlock at the end.
+**Goal:** Build the Outbox subsystem (export_task table, Exporter, ExportWorker), add `settings.yml` external config, implement 4 FINALIZATION-stage Capabilities, and create `TaskOrchestrator` as the engine lifecycle manager with event-driven self-loop restart. Rename ToolHandler enable/disable → lock/unlock at the end.
 
-**Architecture:** `ExportWorker` is a `@Scheduled` Spring bean polling `export_task` every 5s. `LocalSettings` reads `~/tightening_system/settings.yml` (prefix `tightening`). `MissionOrchestrator` creates engines via `LifecycleEngineFactory`, holds active engine refs, routes tightening data via `DataRouter` interface, and handles self-loop restart via Spring `@Async` events. `DataRouter` interface eliminates the `DeviceRegistry` ↔ `MissionOrchestrator` circular dependency.
+**Architecture:** `ExportWorker` is a `@Scheduled` Spring bean polling `export_task` every 5s. `LocalSettings` reads `~/tightening_system/settings.yml` (prefix `tightening`). `TaskOrchestrator` creates engines via `LifecycleEngineFactory`, holds active engine refs, routes tightening data via `DataRouter` interface, and handles self-loop restart via Spring `@Async` events. `DataRouter` interface eliminates the `DeviceRegistry` ↔ `TaskOrchestrator` circular dependency.
 
 **Tech Stack:** Java 21, Spring Boot 3.5.10, MyBatis-Plus 3.5.9, Flyway, SQLite, JUnit 5, AssertJ 3.27.7, Mockito, SnakeYAML
 
@@ -15,9 +15,9 @@
 - `@ConfigurationProperties` 放在 `@Component` 上（非 `@Configuration`，record 是 final 不可被 CGLIB proxy）
 - `ExportWorker` 通过 `@Scheduled(fixedDelay = 5000)` 轮询，`@EnableScheduling` 在主应用类（非 Worker 类）
 - `Exporter` 实现通过 `ExporterRegistry`（Spring 自动注入 `List<Exporter>`）注册
-- `MissionOrchestrator` 实现 `DataRouter` 接口，消除与 `DeviceRegistry` 的循环依赖
-- `DeviceRegistry` 依赖 `DataRouter` 接口（不依赖 `MissionOrchestrator`）
-- **自循环：事件驱动** — `MissionOrchestrator.onCompleted` 发布 `MissionCompletedEvent`，`@Async @EventListener` 执行重启
+- `TaskOrchestrator` 实现 `DataRouter` 接口，消除与 `DeviceRegistry` 的循环依赖
+- `DeviceRegistry` 依赖 `DataRouter` 接口（不依赖 `TaskOrchestrator`）
+- **自循环：事件驱动** — `TaskOrchestrator.onCompleted` 发布 `TaskCompletedEvent`，`@Async @EventListener` 执行重启
 - **自循环保护**：`maxSelfLoops` 上限（默认 1000），防止逻辑错误导致的无限循环
 - `LifecycleEngine.inbox` 有界：`LinkedBlockingQueue<>(1024)`，`offer()` 返回 false 时 WARN
 - **锁语义统一** — ToolHandler: `enableToolOp`→`unlock`，`disableToolOp`→`lock`，`isToolEnabled`→`isUnlocked`（布尔方向不变）
@@ -90,14 +90,14 @@ class ExportTaskTest {
     void shouldSetFieldsWithChain() {
         ExportTask task = new ExportTask()
                 .setType("standard_excel")
-                .setMissionRecordId(42L)
+                .setTaskRecordId(42L)
                 .setPayload("{\"key\":\"value\"}")
                 .setStatus(ExportTaskStatus.PENDING.getCode())
                 .setRetryCount(0)
                 .setMaxRetries(3);
 
         assertThat(task.getType()).isEqualTo("standard_excel");
-        assertThat(task.getMissionRecordId()).isEqualTo(42L);
+        assertThat(task.getTaskRecordId()).isEqualTo(42L);
         assertThat(task.getPayload()).isEqualTo("{\"key\":\"value\"}");
         assertThat(task.getStatus()).isEqualTo(ExportTaskStatus.PENDING.getCode());
         assertThat(task.getRetryCount()).isEqualTo(0);
@@ -114,7 +114,7 @@ class ExportTaskTest {
 CREATE TABLE export_task (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,
     type              TEXT    NOT NULL,
-    mission_record_id INTEGER NOT NULL,
+    task_record_id INTEGER NOT NULL,
     payload           TEXT    NOT NULL,
     status            INTEGER NOT NULL DEFAULT 0,
     retry_count       INTEGER NOT NULL DEFAULT 0,
@@ -152,7 +152,7 @@ import java.time.LocalDateTime;
 @TableName("export_task")
 public class ExportTask extends BaseEntity {
     private String type;
-    private Long missionRecordId;
+    private Long taskRecordId;
     private String payload;
     private Integer status;
     private Integer retryCount;
@@ -198,7 +198,7 @@ git commit -m "feat: add export_task table, ExportTaskStatus enum, entity, and m
 
 **Interfaces:**
 - Consumes: nothing (standalone records)
-- Produces: `ExportPayload` (missionRecordId, type, data Map), `ExportResult` (success, message)
+- Produces: `ExportPayload` (taskRecordId, type, data Map), `ExportResult` (success, message)
 
 - [ ] **Step 1: 写失败测试 — ExportResultTest**（见前版本）→ **Step 2: 运行确认失败** → **Step 3-4: 实现 ExportPayload.java + ExportResult.java**（见前版本）→ **Step 5: 运行确认通过** → **Step 6: 提交**
 
@@ -212,7 +212,7 @@ git commit -m "feat: add export_task table, ExportTaskStatus enum, entity, and m
 
 **Interfaces:**
 - Consumes: `ExportTask`, `ExportTaskMapper` (Task 0)
-- Produces: `ExportTaskService` — `createTask(type, missionRecordId, payload)`, `findPending(limit)`, `markProcessing(id)`, `markCompleted(id)`, `markFailed(id, errorMessage, retryCount, maxRetries)`
+- Produces: `ExportTaskService` — `createTask(type, taskRecordId, payload)`, `findPending(limit)`, `markProcessing(id)`, `markCompleted(id)`, `markFailed(id, errorMessage, retryCount, maxRetries)`
 
 - [ ] **Step 1: 写失败测试**
 
@@ -316,10 +316,10 @@ import java.util.List;
 @Service
 public class ExportTaskService extends ServiceImpl<ExportTaskMapper, ExportTask> {
 
-    public void createTask(String type, Long missionRecordId, String payload) {
+    public void createTask(String type, Long taskRecordId, String payload) {
         ExportTask task = new ExportTask()
                 .setType(type)
-                .setMissionRecordId(missionRecordId)
+                .setTaskRecordId(taskRecordId)
                 .setPayload(payload)
                 .setStatus(ExportTaskStatus.PENDING.getCode())
                 .setRetryCount(0)
@@ -521,7 +521,7 @@ public class ExportWorker {
                 @SuppressWarnings("unchecked")
                 var data = JsonUtils.parse(task.getPayload(), java.util.Map.class);
                 ExportPayload payload = new ExportPayload(
-                        task.getMissionRecordId(),
+                        task.getTaskRecordId(),
                         task.getType(),
                         data);
                 ExportResult result = exporter.execute(payload);
@@ -707,7 +707,7 @@ package com.tightening.lifecycle.capability;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.device.contract.ITool;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.lifecycle.TaskContext;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -719,7 +719,7 @@ public class LockTools implements Capability {
     @Override public int priority() { return 0; }
 
     @Override
-    public CapabilityResult execute(MissionContext ctx) {
+    public CapabilityResult execute(TaskContext ctx) {
         for (ITool tool : ctx.getDeviceRegistry().values()) {
             log.info("LockTools: locking deviceId={}", tool.id());
             tool.sendLock().whenComplete((ok, ex) -> {
@@ -744,7 +744,7 @@ public class LockTools implements Capability {
 - Create: `src/test/java/com/tightening/lifecycle/capability/ExportDataTest.java`
 
 **Interfaces:**
-- Consumes: `Capability`, `MissionContext`, `ExportTaskService` (Task 2), `LocalSettings` (Task 6)
+- Consumes: `Capability`, `TaskContext`, `ExportTaskService` (Task 2), `LocalSettings` (Task 6)
 - Produces: `ExportData` (FINALIZATION/EXPORTING, pri=0) — 按 `settings.exportTypes` 列表逐条创建 export_task
 
 - [ ] **Step 1: 写失败测试**
@@ -753,9 +753,9 @@ public class LockTools implements Capability {
 package com.tightening.lifecycle.capability;
 
 import com.tightening.config.LocalSettings;
-import com.tightening.entity.MissionRecord;
-import com.tightening.entity.ProductMission;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.entity.TaskRecord;
+import com.tightening.entity.ProductTask;
+import com.tightening.lifecycle.TaskContext;
 import com.tightening.service.ExportTaskService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -779,22 +779,22 @@ class ExportDataTest {
     void shouldCreateTasksPerExportType() {
         LocalSettings settings = new LocalSettings(false, List.of("standard_excel", "outer_db_store"));
         ExportData cap = new ExportData(exportTaskService, settings);
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask())
                 .boltConfigs(List.of()).deviceRegistry(Map.of())
                 .shouldSelfLoop(false)
-                .missionRecord(new MissionRecord().setId(42L)).build();
+                .taskRecord(new TaskRecord().setId(42L)).build();
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Pass);
         verify(exportTaskService).createTask(eq("standard_excel"), eq(42L), anyString());
         verify(exportTaskService).createTask(eq("outer_db_store"), eq(42L), anyString());
     }
 
     @Test
-    @DisplayName("无 MissionRecord 时 precondition 返回 false")
+    @DisplayName("无 TaskRecord 时 precondition 返回 false")
     void shouldSkipWhenNoRecord() {
         ExportData cap = new ExportData(exportTaskService, new LocalSettings(false, null));
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask())
                 .boltConfigs(List.of()).deviceRegistry(Map.of())
                 .shouldSelfLoop(false).build();
         assertThat(cap.precondition(ctx)).isFalse();
@@ -822,30 +822,30 @@ class ExportDataTest {
 @Component
 @RequiredArgsConstructor
 public class LifecycleEngineFactory {
-    private final MissionRecordService missionRecordService;
+    private final TaskRecordService taskRecordService;
     private final TighteningDataService tighteningDataService;
     private final ExportTaskService exportTaskService;
     private final LocalSettings settings;
     private final Map<DeviceType, JudgmentStrategy> judgmentStrategies;
 
-    public LifecycleEngine createEngine(ProductMission mission, List<ProductBolt> bolts,
+    public LifecycleEngine createEngine(ProductTask task, List<ProductBolt> bolts,
             Map<Long, ITool> deviceMap, boolean shouldSelfLoop) {
-        MissionContext ctx = MissionContext.builder()
-            .productMissionId(mission.getId()).missionData(mission)
+        TaskContext ctx = TaskContext.builder()
+            .productTaskId(task.getId()).taskData(task)
             .boltConfigs(bolts).deviceRegistry(deviceMap)
             .shouldSelfLoop(shouldSelfLoop).build();
         PipelineDefinition pipeline = PipelineDefinition.createDefault();
 
         List<Capability> capabilities = List.of(
-            new PrepareBolts(), new CreateMissionRecord(missionRecordService),
+            new PrepareBolts(), new CreateTaskRecord(taskRecordService),
             new SendArrangerSignal(), new SendSetterSelector(), new SendPSet(),
             new BoltBarCodeCheck(), new ControllerStatusCheck(),
             new ExecuteJudgment(judgmentStrategies), new StoreData(tighteningDataService),
-            new AdvanceBolt(missionRecordService),
+            new AdvanceBolt(taskRecordService),
             new CancelTasks(), new LockTools(), new ResetState(),
             new ExportData(exportTaskService, settings));
 
-        LifecycleEngine engine = new LifecycleEngine(pipeline, missionRecordService,
+        LifecycleEngine engine = new LifecycleEngine(pipeline, taskRecordService,
             capabilities, List.of(new LockStateMonitor(), new DeviceConnectionMonitor()));
         engine.initContext(ctx);
         engine.onFaulted(reason -> log.warn("Engine faulted (no orchestrator): {}", reason));
@@ -860,20 +860,20 @@ public class LifecycleEngineFactory {
 
 ---
 
-### Task 10: DataRouter 接口 + MissionOrchestrator（事件驱动自循环 + 数据路由）
+### Task 10: DataRouter 接口 + TaskOrchestrator（事件驱动自循环 + 数据路由）
 
 **Files:**
 - Create: `src/main/java/com/tightening/lifecycle/DataRouter.java`
-- Create: `src/main/java/com/tightening/lifecycle/MissionOrchestrator.java`
-- Create: `src/main/java/com/tightening/lifecycle/MissionCompletedEvent.java`
-- Create: `src/main/java/com/tightening/controller/MissionLifecycleController.java`
-- Create: `src/test/java/com/tightening/lifecycle/MissionOrchestratorTest.java`
+- Create: `src/main/java/com/tightening/lifecycle/TaskOrchestrator.java`
+- Create: `src/main/java/com/tightening/lifecycle/TaskCompletedEvent.java`
+- Create: `src/main/java/com/tightening/controller/TaskLifecycleController.java`
+- Create: `src/test/java/com/tightening/lifecycle/TaskOrchestratorTest.java`
 - Modify: `src/main/java/com/tightening/device/DeviceRegistry.java`
 - Update: `src/test/java/com/tightening/device/DeviceRegistryTest.java`
 
 **Interfaces:**
 - Consumes: `LifecycleEngineFactory`, `DeviceRegistry`, `LocalSettings`, `ApplicationEventPublisher`
-- Produces: `DataRouter` (interface), `MissionOrchestrator` (implements DataRouter), `MissionCompletedEvent`, `MissionLifecycleController`
+- Produces: `DataRouter` (interface), `TaskOrchestrator` (implements DataRouter), `TaskCompletedEvent`, `TaskLifecycleController`
 
 - [ ] **Step 1: 实现 DataRouter.java（接口，消除循环依赖）**
 
@@ -887,19 +887,19 @@ public interface DataRouter {
 }
 ```
 
-- [ ] **Step 2: 实现 MissionCompletedEvent.java（事件 record）**
+- [ ] **Step 2: 实现 TaskCompletedEvent.java（事件 record）**
 
 ```java
 package com.tightening.lifecycle;
 
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.ProductTask;
 
 import java.util.List;
 
-public record MissionCompletedEvent(
-    Long missionId,
-    ProductMission mission,
+public record TaskCompletedEvent(
+    Long taskId,
+    ProductTask task,
     List<ProductBolt> bolts,
     boolean ok) {
 }
@@ -937,23 +937,23 @@ void setUp() {
 // 所有原有测试不变
 ```
 
-- [ ] **Step 5: 写 MissionOrchestrator 测试**
+- [ ] **Step 5: 写 TaskOrchestrator 测试**
 
 ```java
 package com.tightening.lifecycle;
 
 import com.tightening.config.LocalSettings;
 import com.tightening.constant.DeviceType;
-import com.tightening.constant.MissionResult;
+import com.tightening.constant.TaskResult;
 import com.tightening.device.DeviceRegistry;
 import com.tightening.device.contract.ITool;
 import com.tightening.dto.TighteningDataDTO;
-import com.tightening.entity.MissionRecord;
+import com.tightening.entity.TaskRecord;
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.ProductTask;
 import com.tightening.judgment.JudgmentStrategy;
 import com.tightening.service.ExportTaskService;
-import com.tightening.service.MissionRecordService;
+import com.tightening.service.TaskRecordService;
 import com.tightening.service.TighteningDataService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -971,10 +971,10 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("MissionOrchestrator")
-class MissionOrchestratorTest {
+@DisplayName("TaskOrchestrator")
+class TaskOrchestratorTest {
 
-    @Mock private MissionRecordService missionRecordService;
+    @Mock private TaskRecordService taskRecordService;
     @Mock private TighteningDataService tighteningDataService;
     @Mock private ExportTaskService exportTaskService;
     @Mock private JudgmentStrategy judgmentStrategy;
@@ -983,26 +983,26 @@ class MissionOrchestratorTest {
     @Mock private ApplicationEventPublisher publisher;
 
     private LifecycleEngineFactory factory;
-    private MissionOrchestrator orchestrator;
+    private TaskOrchestrator orchestrator;
 
     @BeforeEach
     void setUp() {
         when(settings.exportTypes()).thenReturn(List.of("standard_excel"));
         factory = new LifecycleEngineFactory(
-            missionRecordService, tighteningDataService, exportTaskService, settings,
+            taskRecordService, tighteningDataService, exportTaskService, settings,
             Map.of(DeviceType.ATLAS_PF4000, judgmentStrategy));
-        orchestrator = new MissionOrchestrator(factory, deviceRegistry, settings, publisher);
+        orchestrator = new TaskOrchestrator(factory, deviceRegistry, settings, publisher);
     }
 
     @Test
-    @DisplayName("startMission 创建并启动引擎")
+    @DisplayName("startTask 创建并启动引擎")
     void shouldCreateAndStartEngine() throws InterruptedException {
-        when(missionRecordService.createRecord(anyLong(), any(), anyInt()))
-            .thenReturn(new MissionRecord().setId(42L));
+        when(taskRecordService.createRecord(anyLong(), any(), anyInt()))
+            .thenReturn(new TaskRecord().setId(42L));
         when(deviceRegistry.getAllTools()).thenReturn(List.of());
 
-        ProductMission mission = new ProductMission().setId(1L);
-        LifecycleEngine engine = orchestrator.startMission(mission, List.of());
+        ProductTask task = new ProductTask().setId(1L);
+        LifecycleEngine engine = orchestrator.startTask(task, List.of());
 
         assertThat(engine).isNotNull();
         assertThat(engine.isAlive()).isTrue();
@@ -1011,50 +1011,50 @@ class MissionOrchestratorTest {
     }
 
     @Test
-    @DisplayName("OK 且 selfLoopEnabled 时发布 MissionCompletedEvent")
+    @DisplayName("OK 且 selfLoopEnabled 时发布 TaskCompletedEvent")
     void shouldPublishEventOnOkCompletion() throws Exception {
-        when(missionRecordService.createRecord(anyLong(), any(), anyInt()))
-            .thenReturn(new MissionRecord().setId(42L).setMissionResult(MissionResult.OK.getCode()));
+        when(taskRecordService.createRecord(anyLong(), any(), anyInt()))
+            .thenReturn(new TaskRecord().setId(42L).setTaskResult(TaskResult.OK.getCode()));
         when(deviceRegistry.getAllTools()).thenReturn(List.of());
         when(settings.selfLoopEnabled()).thenReturn(true);
 
-        ProductMission mission = new ProductMission().setId(1L);
-        orchestrator.startMission(mission, List.of());
+        ProductTask task = new ProductTask().setId(1L);
+        orchestrator.startTask(task, List.of());
 
         // 等待引擎完成（会被 interrupt 加速）
         Thread.sleep(500);
-        verify(publisher, timeout(3000)).publishEvent(any(MissionCompletedEvent.class));
+        verify(publisher, timeout(3000)).publishEvent(any(TaskCompletedEvent.class));
     }
 
     @Test
     @DisplayName("NG 时不允许自循环")
     void shouldNotSelfLoopOnNg() throws Exception {
-        when(missionRecordService.createRecord(anyLong(), any(), anyInt()))
-            .thenReturn(new MissionRecord().setId(42L).setMissionResult(MissionResult.NG.getCode()));
+        when(taskRecordService.createRecord(anyLong(), any(), anyInt()))
+            .thenReturn(new TaskRecord().setId(42L).setTaskResult(TaskResult.NG.getCode()));
         when(deviceRegistry.getAllTools()).thenReturn(List.of());
         when(settings.selfLoopEnabled()).thenReturn(true);
 
-        ProductMission mission = new ProductMission().setId(1L);
-        orchestrator.startMission(mission, List.of());
+        ProductTask task = new ProductTask().setId(1L);
+        orchestrator.startTask(task, List.of());
 
         Thread.sleep(500);
-        verify(publisher, timeout(3000).times(0)).publishEvent(any(MissionCompletedEvent.class));
+        verify(publisher, timeout(3000).times(0)).publishEvent(any(TaskCompletedEvent.class));
     }
 }
 ```
 
-- [ ] **Step 6: 运行测试确认失败** → **Step 7: 实现 MissionOrchestrator.java**
+- [ ] **Step 6: 运行测试确认失败** → **Step 7: 实现 TaskOrchestrator.java**
 
 ```java
 package com.tightening.lifecycle;
 
 import com.tightening.config.LocalSettings;
-import com.tightening.constant.MissionResult;
+import com.tightening.constant.TaskResult;
 import com.tightening.device.DeviceRegistry;
 import com.tightening.device.contract.ITool;
 import com.tightening.dto.TighteningDataDTO;
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.ProductTask;
 import com.tightening.entity.TighteningData;
 import com.tightening.lifecycle.message.DeviceEvent;
 import com.tightening.util.Converter;
@@ -1071,7 +1071,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
-public class MissionOrchestrator implements DataRouter {
+public class TaskOrchestrator implements DataRouter {
 
     private static final int MAX_SELF_LOOPS = 1000;
 
@@ -1080,14 +1080,14 @@ public class MissionOrchestrator implements DataRouter {
     private final LocalSettings settings;
     private final ApplicationEventPublisher publisher;
 
-    /** missionId → 活跃引擎 */
+    /** taskId → 活跃引擎 */
     private final Map<Long, LifecycleEngine> activeEngines = new ConcurrentHashMap<>();
-    /** deviceId → missionId（数据路由用） */
-    private final Map<Long, Long> deviceToMissionId = new ConcurrentHashMap<>();
+    /** deviceId → taskId（数据路由用） */
+    private final Map<Long, Long> deviceToTaskId = new ConcurrentHashMap<>();
     /** 自循环计数 */
     private final Map<Long, Integer> selfLoopCounts = new ConcurrentHashMap<>();
 
-    public MissionOrchestrator(LifecycleEngineFactory factory,
+    public TaskOrchestrator(LifecycleEngineFactory factory,
                                DeviceRegistry deviceRegistry,
                                LocalSettings settings,
                                ApplicationEventPublisher publisher) {
@@ -1101,14 +1101,14 @@ public class MissionOrchestrator implements DataRouter {
 
     @Override
     public void routeTighteningData(long deviceId, TighteningDataDTO dto) {
-        Long missionId = deviceToMissionId.get(deviceId);
-        if (missionId == null) {
-            log.trace("No active mission for deviceId={}, ignoring", deviceId);
+        Long taskId = deviceToTaskId.get(deviceId);
+        if (taskId == null) {
+            log.trace("No active task for deviceId={}, ignoring", deviceId);
             return;
         }
-        LifecycleEngine engine = activeEngines.get(missionId);
+        LifecycleEngine engine = activeEngines.get(taskId);
         if (engine == null) {
-            log.trace("Engine for missionId={} not alive, ignoring", missionId);
+            log.trace("Engine for taskId={} not alive, ignoring", taskId);
             return;
         }
         TighteningData data = Converter.dto2Entity(dto, TighteningData::new);
@@ -1117,45 +1117,45 @@ public class MissionOrchestrator implements DataRouter {
 
     // === 引擎生命周期管理 ===
 
-    public LifecycleEngine startMission(ProductMission mission, List<ProductBolt> bolts) {
-        int loopCount = selfLoopCounts.getOrDefault(mission.getId(), 0);
+    public LifecycleEngine startTask(ProductTask task, List<ProductBolt> bolts) {
+        int loopCount = selfLoopCounts.getOrDefault(task.getId(), 0);
         if (loopCount >= MAX_SELF_LOOPS) {
-            log.warn("Mission {} reached maxSelfLoops, not restarting", mission.getId());
+            log.warn("Task {} reached maxSelfLoops, not restarting", task.getId());
             return null;
         }
-        selfLoopCounts.put(mission.getId(), loopCount + 1);
+        selfLoopCounts.put(task.getId(), loopCount + 1);
 
         Map<Long, ITool> devices = deviceRegistry.getAllTools().stream()
                 .collect(java.util.stream.Collectors.toMap(ITool::id, t -> t));
-        devices.keySet().forEach(deviceId -> deviceToMissionId.put(deviceId, mission.getId()));
+        devices.keySet().forEach(deviceId -> deviceToTaskId.put(deviceId, task.getId()));
 
         boolean shouldSelfLoop = settings.selfLoopEnabled();
-        LifecycleEngine engine = factory.createEngine(mission, bolts, devices, shouldSelfLoop);
+        LifecycleEngine engine = factory.createEngine(task, bolts, devices, shouldSelfLoop);
 
         engine.onCompleted(recordId -> {
-            boolean ok = isMissionOk(engine);
-            cleanup(mission.getId());
+            boolean ok = isTaskOk(engine);
+            cleanup(task.getId());
             if (shouldSelfLoop && ok) {
-                log.info("Self-loop: publishing event for mission {}", mission.getId());
-                publisher.publishEvent(new MissionCompletedEvent(
-                        mission.getId(), mission, bolts, true));
+                log.info("Self-loop: publishing event for task {}", task.getId());
+                publisher.publishEvent(new TaskCompletedEvent(
+                        task.getId(), task, bolts, true));
             } else {
-                selfLoopCounts.remove(mission.getId());
-                log.info("Mission {} completed, recordId={}", mission.getId(), recordId);
+                selfLoopCounts.remove(task.getId());
+                log.info("Task {} completed, recordId={}", task.getId(), recordId);
             }
         });
 
         engine.onFaulted(reason -> {
-            cleanup(mission.getId());
-            selfLoopCounts.remove(mission.getId());
-            log.warn("Mission {} faulted: {}", mission.getId(), reason);
+            cleanup(task.getId());
+            selfLoopCounts.remove(task.getId());
+            log.warn("Task {} faulted: {}", task.getId(), reason);
         });
 
-        activeEngines.put(mission.getId(), engine);
+        activeEngines.put(task.getId(), engine);
         engine.startMonitorTicks();
         engine.start(engine.getContext());
-        log.info("Mission {} started (selfLoop={}, loopCount={})",
-                mission.getId(), shouldSelfLoop, loopCount);
+        log.info("Task {} started (selfLoop={}, loopCount={})",
+                task.getId(), shouldSelfLoop, loopCount);
         return engine;
     }
 
@@ -1163,78 +1163,78 @@ public class MissionOrchestrator implements DataRouter {
 
     @Async
     @TransactionalEventListener
-    void handleRestart(MissionCompletedEvent event) {
+    void handleRestart(TaskCompletedEvent event) {
         if (!event.ok()) return;
-        log.info("Restarting mission {} (loop {})", event.missionId(),
-                selfLoopCounts.getOrDefault(event.missionId(), 0));
-        startMission(event.mission(), event.bolts());
+        log.info("Restarting task {} (loop {})", event.taskId(),
+                selfLoopCounts.getOrDefault(event.taskId(), 0));
+        startTask(event.task(), event.bolts());
     }
 
     // === 内部辅助 ===
 
-    private void cleanup(Long missionId) {
-        activeEngines.remove(missionId);
-        deviceToMissionId.values().removeIf(v -> v.equals(missionId));
+    private void cleanup(Long taskId) {
+        activeEngines.remove(taskId);
+        deviceToTaskId.values().removeIf(v -> v.equals(taskId));
     }
 
-    private boolean isMissionOk(LifecycleEngine engine) {
-        MissionContext ctx = engine.getContext();
-        if (ctx == null || ctx.getMissionRecord() == null) return false;
-        return Integer.valueOf(MissionResult.OK.getCode())
-                .equals(ctx.getMissionRecord().getMissionResult());
+    private boolean isTaskOk(LifecycleEngine engine) {
+        TaskContext ctx = engine.getContext();
+        if (ctx == null || ctx.getTaskRecord() == null) return false;
+        return Integer.valueOf(TaskResult.OK.getCode())
+                .equals(ctx.getTaskRecord().getTaskResult());
     }
 
-    public Optional<LifecycleEngine> getActiveEngine(Long missionId) {
-        return Optional.ofNullable(activeEngines.get(missionId));
+    public Optional<LifecycleEngine> getActiveEngine(Long taskId) {
+        return Optional.ofNullable(activeEngines.get(taskId));
     }
 
-    public void postMessage(Long missionId, InboundMessage msg) {
-        LifecycleEngine engine = activeEngines.get(missionId);
+    public void postMessage(Long taskId, InboundMessage msg) {
+        LifecycleEngine engine = activeEngines.get(taskId);
         if (engine != null) {
             engine.postMessage(msg);
         } else {
-            log.debug("No active engine for missionId={}", missionId);
+            log.debug("No active engine for taskId={}", taskId);
         }
     }
 }
 ```
 
-- [ ] **Step 8: 实现 MissionLifecycleController.java**
+- [ ] **Step 8: 实现 TaskLifecycleController.java**
 
 ```java
 package com.tightening.controller;
 
 import com.tightening.dto.ApiResponse;
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
-import com.tightening.lifecycle.MissionOrchestrator;
-import com.tightening.service.ProductMissionService;
+import com.tightening.entity.ProductTask;
+import com.tightening.lifecycle.TaskOrchestrator;
+import com.tightening.service.ProductTaskService;
 import com.tightening.service.ProductBoltService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/missions")
+@RequestMapping("/api/tasks")
 @RequiredArgsConstructor
-public class MissionLifecycleController {
+public class TaskLifecycleController {
 
-    private final MissionOrchestrator orchestrator;
-    private final ProductMissionService missionService;
+    private final TaskOrchestrator orchestrator;
+    private final ProductTaskService taskService;
     private final ProductBoltService boltService;
 
     @PostMapping("/{id}/activate")
-    public ResponseEntity<ApiResponse<Long>> activateMission(@PathVariable Long id) {
-        ProductMission mission = missionService.getById(id);
-        if (mission == null) {
-            return ResponseEntity.ok(ApiResponse.fail("mission not found: " + id));
+    public ResponseEntity<ApiResponse<Long>> activateTask(@PathVariable Long id) {
+        ProductTask task = taskService.getById(id);
+        if (task == null) {
+            return ResponseEntity.ok(ApiResponse.fail("task not found: " + id));
         }
-        List<ProductBolt> bolts = boltService.listByMissionId(id);
+        List<ProductBolt> bolts = boltService.listByTaskId(id);
         if (bolts.isEmpty()) {
-            return ResponseEntity.ok(ApiResponse.fail("mission has no bolts: " + id));
+            return ResponseEntity.ok(ApiResponse.fail("task has no bolts: " + id));
         }
-        var engine = orchestrator.startMission(mission, bolts);
-        return ResponseEntity.ok(ApiResponse.ok(mission.getId()));
+        var engine = orchestrator.startTask(task, bolts);
+        return ResponseEntity.ok(ApiResponse.ok(task.getId()));
     }
 }
 ```
@@ -1243,13 +1243,13 @@ public class MissionLifecycleController {
 
 ```bash
 git add src/main/java/com/tightening/lifecycle/DataRouter.java \
-        src/main/java/com/tightening/lifecycle/MissionOrchestrator.java \
-        src/main/java/com/tightening/lifecycle/MissionCompletedEvent.java \
-        src/test/java/com/tightening/lifecycle/MissionOrchestratorTest.java \
+        src/main/java/com/tightening/lifecycle/TaskOrchestrator.java \
+        src/main/java/com/tightening/lifecycle/TaskCompletedEvent.java \
+        src/test/java/com/tightening/lifecycle/TaskOrchestratorTest.java \
         src/main/java/com/tightening/device/DeviceRegistry.java \
         src/test/java/com/tightening/device/DeviceRegistryTest.java \
-        src/main/java/com/tightening/controller/MissionLifecycleController.java
-git commit -m "feat: add DataRouter, MissionOrchestrator with event-driven self-loop, MissionLifecycleController"
+        src/main/java/com/tightening/controller/TaskLifecycleController.java
+git commit -m "feat: add DataRouter, TaskOrchestrator with event-driven self-loop, TaskLifecycleController"
 ```
 
 ---
@@ -1323,7 +1323,7 @@ mvn clean test -DfailIfNoTests=false
 
 | 项目 | 说明 |
 |------|------|
-| ExportData payload 扩展 | 当前只传 `missionRecordId`，需补充 missionId、missionResult、boltCount、tighteningDataCount 等上下文数据，供 Exporter 生成完整导出内容 |
+| ExportData payload 扩展 | 当前只传 `taskRecordId`，需补充 taskId、taskResult、boltCount、tighteningDataCount 等上下文数据，供 Exporter 生成完整导出内容 |
 | StandardExcelExporter 实现 | 当前为 stub（仅 log），后续实现真正的 Excel 文件生成 |
 | OuterDatabaseStorer 实现 | 当前为 stub，后续实现外部数据库写入 |
 | PlcResultSender 实现 | 当前为 stub，后续实现 PLC 结果回传 |
@@ -1334,7 +1334,7 @@ mvn clean test -DfailIfNoTests=false
 | 项目 | 说明 |
 |------|------|
 | 前端通知架构 | 引擎事件（锁失败、任务完成、异常）无法推送到前端。需设计出站消息通道（WebSocket / SSE / comet） |
-| MissionStatus DTO | 当前 `GET /api/missions/{id}/status` 返回简单字符串，后续替换为结构化 `MissionStatus` record（stage、subState、currentBoltIndex、totalBolts、missionRecordId） |
+| TaskStatus DTO | 当前 `GET /api/tasks/{id}/status` 返回简单字符串，后续替换为结构化 `TaskStatus` record（stage、subState、currentBoltIndex、totalBolts、taskRecordId） |
 
 ### 数据流
 

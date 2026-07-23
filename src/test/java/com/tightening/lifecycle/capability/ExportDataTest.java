@@ -1,10 +1,10 @@
 package com.tightening.lifecycle.capability;
 
 import com.tightening.config.LocalSettings;
-import com.tightening.constant.MissionResult;
-import com.tightening.entity.MissionRecord;
-import com.tightening.entity.ProductMission;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.constant.TaskResult;
+import com.tightening.entity.TaskRecord;
+import com.tightening.entity.ProductTask;
+import com.tightening.lifecycle.TaskContext;
 import com.tightening.service.ExportTaskService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,16 +31,16 @@ class ExportDataTest {
     void shouldCreateTasksPerExportType() {
         LocalSettings settings = new LocalSettings(false, List.of("standard_excel", "outer_db_store"));
         ExportData cap = new ExportData(exportTaskService, settings);
-        MissionRecord record = new MissionRecord();
+        TaskRecord record = new TaskRecord();
         record.setId(42L);
         record.setProductCode("P001");
         record.setIsRework(0);
-        record.setMissionResult(MissionResult.OK.getCode());
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission())
+        record.setTaskResult(TaskResult.OK.getCode());
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask())
                 .boltConfigs(List.of()).deviceRegistry(Map.of())
                 
-                .missionRecord(record).build();
+                .taskRecord(record).build();
         assertThat(cap.execute(ctx)).isEqualTo(CapabilityResult.Pass);
         ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
         verify(exportTaskService).createTask(eq("standard_excel"), eq(42L), payloadCaptor.capture());
@@ -52,11 +52,11 @@ class ExportDataTest {
     }
 
     @Test
-    @DisplayName("无 MissionRecord 时 precondition 返回 false")
+    @DisplayName("无 TaskRecord 时 precondition 返回 false")
     void shouldSkipWhenNoRecord() {
         ExportData cap = new ExportData(exportTaskService, new LocalSettings(false, null));
-        MissionContext ctx = MissionContext.builder()
-                .productMissionId(1L).missionData(new ProductMission())
+        TaskContext ctx = TaskContext.builder()
+                .productTaskId(1L).taskData(new ProductTask())
                 .boltConfigs(List.of()).deviceRegistry(Map.of())
                 .build();
         assertThat(cap.precondition(ctx)).isFalse();

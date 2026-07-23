@@ -41,10 +41,10 @@ protected void afterChannelActive(ChannelHandlerContext ctx) {
 
 ---
 
-### Task 2: G1 — MissionRecordDTO 补字段
+### Task 2: G1 — TaskRecordDTO 补字段
 
 **Files:**
-- Modify: `src/main/java/com/tightening/dto/MissionRecordDTO.java`
+- Modify: `src/main/java/com/tightening/dto/TaskRecordDTO.java`
 
 - [ ] **Step 1: 加字段**
 
@@ -206,7 +206,7 @@ mvn compile && mvn test
 - Modify: `src/main/java/com/tightening/netty/protocol/handler/fit/FitSeriesInBoundHandler.java`
 - Modify: `src/main/java/com/tightening/device/handler/impl/TCPDeviceHandler.java`
 - Modify: `src/main/java/com/tightening/lifecycle/LifecycleEngine.java`
-- Modify: `src/main/java/com/tightening/lifecycle/MissionOrchestrator.java`
+- Modify: `src/main/java/com/tightening/lifecycle/TaskOrchestrator.java`
 - Modify: `src/main/java/com/tightening/constant/SseEventType.java`
 
 - [ ] **Step 1: 删 i18n TODO（6 处）**
@@ -215,7 +215,7 @@ mvn compile && mvn test
 
 - [ ] **Step 2: FIT handler TODO（4 处）**
 
-`FitSeriesInBoundHandler.java:49/55` — 删除（mission record 已在 LifecycleEngine/ToolHandler 中补充）
+`FitSeriesInBoundHandler.java:49/55` — 删除（task record 已在 LifecycleEngine/ToolHandler 中补充）
 `FitSeriesInBoundHandler.java:51/57` — 删除（SSE 推送改为 engine callback，见 Step 3-4）
 
 - [ ] **Step 3: LifecycleEngine 加 onTighteningJudged 回调**
@@ -239,7 +239,7 @@ if (onTighteningJudged != null
 }
 ```
 
-- [ ] **Step 4: MissionOrchestrator 挂载 SSE**
+- [ ] **Step 4: TaskOrchestrator 挂载 SSE**
 
 ```java
 // trigger() 方法内，onFaulted 之后
@@ -249,7 +249,7 @@ engine.onTighteningJudged(data -> {
 });
 ```
 
-MissionOrchestrator 已有 `SseService` 字段（从构造函数注入）。
+TaskOrchestrator 已有 `SseService` 字段（从构造函数注入）。
 
 - [ ] **Step 5: SseEventType 加枚举值**
 
@@ -318,7 +318,7 @@ public void handleCurveData(CurveDataDTO dto, Channel channel) {
         TighteningDataDTO matched = cache.byId.get(dto.getTighteningId());
         if (matched == null) matched = cache.latest;
         if (matched != null) {
-            data.setMissionRecordId(matched.getMissionRecordId());
+            data.setTaskRecordId(matched.getTaskRecordId());
             data.setBoltSerialNum(matched.getBoltSerialNum());
             data.setWorkstationName(matched.getWorkstationName());
             data.setParameterSet(matched.getParameterSet());
@@ -347,11 +347,11 @@ public void handleCurveData(CurveDataDTO dto, Channel channel) {
 
 **Files:**
 - Create: `src/main/java/com/tightening/lifecycle/BoltConfig.java`
-- Modify: `src/main/java/com/tightening/lifecycle/MissionContext.java`
+- Modify: `src/main/java/com/tightening/lifecycle/TaskContext.java`
 - Modify: `src/main/java/com/tightening/lifecycle/LifecycleEngineFactory.java`
 - Modify: `src/main/java/com/tightening/lifecycle/capability/BoltBarCodeCheck.java`
 - Modify: `src/main/java/com/tightening/constant/LockReason.java`
-- Modify: `src/main/java/com/tightening/controller/MissionLifecycleController.java`
+- Modify: `src/main/java/com/tightening/controller/TaskLifecycleController.java`
 
 **影响面（BoltConfig 类型变更导致）：** 所有引用 `ctx.currentBolt()`、`ctx.getBoltConfigs()`、`ctx.currentBolt().getParameterSetId()` 的地方需适配 `→ .getDefinition()`。
 
@@ -372,7 +372,7 @@ public class BoltConfig {
 }
 ```
 
-- [ ] **Step 2: MissionContext 改类型**
+- [ ] **Step 2: TaskContext 改类型**
 
 `boltConfigs`: `List<ProductBolt>` → `List<BoltConfig>`
 `currentBolt()` 返回: `BoltConfig`（通过 `boltConfigs.get(currentBoltIndex)` 拿到 `BoltConfig`，再 `.getDefinition()` 取 `ProductBolt`）
@@ -406,7 +406,7 @@ Factory 注入 `BoltPartsBarcodeService`：
 ```java
 private final BoltPartsBarcodeService partsBarcodeService;
 
-List<ProductBolt> bolts = boltService.listByMissionId(mission.getId());
+List<ProductBolt> bolts = boltService.listByTaskId(task.getId());
 List<Long> boltIds = bolts.stream().map(ProductBolt::getId).toList();
 Map<Long, Long> barcodeMap = partsBarcodeService.lambdaQuery()
     .in(BoltPartsBarcode::getProductBoltId, boltIds)
@@ -433,13 +433,13 @@ BARCODE_REQUIRED("barcodeRequired", "请录入物料码");
 
 ```java
 @Override
-public boolean precondition(MissionContext ctx) {
+public boolean precondition(TaskContext ctx) {
     BoltConfig bc = ctx.currentBolt();
     return bc != null && bc.getBarcodeRuleId() != null;
 }
 
 @Override
-public CapabilityResult execute(MissionContext ctx) {
+public CapabilityResult execute(TaskContext ctx) {
     if (ctx.getPartsCode() == null || ctx.getPartsCode().isEmpty()) {
         ctx.getLockReasons().add(LockReason.BARCODE_REQUIRED);
         return CapabilityResult.Pass;
@@ -451,7 +451,7 @@ public CapabilityResult execute(MissionContext ctx) {
 
 - [ ] **Step 7: API 校验通过后移除锁**
 
-`MissionLifecycleController.validatePartsBarcode` — 校验通过后：
+`TaskLifecycleController.validatePartsBarcode` — 校验通过后：
 
 ```java
 engine.ifPresent(e -> e.getContext().getLockReasons().remove(LockReason.BARCODE_REQUIRED));
@@ -461,27 +461,27 @@ engine.ifPresent(e -> e.getContext().getLockReasons().remove(LockReason.BARCODE_
 
 ---
 
-### Task 7: G2 — MissionRecord 加 partsCode
+### Task 7: G2 — TaskRecord 加 partsCode
 
 **Files:**
-- Modify: `src/main/java/com/tightening/entity/MissionRecord.java`
-- Modify: `src/main/java/com/tightening/dto/MissionRecordDTO.java`
-- Modify: `src/main/java/com/tightening/service/MissionRecordService.java`
-- Modify: `src/main/java/com/tightening/lifecycle/capability/CreateMissionRecord.java`
+- Modify: `src/main/java/com/tightening/entity/TaskRecord.java`
+- Modify: `src/main/java/com/tightening/dto/TaskRecordDTO.java`
+- Modify: `src/main/java/com/tightening/service/TaskRecordService.java`
+- Modify: `src/main/java/com/tightening/lifecycle/capability/CreateTaskRecord.java`
 - Modify: `src/main/java/com/tightening/lifecycle/LifecycleEngine.java`
-- Create: `src/main/resources/db/migration/V1.0.15__add_parts_code_to_mission_record.sql`
+- Create: `src/main/resources/db/migration/V1.0.15__add_parts_code_to_task_record.sql`
 
 - [ ] **Step 1: Entity**
 
 ```java
-// MissionRecord.java
+// TaskRecord.java
 private String partsCode;
 ```
 
 - [ ] **Step 2: DTO**
 
 ```java
-// MissionRecordDTO.java
+// TaskRecordDTO.java
 private String partsCode;
 ```
 
@@ -491,14 +491,14 @@ private String partsCode;
 
 - [ ] **Step 4: 调用方**
 
-`CreateMissionRecord.java:23-24` — 改为 `createRecord(ctx.getProductMissionId(), ctx.getProductCode(), ctx.getPartsCode(), 0)`（同时修 productCode 传 null 的 bug）
+`CreateTaskRecord.java:23-24` — 改为 `createRecord(ctx.getProductTaskId(), ctx.getProductCode(), ctx.getPartsCode(), 0)`（同时修 productCode 传 null 的 bug）
 
-`LifecycleEngine.startSkipScrewLifecycle()` — 改为 `createRecord(ctx.getProductMissionId(), ctx.getProductCode(), ctx.getPartsCode(), 0)`
+`LifecycleEngine.startSkipScrewLifecycle()` — 改为 `createRecord(ctx.getProductTaskId(), ctx.getProductCode(), ctx.getPartsCode(), 0)`
 
 - [ ] **Step 5: Flyway 迁移**
 
 ```sql
-ALTER TABLE mission_record ADD COLUMN parts_code TEXT;
+ALTER TABLE task_record ADD COLUMN parts_code TEXT;
 ```
 
 - [ ] **Step 6: 编译 + 全量测试**
@@ -527,7 +527,7 @@ ALTER TABLE mission_record ADD COLUMN parts_code TEXT;
 
 - [ ] **Step 2: StandardExcelExporter**
 
-注入 `TighteningDataService`，按 `missionRecordId` 查询拧紧数据：
+注入 `TighteningDataService`，按 `taskRecordId` 查询拧紧数据：
 
 ```java
 @Component
@@ -541,7 +541,7 @@ public class StandardExcelExporter implements Exporter {
     @Override
     public ExportResult execute(ExportPayload payload) {
         // 1. 查询拧紧数据
-        List<TighteningData> rows = tighteningDataService.listByMissionRecordId(payload.missionRecordId());
+        List<TighteningData> rows = tighteningDataService.listByTaskRecordId(payload.taskRecordId());
         // 2. 创建导出目录
         Files.createDirectories(EXPORT_DIR);
         // 3. 写 .xlsx（POI XSSFWorkbook）

@@ -2,15 +2,15 @@ package com.tightening.lifecycle;
 
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
-import com.tightening.entity.MissionRecord;
+import com.tightening.entity.TaskRecord;
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
+import com.tightening.entity.ProductTask;
 import com.tightening.lifecycle.capability.Capability;
 import com.tightening.lifecycle.capability.CapabilityResult;
 import com.tightening.lifecycle.capability.ErrorAction;
 import com.tightening.lifecycle.message.*;
 import com.tightening.service.BarCodeMatchingRuleService;
-import com.tightening.service.MissionRecordService;
+import com.tightening.service.TaskRecordService;
 import com.tightening.service.WorkplaceStatusService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,7 +37,7 @@ import org.mockito.quality.Strictness;
 class LifecycleEngineTest {
 
     @Mock
-    private MissionRecordService missionRecordService;
+    private TaskRecordService taskRecordService;
 
     @Mock
     private BarCodeMatchingRuleService barCodeMatchingRuleService;
@@ -51,13 +51,13 @@ class LifecycleEngineTest {
     @BeforeEach
     void setUp() {
         pd = PipelineDefinition.createDefault();
-        engine = new LifecycleEngine(pd, missionRecordService, List.of(), List.of(), List.of(), workplaceStatusService);
+        engine = new LifecycleEngine(pd, taskRecordService, List.of(), List.of(), List.of(), workplaceStatusService);
     }
 
     @Test
     @DisplayName("start() 启动 Actor 线程并设置 alive=true")
     void shouldStartActorThread() throws InterruptedException {
-        MissionContext ctx = minimalContext();
+        TaskContext ctx = minimalContext();
         engine.start(ctx);
         Thread.sleep(200);
         assertThat(engine.isAlive()).isTrue();
@@ -72,7 +72,7 @@ class LifecycleEngineTest {
         String[] reason = new String[1];
         engine.onFaulted(r -> { reason[0] = r; latch.countDown(); });
 
-        MissionContext ctx = minimalContext();
+        TaskContext ctx = minimalContext();
         engine.start(ctx);
         engine.postMessage(new EngineInternal.Faulted("test crash"));
 
@@ -83,7 +83,7 @@ class LifecycleEngineTest {
     @Test
     @DisplayName("interrupt() 在 FINALIZATION 阶段被忽略")
     void shouldNotInterruptDuringFinalization() throws InterruptedException {
-        MissionContext ctx = minimalContext();
+        TaskContext ctx = minimalContext();
         ctx.setCurrentStage(Stage.FINALIZATION);
         engine.start(ctx);
         Thread.sleep(100);
@@ -95,7 +95,7 @@ class LifecycleEngineTest {
     @Test
     @DisplayName("interrupt() 在非 FINALIZATION 阶段设置标志")
     void shouldInterruptOutsideFinalization() throws InterruptedException {
-        MissionContext ctx = minimalContext();
+        TaskContext ctx = minimalContext();
         ctx.setCurrentStage(Stage.OPERATION);
         engine.start(ctx);
         Thread.sleep(100);
@@ -123,14 +123,14 @@ class LifecycleEngineTest {
 
         PipelineDefinition customPd = PipelineDefinition.createDefault();
         customPd.registerCapability(cap).sortByPriority();
-        engine = new LifecycleEngine(customPd, missionRecordService, List.of(cap), List.of(), List.of(), workplaceStatusService);
+        engine = new LifecycleEngine(customPd, taskRecordService, List.of(cap), List.of(), List.of(), workplaceStatusService);
 
-        ProductMission pm = new ProductMission();
+        ProductTask pm = new ProductTask();
         pm.setId(1L);
         ProductBolt bolt = new ProductBolt().setSerialNum(1);
-        MissionContext ctx = MissionContext.builder()
-            .productMissionId(1L)
-            .missionData(pm)
+        TaskContext ctx = TaskContext.builder()
+            .productTaskId(1L)
+            .taskData(pm)
             .boltConfigs(List.of(bolt))
             .deviceRegistry(Map.of())
             
@@ -158,20 +158,20 @@ class LifecycleEngineTest {
 
         PipelineDefinition customPd = PipelineDefinition.createDefault();
         customPd.registerCapability(cap).sortByPriority();
-        engine = new LifecycleEngine(customPd, missionRecordService, List.of(cap), List.of(), List.of(), workplaceStatusService);
+        engine = new LifecycleEngine(customPd, taskRecordService, List.of(cap), List.of(), List.of(), workplaceStatusService);
         engine.onFaulted(r -> latch.countDown());
 
-        MissionRecord record = new MissionRecord();
+        TaskRecord record = new TaskRecord();
         record.setId(42L);
-        ProductMission pm2 = new ProductMission();
+        ProductTask pm2 = new ProductTask();
         pm2.setId(1L);
-        MissionContext ctx = MissionContext.builder()
-            .productMissionId(1L)
-            .missionData(pm2)
+        TaskContext ctx = TaskContext.builder()
+            .productTaskId(1L)
+            .taskData(pm2)
             .boltConfigs(List.of(new ProductBolt().setSerialNum(1)))
             .deviceRegistry(Map.of())
             
-            .missionRecord(record)
+            .taskRecord(record)
             .currentStage(Stage.OPERATION)
             .currentSubState(SubState.STORING)
             .build();
@@ -181,16 +181,16 @@ class LifecycleEngineTest {
         engine.postMessage(new InboundCommand.AdvancePipeline());
 
         assertThat(latch.await(3, TimeUnit.SECONDS)).isTrue();
-        verify(missionRecordService, timeout(2000).atLeastOnce())
+        verify(taskRecordService, timeout(2000).atLeastOnce())
             .updateSnapshot(eq(42L), anyString());
     }
 
-    private static MissionContext minimalContext() {
-        ProductMission pm = new ProductMission();
+    private static TaskContext minimalContext() {
+        ProductTask pm = new ProductTask();
         pm.setId(1L);
-        return MissionContext.builder()
-            .productMissionId(1L)
-            .missionData(pm)
+        return TaskContext.builder()
+            .productTaskId(1L)
+            .taskData(pm)
             .boltConfigs(List.of())
             .deviceRegistry(Map.of())
             

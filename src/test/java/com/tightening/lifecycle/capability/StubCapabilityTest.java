@@ -1,8 +1,8 @@
 package com.tightening.lifecycle.capability;
 
 import com.tightening.entity.ProductBolt;
-import com.tightening.entity.ProductMission;
-import com.tightening.lifecycle.MissionContext;
+import com.tightening.entity.ProductTask;
+import com.tightening.lifecycle.TaskContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -34,7 +34,7 @@ class StubCapabilityTest {
         var cap = new BoltBarCodeCheck();
         var bolt = new ProductBolt();
         bolt.setId(1L);
-        var ctx = MissionContext.builder()
+        var ctx = TaskContext.builder()
             .boltConfigs(List.of(bolt))
             .boltBarcodeRuleIds(Map.of(1L, 100L))
             .build();
@@ -47,7 +47,7 @@ class StubCapabilityTest {
         var cap = new BoltBarCodeCheck();
         var bolt = new ProductBolt();
         bolt.setId(1L);
-        var ctx = MissionContext.builder()
+        var ctx = TaskContext.builder()
             .boltConfigs(List.of(bolt))
             .boltBarcodeRuleIds(Map.of())
             .build();

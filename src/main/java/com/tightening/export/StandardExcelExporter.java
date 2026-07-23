@@ -41,10 +41,10 @@ public class StandardExcelExporter implements Exporter {
         try {
             Files.createDirectories(Path.of(EXPORT_DIR));
 
-            List<TighteningData> dataList = tighteningDataService.listByMissionRecordId(payload.missionRecordId());
+            List<TighteningData> dataList = tighteningDataService.listByTaskRecordId(payload.taskRecordId());
 
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-            String filename = payload.missionRecordId() + "_" + timestamp + ".xlsx";
+            String filename = payload.taskRecordId() + "_" + timestamp + ".xlsx";
             Path filePath = Path.of(EXPORT_DIR, filename);
 
             try (XSSFWorkbook workbook = new XSSFWorkbook()) {
@@ -52,7 +52,7 @@ public class StandardExcelExporter implements Exporter {
 
                 String[] columns = {
                         "id", "deleted", "creatorId", "modifierId", "createTime", "modifyTime",
-                        "missionRecordId", "workstationName", "toolName", "toolTypeName", "productSideName",
+                        "taskRecordId", "workstationName", "toolName", "toolTypeName", "productSideName",
                         "boltSerialNum", "armLocation", "parameterSet", "parameterSetName",
                         "tighteningId", "tighteningStatus", "resultType", "torqueStatus", "angleStatus",
                         "rundownAngleStatus", "torqueValuesUnit",
@@ -80,7 +80,7 @@ public class StandardExcelExporter implements Exporter {
                     setCell(row, c++, data.getModifierId());
                     setCell(row, c++, data.getCreateTime() != null ? data.getCreateTime().toString() : null);
                     setCell(row, c++, data.getModifyTime() != null ? data.getModifyTime().toString() : null);
-                    setCell(row, c++, data.getMissionRecordId());
+                    setCell(row, c++, data.getTaskRecordId());
                     setCell(row, c++, data.getWorkstationName());
                     setCell(row, c++, data.getToolName());
                     setCell(row, c++, data.getToolTypeName());

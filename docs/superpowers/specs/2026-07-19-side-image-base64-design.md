@@ -8,11 +8,11 @@
 
 ## DTO 重构
 
-### ProductMissionSaveDTO → ProductMissionDetailDTO
+### ProductTaskSaveDTO → ProductTaskDetailDTO
 
 重命名，同时承担保存入参和详情出参。已有 `sides` 字段包含完整嵌套数据。
 
-### ProductMissionDTO
+### ProductTaskDTO
 
 不变。列表专用，8 个平铺字段。
 
@@ -36,32 +36,32 @@ private String thumbnail;       // 同上
 
 | 接口 | 动作 |
 |------|------|
-| `GET /api/sides?missionId=X` | 删除 |
+| `GET /api/sides?taskId=X` | 删除 |
 | `GET /api/sides/{id}` | 删除 |
 | `GET /api/sides/{sideId}/image` | 删除 |
-| `POST /api/missions` | 改为 `@RequestBody` JSON，移除 multipart |
-| `PUT /api/missions/{id}` | 改为 `@RequestBody` JSON，移除 multipart |
-| `GET /api/missions/{id}` | 返回类型从 `ProductMissionDTO` 改为 `ProductMissionDetailDTO` |
+| `POST /api/tasks` | 改为 `@RequestBody` JSON，移除 multipart |
+| `PUT /api/tasks/{id}` | 改为 `@RequestBody` JSON，移除 multipart |
+| `GET /api/tasks/{id}` | 返回类型从 `ProductTaskDTO` 改为 `ProductTaskDetailDTO` |
 
 `ProductSideController` 整个类删除。
 
 ## Service 层变更
 
-### ProductMissionService
+### ProductTaskService
 
-`saveMission` 签名从 `(dto, imageMap)` 简化为 `(dto)`。
+`saveTask` 签名从 `(dto, imageMap)` 简化为 `(dto)`。
 
 `diffSides` 中图片处理逻辑：
 - `sideItem.getImage()` 为 null → 跳过，保持原值
 - `sideItem.getImage()` 为空串 → blob 设为 null（删除图片）
 - `sideItem.getImage()` 有值 → Base64 解码后写入 blob
 
-新增 `getDetail(Long id)` 方法，查询 mission 并组装 nested sides 数据（entity byte[] → Base64 字符串）。
+新增 `getDetail(Long id)` 方法，查询 task 并组装 nested sides 数据（entity byte[] → Base64 字符串）。
 
-### ProductMissionController
+### ProductTaskController
 
-- `create`、`update` 方法：`HttpServletRequest` → `@RequestBody ProductMissionDetailDTO`，移除 `parseDto`、`extractImages`、`asMultipart` 三个私有方法
-- `get` 方法：返回 `ProductMissionDetailDTO`，附带 sides 嵌套数据
+- `create`、`update` 方法：`HttpServletRequest` → `@RequestBody ProductTaskDetailDTO`，移除 `parseDto`、`extractImages`、`asMultipart` 三个私有方法
+- `get` 方法：返回 `ProductTaskDetailDTO`，附带 sides 嵌套数据
 
 ### ProductSideService
 
@@ -74,13 +74,13 @@ private String thumbnail;       // 同上
 | `updateRenderedImageData` | 同上 |
 | `updateThumbnailData` | 同上 |
 | `getByIdWithoutBlobs` | `/api/sides/{id}` 删除 |
-| `listByMissionId` | `/api/sides?missionId=X` 删除 |
+| `listByTaskId` | `/api/sides?taskId=X` 删除 |
 
-保留 `listSideIdsByMissionId`（`ProductBoltService` 仍在使用）。
+保留 `listSideIdsByTaskId`（`ProductBoltService` 仍在使用）。
 
 ## 受影响的测试
 
-`ProductSideTest.jsonRoundTrip_fullFields_shouldPreserveAllValues` 调用了 `getImageData`，方法删除后需更新为通过 mission 详情接口验证。
+`ProductSideTest.jsonRoundTrip_fullFields_shouldPreserveAllValues` 调用了 `getImageData`，方法删除后需更新为通过 task 详情接口验证。
 
 ## Base64 编解码
 

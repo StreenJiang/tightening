@@ -14,14 +14,14 @@ class ExportTaskTest {
     void shouldSetFieldsWithChain() {
         ExportTask task = new ExportTask()
                 .setType("standard_excel")
-                .setMissionRecordId(42L)
+                .setTaskRecordId(42L)
                 .setPayload("{\"key\":\"value\"}")
                 .setStatus(ExportTaskStatus.PENDING.getCode())
                 .setRetryCount(0)
                 .setMaxRetries(3);
 
         assertThat(task.getType()).isEqualTo("standard_excel");
-        assertThat(task.getMissionRecordId()).isEqualTo(42L);
+        assertThat(task.getTaskRecordId()).isEqualTo(42L);
         assertThat(task.getPayload()).isEqualTo("{\"key\":\"value\"}");
         assertThat(task.getStatus()).isEqualTo(ExportTaskStatus.PENDING.getCode());
         assertThat(task.getRetryCount()).isEqualTo(0);

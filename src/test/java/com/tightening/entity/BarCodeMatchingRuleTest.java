@@ -14,7 +14,7 @@ class BarCodeMatchingRuleTest {
         BarCodeMatchingRule original = new BarCodeMatchingRule();
         original.setId(1L);
         original.setName("Barcode Rule A");
-        original.setProductMissionId(100L);
+        original.setProductTaskId(100L);
         original.setRuleType(2);
         original.setPartNumber("PN-12345");
         original.setExpectedLength(20);
@@ -25,7 +25,7 @@ class BarCodeMatchingRuleTest {
         BarCodeMatchingRule restored = mapper.readValue(json, BarCodeMatchingRule.class);
 
         assertThat(restored.getName()).isEqualTo("Barcode Rule A");
-        assertThat(restored.getProductMissionId()).isEqualTo(100L);
+        assertThat(restored.getProductTaskId()).isEqualTo(100L);
         assertThat(restored.getRuleType()).isEqualTo(2);
         assertThat(restored.getPartNumber()).isEqualTo("PN-12345");
         assertThat(restored.getExpectedLength()).isEqualTo(20);

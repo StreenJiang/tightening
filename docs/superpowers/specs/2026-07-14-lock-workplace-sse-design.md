@@ -80,7 +80,7 @@ public enum WorkplaceStatus {
 
 ### 2.2 WorkplaceStatusService
 
-独立服务，不依赖 MissionOrchestrator。
+独立服务，不依赖 TaskOrchestrator。
 
 ```java
 @Component
@@ -112,7 +112,7 @@ public class WorkplaceStatusService {
 | ACTIVATED → OPERATION_ENABLE | LockStateMonitor 首次 unlock（lockMsgs 为空） | LockStateMonitor.execute() |
 | ACTIVATED → OPERATION_DISABLE | LockStateMonitor 首次 lock（lockMsgs 非空） | LockStateMonitor.execute() |
 | OPERATION_ENABLE ↔ OPERATION_DISABLE | LockStateMonitor 后续 lock/unlock | LockStateMonitor.execute() |
-| 任意 → UNACTIVATED | Mission OK/NG/引擎异常/登出 | LifecycleEngine shutdown 路径 + DeviceManager 登出 |
+| 任意 → UNACTIVATED | Task OK/NG/引擎异常/登出 | LifecycleEngine shutdown 路径 + DeviceManager 登出 |
 
 进入 OPERATION 阶段前 WorkplaceStatus 保持 ACTIVATED。LockStateMonitor 在 OPERATION 阶段启动后执行首次判断：lockMsgs 空 → enable，非空 → disable。
 
@@ -143,7 +143,7 @@ public enum LockReason {
 }
 ```
 
-### 3.2 MissionContext 变更
+### 3.2 TaskContext 变更
 
 ```java
 // 替换 Set<LockMessage> 为:
@@ -159,7 +159,7 @@ private volatile boolean boltUnlockOverride = false;
 
 ```java
 @Override
-public void execute(MissionContext ctx) {
+public void execute(TaskContext ctx) {
     if (ctx.isBoltUnlockOverride()) {
         return;  // 管理员手动 unlock，跳过
     }
@@ -270,7 +270,7 @@ WorkplaceStatusService              ← SseService
 LockStateMonitor (增强)             ← WorkplaceStatusService
 lockMsgs 写入方 (Capability 修改)   ← LockReason 枚举
 DeviceConnectionMonitor (升级)      ← SseService + DeviceRegistry
-MissionContext (boltUnlockOverride)  ← 独立字段
+TaskContext (boltUnlockOverride)  ← 独立字段
 ```
 
 SSE 是基础设施，WorkplaceStatusService 是桥——连接状态展示和锁机制。

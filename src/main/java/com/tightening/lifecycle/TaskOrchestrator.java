@@ -3,6 +3,7 @@ package com.tightening.lifecycle;
 import com.tightening.constant.SseEventType;
 import com.tightening.device.DeviceRegistry;
 import com.tightening.device.contract.ITool;
+import com.tightening.device.event.TighteningDataReceivedEvent;
 import com.tightening.dto.SseEvent;
 import com.tightening.dto.TighteningDataDTO;
 import com.tightening.entity.ProductBolt;
@@ -14,7 +15,7 @@ import com.tightening.lifecycle.message.InboundMessage;
 import com.tightening.service.SseService;
 import com.tightening.util.Converter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -26,7 +27,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Component
-public class TaskOrchestrator implements DataRouter {
+public class TaskOrchestrator {
 
     private final LifecycleEngineFactory factory;
     private final DeviceRegistry deviceRegistry;
@@ -38,17 +39,18 @@ public class TaskOrchestrator implements DataRouter {
     private final Map<Long, Long> deviceToTaskId = new ConcurrentHashMap<>();
 
     public TaskOrchestrator(LifecycleEngineFactory factory,
-                               @Lazy DeviceRegistry deviceRegistry,
+                               DeviceRegistry deviceRegistry,
                                SseService sseService) {
         this.factory = factory;
         this.deviceRegistry = deviceRegistry;
         this.sseService = sseService;
     }
 
-    // === DataRouter 接口实现 ===
+    // === 拧紧数据路由 ===
 
-    @Override
-    public void routeTighteningData(long deviceId, TighteningDataDTO dto) {
+    @EventListener
+    void onTighteningDataReceived(TighteningDataReceivedEvent event) {
+        long deviceId = event.getDeviceId();
         Long taskId = deviceToTaskId.get(deviceId);
         if (taskId == null) {
             log.warn("No active task for deviceId={}, dropping tightening data", deviceId);
@@ -59,7 +61,7 @@ public class TaskOrchestrator implements DataRouter {
             log.warn("Engine for taskId={} not alive, dropping tightening data", taskId);
             return;
         }
-        TighteningData data = Converter.dto2Entity(dto, TighteningData::new);
+        TighteningData data = Converter.dto2Entity(event.getData(), TighteningData::new);
         engine.postMessage(new DeviceEvent.TighteningDataReceived(data, deviceId));
     }
 

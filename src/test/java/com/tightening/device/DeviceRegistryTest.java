@@ -13,7 +13,6 @@ import com.tightening.device.handler.impl.AnengGatewayHandler;
 import com.tightening.device.type.Arm;
 import com.tightening.entity.ArmModelConfig;
 import com.tightening.entity.Device;
-import com.tightening.lifecycle.DataRouter;
 import com.tightening.mapper.ArmModelConfigMapper;
 import com.tightening.service.DeviceService;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -40,7 +40,7 @@ class DeviceRegistryTest {
     private ToolHandler toolHandler;
 
     @Mock
-    private DataRouter dataRouter;
+    private ApplicationEventPublisher eventPublisher;
 
     @Mock
     private DeviceService deviceService;
@@ -52,7 +52,7 @@ class DeviceRegistryTest {
 
     @BeforeEach
     void setUp() {
-        registry = new DeviceRegistry(handlerFactory, dataRouter, deviceService, armModelConfigMapper);
+        registry = new DeviceRegistry(handlerFactory, eventPublisher, deviceService, armModelConfigMapper);
     }
 
     @Test

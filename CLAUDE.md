@@ -189,8 +189,9 @@ DeviceChangeEvent 发布（事务提交后）
 
 ```
 InBoundHandler 解析帧 → ToolHandler.handleTighteningData(dto, channel)
-  → ToolAdapter.fireTighteningData(dto) → DataRouter.routeTighteningData()
-  → LifecycleEngine.postMessage(TighteningDataReceived) → Actor inbox
+  → ToolAdapter.fireTighteningData(dto)
+  → DeviceRegistry 发布 TighteningDataReceivedEvent
+  → TaskOrchestrator.@EventListener 监听 → LifecycleEngine.postMessage(TighteningDataReceived)
   → Actor 线程处理 → advancePipeline() 推进到 JUDGING → STORING 等子状态
 ```
 

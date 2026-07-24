@@ -8,6 +8,7 @@ import com.tightening.device.contract.ISetterSelector;
 import com.tightening.device.contract.ITool;
 import com.tightening.device.contract.ToolAdapter;
 import com.tightening.device.event.DeviceChangeEvent;
+import com.tightening.device.event.TighteningDataReceivedEvent;
 import com.tightening.device.handler.DeviceHandler;
 import com.tightening.device.handler.DeviceHandlerFactory;
 import com.tightening.device.handler.ToolHandler;
@@ -19,10 +20,10 @@ import com.tightening.device.type.Arranger;
 import com.tightening.device.type.SetterSelector;
 import com.tightening.entity.ArmModelConfig;
 import com.tightening.entity.Device;
-import com.tightening.lifecycle.DataRouter;
 import com.tightening.mapper.ArmModelConfigMapper;
 import com.tightening.service.DeviceService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.stereotype.Component;
 
@@ -41,14 +42,14 @@ public class DeviceRegistry {
     private final Map<Long, Long> gatewayMap = new ConcurrentHashMap<>(); // 子设备→通信盒
 
     private final DeviceHandlerFactory handlerFactory;
-    private final DataRouter dataRouter;
+    private final ApplicationEventPublisher eventPublisher;
     private final DeviceService deviceService;
     private final ArmModelConfigMapper armModelConfigMapper;
 
-    public DeviceRegistry(DeviceHandlerFactory handlerFactory, DataRouter dataRouter,
+    public DeviceRegistry(DeviceHandlerFactory handlerFactory, ApplicationEventPublisher eventPublisher,
                          DeviceService deviceService, ArmModelConfigMapper armModelConfigMapper) {
         this.handlerFactory = handlerFactory;
-        this.dataRouter = dataRouter;
+        this.eventPublisher = eventPublisher;
         this.deviceService = deviceService;
         this.armModelConfigMapper = armModelConfigMapper;
     }
@@ -133,7 +134,9 @@ public class DeviceRegistry {
         if (handler instanceof ToolHandler toolHandler) {
             ToolAdapter toolAdapter = new ToolAdapter(toolHandler, device);
             toolHandler.setToolAdapter(toolAdapter);
-            toolAdapter.onTighteningData(dto -> dataRouter.routeTighteningData(device.getId(), dto));
+            long deviceId = device.getId();
+            toolAdapter.onTighteningData(dto -> eventPublisher.publishEvent(
+                    new TighteningDataReceivedEvent(null, deviceId, dto)));
             tools.put(device.getId(), toolAdapter);
             log.debug("Registered ITool for device {} (type={})", device.getId(), device.getType());
         }

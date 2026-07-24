@@ -42,20 +42,20 @@ _Avoid_: 送钉机、螺丝排列机、feeder
 
 ## 业务实体
 
-**ProductMission（产品任务）**:
-一次完整的产品装配任务定义。包含多个 ProductSide，规定所有需要拧紧的螺栓。执行后生成一条 MissionRecord。
+**ProductTask（产品任务）**:
+一次完整的产品装配任务定义。包含多个 ProductSide，规定所有需要拧紧的螺栓。执行后生成一条 TaskRecord。
 _Avoid_: 生产任务、工单
 
 **ProductSide（产品面）**:
-产品装配任务中一个物理面，包含多个 ProductBolt。一个 ProductMission 的所有 ProductSide 必须全部执行完毕，否则任务判定 NG。
+产品装配任务中一个物理面，包含多个 ProductBolt。一个 ProductTask 的所有 ProductSide 必须全部执行完毕，否则任务判定 NG。
 _Avoid_: 面位、装配面
 
 **ProductBolt（产品螺栓）**:
 ProductSide 中一颗需要拧紧的螺栓，有独立的序列号（boltSerialNum）。
 _Avoid_: 螺丝、紧固件
 
-**MissionRecord（任务执行记录）**:
-ProductMission 被执行一次后生成的记录。一条 MissionRecord 包含 0 条或多条 TighteningData，记录该任务下所有拧紧操作的结果。是历史快照，不通过外键与 ProductMission 强关联。
+**TaskRecord（任务执行记录）**:
+ProductTask 被执行一次后生成的记录。一条 TaskRecord 包含 0 条或多条 TighteningData，记录该任务下所有拧紧操作的结果。是历史快照，不通过外键与 ProductTask 强关联。
 _Avoid_: 任务记录、执行日志
 
 **ProductCode（产品码/追溯码）**:
@@ -70,12 +70,12 @@ _Avoid_: 零件码、部件码
 用于验证 ProductCode 或 MaterialCode 是否格式合规的规则。按类型分为 PRODUCT_TRACE（产品码规则，每任务最多 1 条）和 MATERIAL_BARCODE（物料码规则，0-n 条）。规则通过 segments 定义码的位置匹配条件。创建物料码规则前必须先有产品码规则。
 _Avoid_: 条码校验规则、码规则
 
-**MissionPrerequisite（前置任务）**:
+**TaskPrerequisite（前置任务）**:
 定义任务之间的依赖关系。类型分为 SAME_TRACE（产品码前置，两个任务共用同一产品码）、MATERIAL_TRACE（物料码前置，前置任务的产品码 = 当前任务的物料码值）、INSPECTION_CHAIN（点检链，当前和前置任务都必须是点检任务）。新增前置关系时须通过 BFS 检测循环依赖。MATERIAL_TRACE 必须通过 barcodeRuleId 关联当前任务的一条 MATERIAL_BARCODE 规则——因为一个任务可有多个物料码规则，须明确指定用哪个来匹配前置任务的产品码。SAME_TRACE 和 INSPECTION_CHAIN 不需要 barcodeRuleId（前者每个任务至多一个产品码规则可通过任务定位，后者是纯任务-任务依赖不涉及条码匹配）。
 _Avoid_: 前置条件、依赖任务
 
 **Rework（返工）**:
-对已完成任务的重新执行。MissionRecord.isRework 标记该记录是否为返工任务（0=正常首次执行，1=返工）。默认创建为 NORMAL(0)。
+对已完成任务的重新执行。TaskRecord.isRework 标记该记录是否为返工任务（0=正常首次执行，1=返工）。默认创建为 NORMAL(0)。
 _Avoid_: 重做、重试
 
 **ParameterSet / PSet（参数集/配方）**:
@@ -86,14 +86,14 @@ _Avoid_: 配方参数、工艺参数、配置集
 
 **TighteningData（拧紧数据）**:
 一次拧紧操作的完整记录。包含扭矩/角度的实际值、上下限、目标值、状态判定（OK/NG）、批次信息、时间戳等。由工具在拧紧完成后主动推送。TighteningData 中冗余存储 Workstation、ProductSide、Bolt 等字段作为历史快照，不与上游实体强关联。
-_Avoid_: 拧紧结果、拧紧记录（易与 MissionRecord 混淆）
+_Avoid_: 拧紧结果、拧紧记录（易与 TaskRecord 混淆）
 
 **TighteningStatus（拧紧状态）**:
 单次拧紧操作是否合格。OK(1) 表示拧紧达标，NG(0) 表示不合格。
 _Avoid_: 通过/失败
 
-**MissionResult（任务结果）**:
-一次 MissionRecord 的最终判定：OK(1) 或 NG(0)。所有非 OK 的结束（Trigger 不通过、Capability Fail、引擎异常）最终都记为 NG。`faultMessage` 字段承载 NG 的原因供前端展示。编码与 TighteningStatus 对齐。
+**TaskResult（任务结果）**:
+一次 TaskRecord 的最终判定：OK(1) 或 NG(0)。所有非 OK 的结束（Trigger 不通过、Capability Fail、引擎异常）最终都记为 NG。`faultMessage` 字段承载 NG 的原因供前端展示。编码与 TighteningStatus 对齐。
 _Avoid_: 任务状态、完成状态、JobStatus
 
 **TighteningResultType（拧紧结果类型）**:
@@ -142,6 +142,10 @@ _Avoid_: 驱动、适配器
 设备 CRUD 操作后发布的事件（ADD / UPDATE / DELETE），在事务提交后由 DeviceManager 响应，确保内存状态与数据库一致。
 _Avoid_: 设备更新通知
 
+**TighteningDataReceivedEvent（拧紧数据接收事件）**:
+设备层发布的 Spring 事件。ToolAdapter 收到拧紧数据后，DeviceRegistry 通过 ApplicationEventPublisher 发布此事件。TaskOrchestrator 通过 @EventListener 监听并路由到对应引擎的 inbox。与 DeviceChangeEvent 同属 device/event 包，设备层只发布不消费——消费方在 lifecycle 层。
+_Avoid_: 数据回调、路由通知
+
 **DeviceRegistry（设备注册表）**:
 设备接口视图的查询入口。监听 DeviceChangeEvent 维护 ITool / IArm / ISetterSelector / IArranger 实例注册表，与 DeviceManager 零耦合（事件驱动）。不管理物理连接，只提供查询。子设备由通信盒 handler 连接后创建 Adapter 注册。
 _Avoid_: 设备仓库、连接池
@@ -157,7 +161,7 @@ _Avoid_: 启用/禁用、enable/disable
 _Avoid_: 限流、节流
 
 **LockMsg（加锁原因）**:
-任何需要 tool 保持 locked 状态的条件。所有 Capability 和管理员操作只往 `MissionContext.lockMsgs` 集合中增/删自己的锁消息，不直接操作 tool。LockStateMonitor 是该集合的唯一消费者。生命周期内管理员手动 unlock 通过设置 `boltUnlockOverride` 实现——LockStateMonitor 看到此标志为 true 则跳过 lock，SWITCH_BOLT 时重置。
+任何需要 tool 保持 locked 状态的条件。所有 Capability 和管理员操作只往 `TaskContext.lockMsgs` 集合中增/删自己的锁消息，不直接操作 tool。LockStateMonitor 是该集合的唯一消费者。生命周期内管理员手动 unlock 通过设置 `boltUnlockOverride` 实现——LockStateMonitor 看到此标志为 true 则跳过 lock，SWITCH_BOLT 时重置。
 典型锁消息：`adminConfirm`、`psetSwitching`、`arrangerPositioning`、`socketSelecting`。
 _Avoid_: 锁请求、锁标记
 
@@ -178,7 +182,7 @@ _Avoid_: 数据包、报文
 ## 任务生命周期
 
 **Lifecycle Engine（生命周期引擎）**:
-驱动 Mission 从激活到完成的 Actor 模型引擎。每次激活创建一个实例，持有 Context（私有状态），通过 inbox 消息队列串行处理设备数据和操作员命令。生命周期结束后通过 onCompleted / onFaulted 回调通知 MissionOrchestrator。
+驱动 Task 从激活到完成的 Actor 模型引擎。每次激活创建一个实例，持有 Context（私有状态），通过 inbox 消息队列串行处理设备数据和操作员命令。生命周期结束后通过 onCompleted / onFaulted 回调通知 TaskOrchestrator。
 _Avoid_: 状态机引擎、流程引擎
 
 **Stage（阶段）**:
@@ -186,7 +190,7 @@ _Avoid_: 状态机引擎、流程引擎
 _Avoid_: 步骤、节点
 
 **Self-Loop（自循环）**:
-配置标志（`self-loop-enabled`），通过 getSettings/getConfigs API 返回给前端。前端根据该配置决定上一条 Mission OK 后是否自动调用激活 API。后端不做自循环逻辑——激活就是激活，不区分来源。
+配置标志（`self-loop-enabled`），通过 getSettings/getConfigs API 返回给前端。前端根据该配置决定上一条 Task OK 后是否自动调用激活 API。后端不做自循环逻辑——激活就是激活，不区分来源。
 _Avoid_: 自动循环、重复任务
 
 **WorkplaceStatus（工作台状态）**:
@@ -200,7 +204,7 @@ OPERATION_ENABLE ←─(LockStateMonitor 下发 lock/unlock)─→ OPERATION_DIS
 
 - 默认进入 ACTIVATED 后为 OPERATION_DISABLE，后端校验通过后自动切到 ENABLE
 - 前端特殊情况下手动发 lock/unlock，需 adminConfirm
-- 登出/登录过期 → 当前 Mission 立即 NG → 清理引擎 → 回到 UNACTIVATED
+- 登出/登录过期 → 当前 Task 立即 NG → 清理引擎 → 回到 UNACTIVATED
 - 通过 SSE 推送给前端，前端仅展示，不持有状态机逻辑
 _Avoid_: 工作台模式
 
@@ -210,17 +214,17 @@ _Avoid_: 螺丝状态、点位状态、BoltStatus
 
 
 **Inspection / Challenge Task（点检/挑战任务）**:
-正式任务前的强制检验任务，复用 Mission 生命周期引擎。设计要点：
+正式任务前的强制检验任务，复用 Task 生命周期引擎。设计要点：
 
 - **策略**：`InspectionPolicy` 枚举（当前 DAILY，可扩展 SHIFT / HOURLY / PER_BATCH）
 - **存储**：`inspection_record` 表（workstation_id, policy, inspection_date, mission_record_id）
 - **触发**：`CheckInspection` TriggerCapability 在触发管道中排在条码校验之后，今日无记录 → Interrupt（告知前端先做点检）
-- **执行**：点检任务即普通 ProductMission，走完完整生命周期后写 inspection_record
+- **执行**：点检任务即普通 ProductTask，走完完整生命周期后写 inspection_record
 - 点检结果判定标准与正常拧紧一致
 _Avoid_: 检验任务、校准任务
 
 **SkipScrew（快速完成）**:
-当 Mission 配置 `SkipScrew=true` 时，触发阶段直接跳过所有检测、所有流程、所有设备交互→ 创建 OK 记录 → 导出 → Completed(OK)。不走 VALIDATION/ACTIVATION/OPERATION。
+当 Task 配置 `SkipScrew=true` 时，触发阶段直接跳过所有检测、所有流程、所有设备交互→ 创建 OK 记录 → 导出 → Completed(OK)。不走 VALIDATION/ACTIVATION/OPERATION。
 _Avoid_: 跳点、直通
 
 ## 引擎与管道
@@ -254,7 +258,7 @@ _Avoid_: 步骤、节点、附着点
 _Avoid_: 后台任务、守护线程
 
 **LockStateMonitor（锁状态监控器）**:
-OPERATION 阶段的引擎级持久监控器（50ms 周期，由 tickScheduler 驱动）。只读消费 `MissionContext.lockMsgs` 集合——非空则 lock，空则 unlock。OPERATION 阶段内**唯一**的 lock/unlock 执行者。生命周期外（无活跃引擎）管理员手动 lock/unlock 直接调用 ToolHandler，不经过 lockMsg 集合。
+OPERATION 阶段的引擎级持久监控器（50ms 周期，由 tickScheduler 驱动）。只读消费 `TaskContext.lockMsgs` 集合——非空则 lock，空则 unlock。OPERATION 阶段内**唯一**的 lock/unlock 执行者。生命周期外（无活跃引擎）管理员手动 lock/unlock 直接调用 ToolHandler，不经过 lockMsg 集合。
 _Avoid_: 锁管理、锁定任务
 
 **DevicePreconditionMonitor（设备前置监控器）**:
@@ -273,22 +277,19 @@ _Avoid_: 导出队列表、异步任务表
 按 DeviceType 分发到具体实现（AtlasJudgment / FitJudgment / SudongJudgment）的策略接口，`ExecuteJudgment` Capability 通过该接口获取拧紧数据的控制器原始判定。位于独立包 `com.tightening.judgment`，不依赖 Capability 基础设施。设备新增 = 新增策略实现 + 注册到 `JudgmentConfig`。
 _Avoid_: 判定器、结果解释器
 
-**Mission Activation（任务激活）**:
-统一入口 `POST /api/mission/activate`，接收 productCode 和 partsCode（均可空）。激活流程内部根据 Mission 配置判定：配置了需要但未提供 → Interrupt。前端根据返回决定下一步。条码来源（扫码枪/手动输入/PLC）是前端的事，后端不区分。激活触发者始终是前端（即使 self-loop 场景也是前端根据配置自动调用），后端不做自动重启。
+**Task Activation（任务激活）**:
+统一入口 `POST /api/task-lifecycle/trigger`，接收 productCode 和 partsCode。激活流程内部根据 Task 配置判定：配置了需要但未提供 → Interrupt。前端根据返回决定下一步。条码来源（扫码枪/手动输入/PLC）是前端的事，后端不区分。激活触发者始终是前端（即使 self-loop 场景也是前端根据配置自动调用），后端不做自动重启。
 _Avoid_: 激活信号、启动事件
 
 **Trigger Pipeline（触发管道）**:
 引擎 pre-VALIDATION 的独立管道，由 `executeTriggerPipeline()` 驱动 TriggerCapability 链（ProductBarCodeCheck → PartsBarCodeMatching → CheckInspection → SkipScrewCheck）。条码校验由 TriggerCapability 直接查询规则后判定。
 _Avoid_: 激活检查、前置校验、CheckCanActivate
 
-**MissionOrchestrator（任务编排器）**:
-引擎生命周期的单一入口。负责创建引擎实例（通过 LifecycleEngineFactory）、持有活跃引擎引用、将设备拧紧数据路由到正确引擎的 inbox。与 DeviceRegistry 协作，在设备注册时挂载数据路由回调。引擎完成后通过回调通知 MissionOrchestrator 清理引擎引用。
+**TaskOrchestrator（任务编排器）**:
+引擎生命周期的单一入口。负责创建引擎实例（通过 LifecycleEngineFactory）、持有活跃引擎引用。通过 @EventListener 监听 TighteningDataReceivedEvent 将拧紧数据路由到正确引擎的 inbox。引擎完成后通过回调清理引擎引用。与 DeviceRegistry 无直接耦合——双方通过 Spring 事件通信。
 _Avoid_: 任务管理器、流程控制器
 
 **LocalSettings / settings.yml（本地化配置）**:
 部署环境的本地化配置文件（`~/tightening_system/settings.yml`），独立于 application.yaml。客户部署时按需复制修改。当前包含：自循环开关（`self-loop-enabled`）、导出类型列表（`export-types`）。后续扩展 PLC 超时、心跳间隔、Capability 开关等。
 _Avoid_: 应用配置、环境变量
 
-**DataRouter（数据路由器）**:
-将拧紧数据从设备回调路由到正确引擎 inbox 的接口。`DeviceRegistry` 依赖此接口（而非 `MissionOrchestrator`），消除循环依赖。`MissionOrchestrator` 实现此接口，在设备注册时通过 `ToolAdapter.onTighteningData()` 挂载回调。
-_Avoid_: 消息路由器、事件分发器

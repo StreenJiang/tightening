@@ -74,7 +74,7 @@ public class TxtExporter implements Exporter {
 
         } catch (Exception e) {
             log.error("TXT export failed: {}", e.getMessage(), e);
-            return ExportResult.fail(e.getMessage());
+            return ExportResult.fail("export.txt_failed");
         }
     }
 

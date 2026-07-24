@@ -1,21 +1,30 @@
 package com.tightening.dto;
 
+import com.tightening.i18n.Messages;
 import org.springframework.http.HttpStatus;
+import org.springframework.lang.Nullable;
 
-public record ApiResponse<T>(int code, String message, T data) {
+public record ApiResponse<T>(int code, @Nullable String errorCode, String message, @Nullable T data) {
 
-    private static final int OK = HttpStatus.OK.value();
-    private static final int FAIL = HttpStatus.INTERNAL_SERVER_ERROR.value();
+    private static final HttpStatus OK = HttpStatus.OK;
+    private static String okMessage;
 
-    public static <T> ApiResponse<T> ok(T data) {
-        return new ApiResponse<>(OK, "ok", data);
+    public static <T> ApiResponse<T> ok(@Nullable T data) {
+        if (okMessage == null) {
+            okMessage = Messages.get("common.ok");
+        }
+        return new ApiResponse<>(OK.value(), null, okMessage, data);
     }
 
     public static ApiResponse<String> ok() {
-        return new ApiResponse<>(OK, "ok", null);
+        return ok(null);
     }
 
-    public static <T> ApiResponse<T> fail(String message) {
-        return new ApiResponse<>(FAIL, message, null);
+    public static <T> ApiResponse<T> fail(String errorCode, Object... args) {
+        return fail(HttpStatus.INTERNAL_SERVER_ERROR, errorCode, args);
+    }
+
+    public static <T> ApiResponse<T> fail(HttpStatus status, String errorCode, Object... args) {
+        return new ApiResponse<>(status.value(), errorCode, Messages.get(errorCode, args), null);
     }
 }

@@ -4,6 +4,7 @@ import com.tightening.constant.LockReason;
 import com.tightening.dto.*;
 import com.tightening.entity.ProductBolt;
 import com.tightening.entity.ProductTask;
+import com.tightening.i18n.BusinessException;
 import com.tightening.lifecycle.TaskContext;
 import com.tightening.lifecycle.TaskOrchestrator;
 import com.tightening.service.BarcodeValidationService;
@@ -53,7 +54,7 @@ public class TaskLifecycleController {
             return ResponseEntity.ok(ApiResponse.ok(BarcodeValidationResult.pass()));
         }
         return ResponseEntity.ok(ApiResponse.ok(
-                BarcodeValidationResult.fail("物料码不匹配")));
+                BarcodeValidationResult.fail("barcode.material_not_matched")));
     }
 
     @PostMapping("/{id}/trigger")
@@ -61,36 +62,30 @@ public class TaskLifecycleController {
             @PathVariable Long id,
             @RequestBody TriggerRequestDto req) {
         if (orchestrator.getActiveEngine(id).isPresent()) {
-            return ResponseEntity.ok()
-                    .body(ApiResponse.fail("task already active: " + id));
+            throw BusinessException.conflict("task.already_active");
         }
         ProductTask task = taskService.getById(id);
         if (task == null) {
-            return ResponseEntity.ok()
-                    .body(ApiResponse.fail("task not found: " + id));
+            throw BusinessException.notFound("task.not_found");
         }
         List<ProductBolt> bolts = boltService.listByTaskId(id);
         if (bolts.isEmpty()) {
-            return ResponseEntity.ok()
-                    .body(ApiResponse.fail("task has no bolts: " + id));
+            throw BusinessException.of("task.has_no_bolts");
         }
         var engine = orchestrator.trigger(task, bolts,
                 req.productCode(), req.partsCode());
         if (engine == null) {
-            return ResponseEntity.ok()
-                    .body(ApiResponse.fail("task already active: " + id));
+            throw BusinessException.conflict("task.already_active");
         }
         return ResponseEntity.accepted()
                 .body(ApiResponse.ok("trigger request accepted"));
     }
 
-    // 原有端点保留
     @PostMapping("/{id}/interrupt")
     public ResponseEntity<ApiResponse<String>> interruptTask(@PathVariable Long id) {
         var engine = orchestrator.getActiveEngine(id);
         if (engine.isEmpty()) {
-            return ResponseEntity.ok()
-                    .body(ApiResponse.fail("no active task: " + id));
+            throw BusinessException.notFound("task.no_active_task");
         }
         engine.get().interrupt("user interrupt");
         return ResponseEntity.ok(ApiResponse.ok("interrupted"));

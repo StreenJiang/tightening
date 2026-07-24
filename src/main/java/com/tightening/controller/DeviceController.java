@@ -6,6 +6,7 @@ import com.tightening.device.handler.DeviceHandler;
 import com.tightening.device.handler.ToolHandler;
 import com.tightening.dto.ApiResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -13,8 +14,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.request.async.DeferredResult;
-
-import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("api/devices")
@@ -28,15 +27,13 @@ public class DeviceController {
     @PutMapping("/{id}/enable")
     public DeferredResult<ResponseEntity<ApiResponse<Boolean>>> enableTool(@PathVariable("id") long deviceId) {
         DeviceHandler handler = deviceManager.getHandler(deviceId);
-        DeferredResult<ResponseEntity<ApiResponse<Boolean>>> deferredResult =
-                new DeferredResult<>(toolCommonConfig.getCmdTimeoutMs());
-        deferredResult.onTimeout(() ->
-                deferredResult.setResult(ResponseEntity.ok(ApiResponse.fail("命令超时"))));
+        DeferredResult<ResponseEntity<ApiResponse<Boolean>>> deferredResult = newDeferredResult();
 
         if (handler instanceof ToolHandler toolHandler) {
             toolHandler.unlock(deviceId)
                     .thenApply(result -> ResponseEntity.ok(ApiResponse.ok(result)))
-                    .exceptionally(ex -> ResponseEntity.ok(ApiResponse.fail("解锁失败")))
+                    .exceptionally(ex -> ResponseEntity.ok(
+                            ApiResponse.fail("device.cmd.unlock_failed")))
                     .thenAccept(deferredResult::setResult);
             return deferredResult;
         }
@@ -48,15 +45,13 @@ public class DeviceController {
     @PutMapping("/{id}/disable")
     public DeferredResult<ResponseEntity<ApiResponse<Boolean>>> disableTool(@PathVariable("id") long deviceId) {
         DeviceHandler handler = deviceManager.getHandler(deviceId);
-        DeferredResult<ResponseEntity<ApiResponse<Boolean>>> deferredResult =
-                new DeferredResult<>(toolCommonConfig.getCmdTimeoutMs());
-        deferredResult.onTimeout(() ->
-                deferredResult.setResult(ResponseEntity.ok(ApiResponse.fail("命令超时"))));
+        DeferredResult<ResponseEntity<ApiResponse<Boolean>>> deferredResult = newDeferredResult();
 
         if (handler instanceof ToolHandler toolHandler) {
             toolHandler.lock(deviceId)
                     .thenApply(result -> ResponseEntity.ok(ApiResponse.ok(result)))
-                    .exceptionally(ex -> ResponseEntity.ok(ApiResponse.fail("锁定失败")))
+                    .exceptionally(ex -> ResponseEntity.ok(
+                            ApiResponse.fail("device.cmd.lock_failed")))
                     .thenAccept(deferredResult::setResult);
             return deferredResult;
         }
@@ -79,20 +74,26 @@ public class DeviceController {
     public DeferredResult<ResponseEntity<ApiResponse<Boolean>>> sendPSet(@PathVariable("id") long deviceId,
                                                                           @PathVariable int pSet) {
         DeviceHandler handler = deviceManager.getHandler(deviceId);
-        DeferredResult<ResponseEntity<ApiResponse<Boolean>>> deferredResult =
-                new DeferredResult<>(toolCommonConfig.getCmdTimeoutMs());
-        deferredResult.onTimeout(() ->
-                deferredResult.setResult(ResponseEntity.ok(ApiResponse.fail("命令超时"))));
+        DeferredResult<ResponseEntity<ApiResponse<Boolean>>> deferredResult = newDeferredResult();
 
         if (handler instanceof ToolHandler toolHandler) {
             toolHandler.sendPSetOp(deviceId, pSet)
                     .thenApply(result -> ResponseEntity.ok(ApiResponse.ok(result)))
-                    .exceptionally(ex -> ResponseEntity.ok(ApiResponse.fail("参数集切换失败")))
+                    .exceptionally(ex -> ResponseEntity.ok(
+                            ApiResponse.fail("device.cmd.pset_failed")))
                     .thenAccept(deferredResult::setResult);
             return deferredResult;
         }
 
         deferredResult.setResult(ResponseEntity.ok(ApiResponse.ok(false)));
         return deferredResult;
+    }
+
+    private DeferredResult<ResponseEntity<ApiResponse<Boolean>>> newDeferredResult() {
+        DeferredResult<ResponseEntity<ApiResponse<Boolean>>> dr =
+                new DeferredResult<>(toolCommonConfig.getCmdTimeoutMs());
+        dr.onTimeout(() -> dr.setResult(ResponseEntity.ok(
+                ApiResponse.fail(HttpStatus.REQUEST_TIMEOUT, "device.cmd.timeout"))));
+        return dr;
     }
 }

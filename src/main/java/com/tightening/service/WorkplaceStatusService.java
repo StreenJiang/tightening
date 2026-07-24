@@ -8,7 +8,6 @@ import com.tightening.dto.WorkplaceStatusPayload;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -32,7 +31,7 @@ public class WorkplaceStatusService {
         this.lockReasons = reasons;
         sseService.emit(new SseEvent(
             SseEventType.WORKPLACE_STATUS,
-            new WorkplaceStatusPayload(newStatus, toDisplayMap(reasons)),
+            new WorkplaceStatusPayload(newStatus, toKeySet(reasons)),
             LocalDateTime.now()));
     }
 
@@ -40,8 +39,9 @@ public class WorkplaceStatusService {
         transitionTo(WorkplaceStatus.UNACTIVATED, Set.of());
     }
 
-    private Map<String, String> toDisplayMap(Set<LockReason> reasons) {
+    private Set<String> toKeySet(Set<LockReason> reasons) {
         return reasons.stream()
-            .collect(Collectors.toMap(LockReason::getKey, LockReason::getDisplayName));
+            .map(LockReason::getKey)
+            .collect(Collectors.toSet());
     }
 }

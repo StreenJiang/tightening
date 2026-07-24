@@ -1,6 +1,6 @@
 package com.tightening.dto;
 
 import com.tightening.constant.WorkplaceStatus;
-import java.util.Map;
+import java.util.Set;
 
-public record WorkplaceStatusPayload(WorkplaceStatus status, Map<String, String> lockReasons) {}
+public record WorkplaceStatusPayload(WorkplaceStatus status, Set<String> lockReasons) {}

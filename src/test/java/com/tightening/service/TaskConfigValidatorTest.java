@@ -5,11 +5,14 @@ import com.tightening.constant.PrerequisiteType;
 import com.tightening.dto.PrerequisiteDetailItem;
 import com.tightening.entity.BarCodeMatchingRule;
 import com.tightening.entity.ProductTask;
+import com.tightening.i18n.BusinessException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatNoException;
@@ -18,6 +21,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class TaskConfigValidatorTest {
 
     private final TaskConfigValidator validator = new TaskConfigValidator(null, null, null);
+
+    private void assertBusinessError(ThrowingCallable runnable, String expectedErrorCode) {
+        assertThatThrownBy(runnable)
+            .isInstanceOf(BusinessException.class)
+            .extracting(e -> ((BusinessException) e).getErrorCode())
+            .isEqualTo(expectedErrorCode);
+    }
 
     @Test
     @DisplayName("segments: single char passes")
@@ -40,9 +50,7 @@ class TaskConfigValidatorTest {
     void mismatchThrows() {
         BarCodeMatchingRule rule = new BarCodeMatchingRule()
                 .setSegments("[{\"s\":2,\"e\":6,\"v\":\"ABC\"}]");
-        assertThatThrownBy(() -> validator.validateKeyCharLength(rule))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("不匹配");
+        assertBusinessError(() -> validator.validateKeyCharLength(rule), "barcode.segment_length_error");
     }
 
     @Test
@@ -71,9 +79,7 @@ class TaskConfigValidatorTest {
                 new BarCodeMatchingRule().setRuleType(BarCodeRuleType.PRODUCT_TRACE.getCode())
             );
 
-            assertThatThrownBy(() -> validator.validateBarcodeRules(rules))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("产品码规则最多 1 条");
+            assertBusinessError(() -> validator.validateBarcodeRules(rules), "validation.product_code_rule_limit");
         }
 
         @Test
@@ -83,9 +89,7 @@ class TaskConfigValidatorTest {
                 new BarCodeMatchingRule().setRuleType(BarCodeRuleType.MATERIAL_BARCODE.getCode())
             );
 
-            assertThatThrownBy(() -> validator.validateBarcodeRules(rules))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("必须先有产品码规则");
+            assertBusinessError(() -> validator.validateBarcodeRules(rules), "validation.product_code_required");
         }
 
         @Test
@@ -121,9 +125,7 @@ class TaskConfigValidatorTest {
                 new PrerequisiteDetailItem().setPrerequisiteType(PrerequisiteType.INSPECTION_CHAIN)
             );
 
-            assertThatThrownBy(() -> validator.validateInspectionChainSelfInspection(task, items))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("INSPECTION_CHAIN 的前置类型要求当前任务必须是点检任务");
+            assertBusinessError(() -> validator.validateInspectionChainSelfInspection(task, items), "prerequisite.inspection_chain_self_inspection");
         }
 
         @Test
@@ -153,9 +155,7 @@ class TaskConfigValidatorTest {
         @Test
         @DisplayName("MATERIAL_TRACE + null 规则 -> 抛异常")
         void shouldRejectMaterialTraceWithNullRule() {
-            assertThatThrownBy(() -> validator.validateBarcodeRuleForPrerequisite(null, PrerequisiteType.MATERIAL_TRACE))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("MATERIAL_TRACE 前置必须关联条码规则");
+            assertBusinessError(() -> validator.validateBarcodeRuleForPrerequisite(null, PrerequisiteType.MATERIAL_TRACE), "prerequisite.material_trace_rule");
         }
 
         @Test
@@ -163,9 +163,7 @@ class TaskConfigValidatorTest {
         void shouldRejectMaterialTraceWithNonMaterialRule() {
             BarCodeMatchingRule rule = new BarCodeMatchingRule()
                     .setRuleType(BarCodeRuleType.PRODUCT_TRACE.getCode());
-            assertThatThrownBy(() -> validator.validateBarcodeRuleForPrerequisite(rule, PrerequisiteType.MATERIAL_TRACE))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("必须是 MATERIAL_BARCODE 类型");
+            assertBusinessError(() -> validator.validateBarcodeRuleForPrerequisite(rule, PrerequisiteType.MATERIAL_TRACE), "prerequisite.material_barcode_type");
         }
 
         @Test
@@ -173,9 +171,7 @@ class TaskConfigValidatorTest {
         void shouldRejectNonMaterialTraceWithRule() {
             BarCodeMatchingRule rule = new BarCodeMatchingRule()
                     .setRuleType(BarCodeRuleType.MATERIAL_BARCODE.getCode());
-            assertThatThrownBy(() -> validator.validateBarcodeRuleForPrerequisite(rule, PrerequisiteType.SAME_TRACE))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("只有 MATERIAL_TRACE 前置可以关联条码规则");
+            assertBusinessError(() -> validator.validateBarcodeRuleForPrerequisite(rule, PrerequisiteType.SAME_TRACE), "prerequisite.only_material_can_have_barcode");
         }
 
         @Test

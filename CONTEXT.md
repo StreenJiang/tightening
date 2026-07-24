@@ -93,8 +93,12 @@ _Avoid_: 拧紧结果、拧紧记录（易与 TaskRecord 混淆）
 _Avoid_: 通过/失败
 
 **TaskResult（任务结果）**:
-一次 TaskRecord 的最终判定：OK(1) 或 NG(0)。所有非 OK 的结束（Trigger 不通过、Capability Fail、引擎异常）最终都记为 NG。`faultMessage` 字段承载 NG 的原因供前端展示。编码与 TighteningStatus 对齐。
+一次 TaskRecord 的最终判定：OK(1) 或 NG(0)。所有非 OK 的结束（Trigger 不通过、Capability Fail、引擎异常）最终都记为 NG。`faultMessage` 字段存储 errorCode 格式（`errorCode` 或 `errorCode:arg1,arg2`），记录 NG 原因的事实表征，前端展示时自行翻译。编码与 TighteningStatus 对齐。
 _Avoid_: 任务状态、完成状态、JobStatus
+
+**errorCode（错误码）**:
+语言无关的错误标识字符串，格式为 `模块.实体.问题描述`（如 `task.name.duplicate`、`device.cmd.timeout`）。API 响应中与本地化 message 同时返回，持久化字段（`TaskRecord.faultMessage`、`export_task.error_message`）中单独存储。详情见 `docs/superpowers/specs/2026-07-24-i18n-design.md`。
+_Avoid_: 错误编号、状态码
 
 **TighteningResultType（拧紧结果类型）**:
 区分操作是拧紧 TIGHTENING(1) 还是松开 LOOSENING(2)。

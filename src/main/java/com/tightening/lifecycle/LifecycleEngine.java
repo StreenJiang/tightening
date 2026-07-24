@@ -7,6 +7,7 @@ import com.tightening.constant.WorkplaceStatus;
 import com.tightening.device.contract.ITool;
 import com.tightening.entity.TaskRecord;
 import com.tightening.entity.TighteningData;
+import com.tightening.i18n.BusinessException;
 
 import com.tightening.lifecycle.capability.Capability;
 import com.tightening.lifecycle.capability.CapabilityResult;
@@ -365,7 +366,7 @@ public class LifecycleEngine {
         if (context.getTaskRecord() != null && context.getTaskRecord().getId() != null) {
             taskRecordService.markFaulted(
                 context.getTaskRecord().getId(),
-                "Capability failed: " + failedCap.id());
+                BusinessException.toErrorString("capability.failed", failedCap.id()));
         }
         saveCheckpoint("StageFailure:" + failedCap.id());
         if (onFaulted != null) onFaulted.accept("Capability failed: " + failedCap.id());
@@ -379,8 +380,9 @@ public class LifecycleEngine {
         if (context == null) return;
         if (context.getTaskRecord() != null && context.getTaskRecord().getId() != null) {
             try {
+                String faultMsg = BusinessException.toPersistenceString(e);
                 taskRecordService.markFaulted(
-                    context.getTaskRecord().getId(), e.getMessage());
+                    context.getTaskRecord().getId(), faultMsg);
             } catch (Exception markEx) {
                 log.error("Failed to mark faulted", markEx);
             }
@@ -440,7 +442,8 @@ public class LifecycleEngine {
             log.error("Actor thread uncaught exception", throwable);
             // 线程即将死亡，直接执行崩溃逻辑并 shutdown，不投递到 inbox
             if (context != null && context.getTaskRecord() != null && context.getTaskRecord().getId() != null) {
-                try { taskRecordService.markFaulted(context.getTaskRecord().getId(), throwable.getMessage()); }
+                String faultMsg = BusinessException.toPersistenceString(throwable);
+                try { taskRecordService.markFaulted(context.getTaskRecord().getId(), faultMsg); }
                 catch (Exception ex) { log.error("Failed to mark faulted", ex); }
             }
             try { saveCheckpoint("Uncaught:" + throwable.getClass().getSimpleName()); }

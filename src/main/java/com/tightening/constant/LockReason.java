@@ -4,17 +4,15 @@ import lombok.Getter;
 
 @Getter
 public enum LockReason {
-    PSET_SENDING("pSetSending", "程序号下发中"),
-    ARRANGER_POSITIONING("arrangerPositioning", "送钉中"),
-    SOCKET_SELECTING("socketSelecting", "套筒选择中"),
-    BARCODE_REQUIRED("barcodeRequired", "请录入物料码"),
-    ADMIN_CONFIRM("adminConfirm", "需管理员确认");
+    PSET_SENDING("pSetSending"),
+    ARRANGER_POSITIONING("arrangerPositioning"),
+    SOCKET_SELECTING("socketSelecting"),
+    BARCODE_REQUIRED("barcodeRequired"),
+    ADMIN_CONFIRM("adminConfirm");
 
     private final String key;
-    private final String displayName;
 
-    LockReason(String key, String displayName) {
+    LockReason(String key) {
         this.key = key;
-        this.displayName = displayName;
     }
 }

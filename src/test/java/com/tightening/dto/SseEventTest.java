@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,12 +27,12 @@ class SseEventTest {
     @Test
     @DisplayName("WorkplaceStatusPayload 应正确存储 status 和 lockReasons")
     void shouldStoreWorkplaceStatusPayload() {
-        var reasons = Map.of("pSetSending", "程序号下发中");
+        var reasons = Set.of("pSetSending");
         var payload = new WorkplaceStatusPayload(
                 com.tightening.constant.WorkplaceStatus.OPERATION_ENABLE, reasons);
 
         assertThat(payload.status()).isEqualTo(
                 com.tightening.constant.WorkplaceStatus.OPERATION_ENABLE);
-        assertThat(payload.lockReasons()).containsEntry("pSetSending", "程序号下发中");
+        assertThat(payload.lockReasons()).contains("pSetSending");
     }
 }

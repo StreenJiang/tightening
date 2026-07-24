@@ -7,8 +7,9 @@ import com.tightening.constant.PrerequisiteType;
 import com.tightening.dto.PrerequisiteDetailItem;
 import com.tightening.entity.BarCodeMatchingRule;
 import com.tightening.entity.InspectionTaskBinding;
-import com.tightening.entity.TaskPrerequisite;
 import com.tightening.entity.ProductTask;
+import com.tightening.entity.TaskPrerequisite;
+import com.tightening.i18n.BusinessException;
 import com.tightening.util.BarcodeMatcher;
 import com.tightening.util.JsonUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -43,7 +44,7 @@ public class TaskConfigValidator {
             Long current = queue.poll();
             if (!visited.add(current)) continue;
             if (current.equals(taskId)) {
-                throw new IllegalArgumentException("检测到循环依赖: task " + taskId + " 不能依赖自身");
+                throw BusinessException.of("prerequisite.chain_self", taskId);
             }
             prerequisiteService.lambdaQuery()
                     .select(TaskPrerequisite::getPrerequisiteTaskId)
@@ -59,16 +60,16 @@ public class TaskConfigValidator {
         if (target == null) return;
         boolean isInspection = isInspectionTask(target);
         if (PrerequisiteType.INSPECTION_CHAIN == prerequisiteType && !isInspection) {
-            throw new IllegalArgumentException("INSPECTION_CHAIN 的前置任务必须是点检任务 (is_inspection=1)");
+            throw BusinessException.of("prerequisite.inspection_type");
         }
         if (PrerequisiteType.INSPECTION_CHAIN != prerequisiteType && isInspection) {
-            throw new IllegalArgumentException("SAME_TRACE/MATERIAL_TRACE 的前置任务必须是普通任务 (is_inspection=0)");
+            throw BusinessException.of("prerequisite.trace_type");
         }
     }
 
     public void validateInspectionBinding(ProductTask boundTask) {
         if (boundTask != null && isInspectionTask(boundTask)) {
-            throw new IllegalArgumentException("点检任务不能绑定到另一个点检任务");
+            throw BusinessException.of("prerequisite.inspection_bind");
         }
     }
 
@@ -82,11 +83,11 @@ public class TaskConfigValidator {
             for (var seg : segments) {
                 int expectedLen = seg.e() - seg.s();
                 if (seg.v() != null && seg.v().length() != expectedLen) {
-                    throw new IllegalArgumentException(
-                            "segments value 长度(" + seg.v().length() + ")与位置范围(" + expectedLen + ")不匹配");
+                    throw BusinessException.of("barcode.segment_length_error",
+                            seg.v().length(), expectedLen);
                 }
             }
-        } catch (IllegalArgumentException e) {
+        } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
             log.warn("Failed to parse segments JSON for validation", e);
@@ -99,12 +100,12 @@ public class TaskConfigValidator {
                 .filter(r -> BarCodeRuleType.PRODUCT_TRACE.getCode() == r.getRuleType())
                 .count();
         if (productCount > 1) {
-            throw new IllegalArgumentException("产品码规则最多 1 条");
+            throw BusinessException.of("validation.product_code_rule_limit");
         }
         boolean hasMaterial = finalRules.stream()
                 .anyMatch(r -> BarCodeRuleType.MATERIAL_BARCODE.getCode() == r.getRuleType());
         if (hasMaterial && productCount == 0) {
-            throw new IllegalArgumentException("必须先有产品码规则才能添加物料码规则");
+            throw BusinessException.of("validation.product_code_required");
         }
     }
 
@@ -113,14 +114,14 @@ public class TaskConfigValidator {
         boolean hasInspectionChain = items.stream()
                 .anyMatch(i -> PrerequisiteType.INSPECTION_CHAIN == i.getPrerequisiteType());
         if (hasInspectionChain && !isInspectionTask(task)) {
-            throw new IllegalArgumentException("INSPECTION_CHAIN 的前置类型要求当前任务必须是点检任务 (is_inspection=1)");
+            throw BusinessException.of("prerequisite.inspection_chain_self_inspection");
         }
     }
 
     public void validateInspectionScope(ProductTask task, List<Long> boundTaskIds) {
         if (!isInspectionTask(task)) return;
         if (task.getInspectionScope() == null || task.getInspectionScope() == InspectionScope.NONE) {
-            throw new IllegalArgumentException("点检任务必须选择点检范围");
+            throw BusinessException.of("prerequisite.inspection_scope");
         }
         if (task.getInspectionScope() == InspectionScope.CHOSEN) {
             boolean hasIncoming = boundTaskIds != null && !boundTaskIds.isEmpty();
@@ -132,7 +133,7 @@ public class TaskConfigValidator {
                         .count() > 0;
             }
             if (!hasIncoming && !hasExisting) {
-                throw new IllegalArgumentException("点检范围为指定任务时，必须选择至少一个被点检任务");
+                throw BusinessException.of("prerequisite.inspection_target");
             }
         }
         if (task.getId() != null) {
@@ -141,7 +142,7 @@ public class TaskConfigValidator {
                     .eq(InspectionTaskBinding::getDeleted, 0)
                     .count();
             if (count > 0) {
-                throw new IllegalArgumentException("该任务已被其他点检任务选中，不能改为点检任务");
+                throw BusinessException.of("prerequisite.task_already_inspected");
             }
         }
     }
@@ -153,14 +154,14 @@ public class TaskConfigValidator {
     public void validateBarcodeRuleForPrerequisite(BarCodeMatchingRule rule, PrerequisiteType prerequisiteType) {
         if (PrerequisiteType.MATERIAL_TRACE == prerequisiteType) {
             if (rule == null) {
-                throw new IllegalArgumentException("MATERIAL_TRACE 前置必须关联条码规则");
+                throw BusinessException.of("prerequisite.material_trace_rule");
             }
             if (BarCodeRuleType.MATERIAL_BARCODE.getCode() != rule.getRuleType()) {
-                throw new IllegalArgumentException("前置关联的条码规则必须是 MATERIAL_BARCODE 类型");
+                throw BusinessException.of("prerequisite.material_barcode_type");
             }
         } else {
             if (rule != null) {
-                throw new IllegalArgumentException("只有 MATERIAL_TRACE 前置可以关联条码规则");
+                throw BusinessException.of("prerequisite.only_material_can_have_barcode");
             }
         }
     }
@@ -173,7 +174,7 @@ public class TaskConfigValidator {
                 .ne(ruleId != null, BarCodeMatchingRule::getId, ruleId)
                 .count();
         if (count > 0) {
-            throw new IllegalArgumentException("该 task 已存在 PRODUCT_TRACE 规则，每个 task 最多一条");
+            throw BusinessException.of("prerequisite.product_trace_duplicate");
         }
     }
 }

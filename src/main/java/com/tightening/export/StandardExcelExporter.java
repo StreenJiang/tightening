@@ -130,7 +130,7 @@ public class StandardExcelExporter implements Exporter {
 
         } catch (Exception e) {
             log.error("Excel export failed: {}", e.getMessage(), e);
-            return ExportResult.fail(e.getMessage());
+            return ExportResult.fail("export.excel_failed");
         }
     }
 

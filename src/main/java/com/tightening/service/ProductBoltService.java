@@ -5,6 +5,7 @@ import com.tightening.entity.BoltDeviceBinding;
 import com.tightening.entity.BoltPartsBarcode;
 import com.tightening.entity.ProductBolt;
 import com.tightening.entity.ProductSide;
+import com.tightening.i18n.BusinessException;
 import com.tightening.mapper.ProductBoltMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
@@ -43,8 +44,7 @@ public class ProductBoltService extends ServiceImpl<ProductBoltMapper, ProductBo
                 .eq(ProductBolt::getDeleted, 0)
                 .ne(entity.getId() != null, ProductBolt::getId, entity.getId())
                 .count();
-        if (count > 0) throw new IllegalArgumentException(
-                "serial_num " + entity.getSerialNum() + " 在当前面中已存在");
+        if (count > 0) throw BusinessException.of("bolt.serial.duplicate", entity.getSerialNum());
     }
 
     public List<ProductBolt> listBySideId(Long sideId) {

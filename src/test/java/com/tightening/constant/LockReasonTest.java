@@ -8,19 +8,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 class LockReasonTest {
 
     @Test
-    @DisplayName("每个 LockReason 应有非空的 key 和 displayName")
-    void shouldHaveNonEmptyKeyAndDisplayName() {
+    @DisplayName("每个 LockReason 应有非空的 key")
+    void shouldHaveNonEmptyKey() {
         for (LockReason reason : LockReason.values()) {
             assertThat(reason.getKey()).isNotBlank();
-            assertThat(reason.getDisplayName()).isNotBlank();
-        }
-    }
-
-    @Test
-    @DisplayName("key 和 displayName 应不同（key 为英文标识，displayName 为中文展示）")
-    void keyAndDisplayNameShouldDiffer() {
-        for (LockReason reason : LockReason.values()) {
-            assertThat(reason.getKey()).isNotEqualTo(reason.getDisplayName());
         }
     }
 

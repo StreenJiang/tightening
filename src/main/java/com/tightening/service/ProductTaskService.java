@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tightening.constant.BarCodeRuleType;
 import com.tightening.constant.InspectionScope;
 import com.tightening.constant.PrerequisiteType;
+import com.tightening.i18n.BusinessException;
 import com.tightening.dto.BarCodeRuleDetailItem;
 import com.tightening.dto.BoltDeviceBindingDetailItem;
 import com.tightening.dto.BoltPartsBarcodeDetailItem;
@@ -314,12 +315,10 @@ public class ProductTaskService extends ServiceImpl<ProductTaskMapper, ProductTa
         if (dto.getBarcodeRules() != null) {
             for (BarCodeRuleDetailItem r : dto.getBarcodeRules()) {
                 if (r.getId() != null && boltRuleIds.contains(r.getId())) {
-                    throw new IllegalArgumentException("Rule id=" + r.getId()
-                            + " 已绑定在 bolt 上，不应出现在顶层 barcodeRules 中");
+                    throw BusinessException.of("barcode.bolt_rule_conflict", "id", r.getId());
                 }
                 if (r.getClientRef() != null && boltRefs.contains(r.getClientRef())) {
-                    throw new IllegalArgumentException("Rule clientRef=" + r.getClientRef()
-                            + " 已绑定在 bolt 上，不应出现在顶层 barcodeRules 中");
+                    throw BusinessException.of("barcode.bolt_rule_conflict", "clientRef", r.getClientRef());
                 }
             }
         }
@@ -376,7 +375,7 @@ public class ProductTaskService extends ServiceImpl<ProductTaskMapper, ProductTa
                     validator.validateProductTraceUnique(taskId, entity.getId());
                 }
                 if (item.getClientRef() != null && item.getId() != null) {
-                    throw new IllegalArgumentException("clientRef 仅用于新增规则，已有规则不可设置");
+                    throw BusinessException.of("barcode.client_ref_only_for_new");
                 }
                 if (item.getId() != null) {
                     dtoIds.add(item.getId());
@@ -447,11 +446,11 @@ public class ProductTaskService extends ServiceImpl<ProductTaskMapper, ProductTa
                                     BarcodeDiffResult barcodeResult) {
         if (barcodeRuleRef != null) {
             if (barcodeRuleId != null) {
-                throw new IllegalArgumentException("barcodeRuleRef 和 barcodeRuleId 不能同时存在");
+                throw BusinessException.of("barcode.ref_and_id_conflict");
             }
             Long resolvedId = barcodeResult.clientRefMap().get(barcodeRuleRef);
             if (resolvedId == null) {
-                throw new IllegalArgumentException("找不到 clientRef='" + barcodeRuleRef + "' 对应的条码规则");
+                throw BusinessException.of("barcode.client_ref_not_found", barcodeRuleRef);
             }
             return resolvedId;
         }
@@ -600,7 +599,7 @@ public class ProductTaskService extends ServiceImpl<ProductTaskMapper, ProductTa
         if (clientRef != null) {
             Long resolved = barcodeResult.clientRefMap().get(clientRef);
             if (resolved == null) {
-                throw new IllegalArgumentException("找不到 clientRef='" + clientRef + "' 对应的条码规则");
+                throw BusinessException.of("barcode.client_ref_not_found", clientRef);
             }
             return resolved;
         }

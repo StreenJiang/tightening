@@ -1,6 +1,9 @@
 spring:
   application:
     name: tightening
+  messages:
+    basename: i18n/messages
+    encoding: UTF-8
   profiles:
     active: dev  # 默认开发模式
 
@@ -29,6 +32,7 @@ spring:
     locations: classpath:db/migration   # 默认路径，可以修改或增加
   # Web配置
   web:
+    locale: zh_CN
     resources:
       add-mappings: false
   # 文件上传

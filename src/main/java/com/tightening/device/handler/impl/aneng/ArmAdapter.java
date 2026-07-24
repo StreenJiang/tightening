@@ -2,11 +2,9 @@ package com.tightening.device.handler.impl.aneng;
 
 import com.tightening.constant.DeviceStatus;
 import com.tightening.constant.DeviceType;
-import com.tightening.constant.SseEventType;
 import com.tightening.device.contract.Coordinates3D;
 import com.tightening.device.contract.IArm;
 import com.tightening.device.handler.impl.AnengGatewayHandler;
-import com.tightening.dto.SseEvent;
 import com.tightening.entity.ArmModelConfig;
 import com.tightening.entity.Device;
 import com.tightening.util.ModbusUtils;

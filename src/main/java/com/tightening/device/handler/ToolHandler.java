@@ -4,6 +4,7 @@ import com.tightening.config.DeviceConfig;
 import com.tightening.config.ToolCommonConfig;
 import com.tightening.device.DeviceHolder;
 import com.tightening.device.contract.ToolAdapter;
+import com.tightening.device.event.CurveDataSavedEvent;
 import com.tightening.device.handler.impl.TCPDeviceHandler;
 import com.tightening.dto.CurveDataDTO;
 import com.tightening.dto.TighteningDataDTO;
@@ -23,6 +24,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.context.ApplicationEventPublisher;
+
 import static com.tightening.device.handler.impl.TCPDeviceHandler.DEVICE_ID;
 
 @Slf4j
@@ -33,6 +36,7 @@ public abstract class ToolHandler extends TCPDeviceHandler {
     @Getter
     private final CurveDataService curveDataService;
     private final ToolCommonConfig toolCommonConfig;
+    private final ApplicationEventPublisher eventPublisher;
 
     private volatile ToolAdapter toolAdapter;
     private final Map<Long, DeviceTighteningCache> cacheByDevice = new ConcurrentHashMap<>();
@@ -42,11 +46,13 @@ public abstract class ToolHandler extends TCPDeviceHandler {
                        TighteningDataService tighteningDataService,
                        CurveDataService curveDataService,
                        ToolCommonConfig toolCommonConfig,
-                       DeviceConfig deviceConfig) {
+                       DeviceConfig deviceConfig,
+                       ApplicationEventPublisher eventPublisher) {
         super(group, deviceService, toolCommonConfig, deviceConfig);
         this.tighteningDataService = tighteningDataService;
         this.curveDataService = curveDataService;
         this.toolCommonConfig = toolCommonConfig;
+        this.eventPublisher = eventPublisher;
     }
 
     public void setToolAdapter(ToolAdapter adapter) {
@@ -198,6 +204,9 @@ public abstract class ToolHandler extends TCPDeviceHandler {
         }
 
         curveDataService.save(data);
+
+        CurveDataDTO savedDto = Converter.entity2Dto(data, CurveDataDTO::new);
+        eventPublisher.publishEvent(new CurveDataSavedEvent(this, savedDto));
     }
 
     private static class DeviceTighteningCache {

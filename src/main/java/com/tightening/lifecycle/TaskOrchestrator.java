@@ -1,11 +1,10 @@
 package com.tightening.lifecycle;
 
-import com.tightening.constant.SseEventType;
+import com.tightening.constant.SseEvents;
 import com.tightening.device.DeviceRegistry;
 import com.tightening.device.contract.ITool;
+import com.tightening.device.event.CurveDataSavedEvent;
 import com.tightening.device.event.TighteningDataReceivedEvent;
-import com.tightening.dto.SseEvent;
-import com.tightening.dto.TighteningDataDTO;
 import com.tightening.entity.ProductBolt;
 import com.tightening.entity.ProductTask;
 import com.tightening.entity.TighteningData;
@@ -18,7 +17,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -65,6 +63,11 @@ public class TaskOrchestrator {
         engine.postMessage(new DeviceEvent.TighteningDataReceived(data, deviceId));
     }
 
+    @EventListener
+    void onCurveDataSaved(CurveDataSavedEvent event) {
+        sseService.emitWorkplace(SseEvents.CURVE_DATA, event.getData());
+    }
+
     // === 触发阶段入口 ===
 
     public LifecycleEngine trigger(ProductTask task, List<ProductBolt> bolts,
@@ -94,10 +97,7 @@ public class TaskOrchestrator {
             log.warn("Task {} trigger faulted: {}", taskId, reason);
         });
 
-        engine.onTighteningJudged(data -> {
-            TighteningDataDTO dto = Converter.entity2Dto(data, TighteningDataDTO::new);
-            sseService.emit(new SseEvent(SseEventType.TIGHTENING_DATA, dto, LocalDateTime.now()));
-        });
+        engine.onPipelineEvent((type, data) -> sseService.emitWorkplace(type, data));
 
         LifecycleEngine prev = activeEngines.putIfAbsent(taskId, engine);
         if (prev != null) {

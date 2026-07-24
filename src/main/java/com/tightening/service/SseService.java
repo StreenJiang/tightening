@@ -1,6 +1,5 @@
 package com.tightening.service;
 
-import com.tightening.dto.SseEvent;
 import com.tightening.util.ThreadUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -15,60 +14,103 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class SseService {
 
-    private volatile SseEmitter emitter;
-    private final ScheduledExecutorService heartbeat = ThreadUtils.newDaemonScheduledExecutor("sse-heartbeat");
-    private volatile ScheduledFuture<?> heartbeatFuture;
+    private volatile SseEmitter deviceEmitter;
+    private volatile SseEmitter workplaceEmitter;
 
-    public SseEmitter create() {
-        SseEmitter previous = this.emitter;
+    private final ScheduledExecutorService heartbeat =
+            ThreadUtils.newDaemonScheduledExecutor("sse-heartbeat");
+
+    private volatile ScheduledFuture<?> deviceHbFuture;
+    private volatile ScheduledFuture<?> workplaceHbFuture;
+
+    // ── Device emitter ──
+
+    public SseEmitter createDeviceEmitter() {
+        SseEmitter previous = this.deviceEmitter;
         if (previous != null) {
             try { previous.complete(); } catch (Exception e) { /* ignore */ }
         }
-        emitter = new SseEmitter(0L);
-        startHeartbeat();
-        return emitter;
+        deviceEmitter = new SseEmitter(0L);
+        if (deviceHbFuture != null) deviceHbFuture.cancel(false);
+        deviceHbFuture = heartbeat.scheduleAtFixedRate(
+                heartbeatTask(deviceEmitter, this::closeDevice),
+                30, 30, TimeUnit.SECONDS);
+        return deviceEmitter;
     }
 
-    public void emit(SseEvent event) {
-        SseEmitter current = this.emitter;
+    public void emitDevice(String type, Object data) {
+        SseEmitter current = this.deviceEmitter;
         if (current == null) return;
-        try {
-            current.send(SseEmitter.event()
-                .name(event.type().name())
-                .data(event));
-        } catch (IOException e) {
-            log.warn("SSE emit failed: {}", e.getMessage());
-        }
+        send(current, type, data, "device");
     }
 
-    public void close() {
-        if (heartbeatFuture != null) {
-            heartbeatFuture.cancel(false);
+    public void closeDevice() {
+        if (deviceHbFuture != null) {
+            deviceHbFuture.cancel(false);
+            deviceHbFuture = null;
         }
-        SseEmitter current = this.emitter;
-        if (current != null) {
-            try {
-                current.complete();
-            } catch (Exception e) {
-                log.warn("SSE emitter complete failed: {}", e.getMessage());
+        SseEmitter emitter = this.deviceEmitter;
+        if (emitter != null) {
+            try { emitter.complete(); } catch (Exception e) {
+                log.warn("SSE device emitter complete failed: {}", e.getMessage());
             }
-            this.emitter = null;
+            this.deviceEmitter = null;
         }
     }
 
-    private void startHeartbeat() {
-        if (heartbeatFuture != null) {
-            heartbeatFuture.cancel(false);
+    // ── Workplace emitter ──
+
+    public SseEmitter createWorkplaceEmitter() {
+        SseEmitter previous = this.workplaceEmitter;
+        if (previous != null) {
+            try { previous.complete(); } catch (Exception e) { /* ignore */ }
         }
-        heartbeatFuture = heartbeat.scheduleAtFixedRate(() -> {
-            SseEmitter current = this.emitter;
-            if (current == null) return;
+        workplaceEmitter = new SseEmitter(0L);
+        if (workplaceHbFuture != null) workplaceHbFuture.cancel(false);
+        workplaceHbFuture = heartbeat.scheduleAtFixedRate(
+                heartbeatTask(workplaceEmitter, this::closeWorkplace),
+                30, 30, TimeUnit.SECONDS);
+        return workplaceEmitter;
+    }
+
+    public void emitWorkplace(String type, Object data) {
+        SseEmitter current = this.workplaceEmitter;
+        if (current == null) return;
+        send(current, type, data, "workplace");
+    }
+
+    public void closeWorkplace() {
+        if (workplaceHbFuture != null) {
+            workplaceHbFuture.cancel(false);
+            workplaceHbFuture = null;
+        }
+        SseEmitter emitter = this.workplaceEmitter;
+        if (emitter != null) {
+            try { emitter.complete(); } catch (Exception e) {
+                log.warn("SSE workplace emitter complete failed: {}", e.getMessage());
+            }
+            this.workplaceEmitter = null;
+        }
+    }
+
+    // ── Internal ──
+
+    private void send(SseEmitter emitter, String type, Object data, String channel) {
+        try {
+            emitter.send(SseEmitter.event().name(type).data(data));
+        } catch (IOException e) {
+            log.warn("SSE {} emit failed: {}", channel, e.getMessage());
+        }
+    }
+
+    private Runnable heartbeatTask(SseEmitter emitter, Runnable onFailure) {
+        return () -> {
             try {
-                current.send(SseEmitter.event().comment("keepalive"));
+                emitter.send(SseEmitter.event().comment("keepalive"));
             } catch (IOException e) {
                 log.warn("SSE heartbeat failed: {}", e.getMessage());
-                close();
+                onFailure.run();
             }
-        }, 30, 30, TimeUnit.SECONDS);
+        };
     }
 }

@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -51,11 +53,11 @@ class DeviceConnectionMonitorTest {
         when(tool.id()).thenReturn(1L);
 
         CountDownLatch latch = new CountDownLatch(1);
-        doAnswer(inv -> { latch.countDown(); return null; }).when(sseService).emit(any());
+        doAnswer(inv -> { latch.countDown(); return null; }).when(sseService).emitDevice(anyString(), any());
 
         monitor.start();
         latch.await(3, TimeUnit.SECONDS);
 
-        verify(sseService, atLeastOnce()).emit(any());
+        verify(sseService, atLeastOnce()).emitDevice(anyString(), any());
     }
 }

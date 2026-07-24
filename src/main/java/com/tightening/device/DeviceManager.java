@@ -143,7 +143,8 @@ public class DeviceManager implements AutoCloseable {
         deviceHandlers.clear();
 
         deviceConnectionMonitor.stop();
-        sseService.close();
+        sseService.closeDevice();
+        sseService.closeWorkplace();
     }
 
     // 监听设备变更事件（使用 @TransactionalEventListener 确保事务提交后处理）

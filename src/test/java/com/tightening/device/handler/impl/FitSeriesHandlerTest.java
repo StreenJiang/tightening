@@ -40,13 +40,13 @@ class FitSeriesHandlerTest {
 
     @Test
     void constructFitSeriesHandler_shouldBeNonNull() {
-        FitSeriesHandler handler = new FitSeriesHandler(group, deviceService, fitConfig, tighteningDataService, curveDataService, toolCommonConfig, deviceConfig);
+        FitSeriesHandler handler = new FitSeriesHandler(group, deviceService, fitConfig, tighteningDataService, curveDataService, toolCommonConfig, deviceConfig, null);
         assertThat(handler).isNotNull();
     }
 
     @Test
     void getSupportedTypes_shouldReturnFitType() {
-        FitSeriesHandler handler = new FitSeriesHandler(group, deviceService, fitConfig, tighteningDataService, curveDataService, toolCommonConfig, deviceConfig);
+        FitSeriesHandler handler = new FitSeriesHandler(group, deviceService, fitConfig, tighteningDataService, curveDataService, toolCommonConfig, deviceConfig, null);
         Set<DeviceType> types = handler.getSupportedTypes();
         assertThat(types).containsExactly(DeviceType.FIT_FTC6);
     }

@@ -20,6 +20,8 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import org.springframework.context.ApplicationEventPublisher;
+
 public abstract class SudongSeriesHandler extends ToolHandler {
 
     public SudongSeriesHandler(NioEventLoopGroup group,
@@ -27,8 +29,9 @@ public abstract class SudongSeriesHandler extends ToolHandler {
                                 TighteningDataService tighteningDataService,
                                 CurveDataService curveDataService,
                                 ToolCommonConfig toolCommonConfig,
-                                DeviceConfig deviceConfig) {
-        super(group, deviceService, tighteningDataService, curveDataService, toolCommonConfig, deviceConfig);
+                                DeviceConfig deviceConfig,
+                                ApplicationEventPublisher eventPublisher) {
+        super(group, deviceService, tighteningDataService, curveDataService, toolCommonConfig, deviceConfig, eventPublisher);
     }
 
     @Override

@@ -52,7 +52,7 @@ class SudongSeriesHandlerTest {
                                 CurveDataService curveDataService,
                                 ToolCommonConfig toolCommonConfig,
                                 DeviceConfig deviceConfig) {
-            super(group, deviceService, tighteningDataService, curveDataService, toolCommonConfig, deviceConfig);
+            super(group, deviceService, tighteningDataService, curveDataService, toolCommonConfig, deviceConfig, null);
         }
 
         @Override
@@ -67,7 +67,7 @@ class SudongSeriesHandlerTest {
         toolCommonConfig = new ToolCommonConfig();
         handler = new SudongX7Handler(
                 group, deviceService, tighteningDataService,
-                curveDataService, toolCommonConfig, deviceConfig);
+                curveDataService, toolCommonConfig, deviceConfig, null);
     }
 
     @AfterEach

@@ -12,6 +12,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 import java.util.EnumSet;
@@ -28,8 +29,9 @@ public class SudongX7Handler extends SudongSeriesHandler {
                             TighteningDataService tighteningDataService,
                             CurveDataService curveDataService,
                             ToolCommonConfig toolCommonConfig,
-                            DeviceConfig deviceConfig) {
-        super(group, deviceService, tighteningDataService, curveDataService, toolCommonConfig, deviceConfig);
+                            DeviceConfig deviceConfig,
+                            ApplicationEventPublisher eventPublisher) {
+        super(group, deviceService, tighteningDataService, curveDataService, toolCommonConfig, deviceConfig, eventPublisher);
     }
 
     @Override

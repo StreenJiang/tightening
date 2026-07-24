@@ -38,13 +38,13 @@ class AtlasPFSeriesHandlerTest {
 
     @Test
     void constructAtlasPFSeriesHandler_shouldBeNonNull() {
-        AtlasPFSeriesHandler handler = new AtlasPFSeriesHandler(group, deviceService, tighteningDataService, curveDataService, config, deviceConfig);
+        AtlasPFSeriesHandler handler = new AtlasPFSeriesHandler(group, deviceService, tighteningDataService, curveDataService, config, deviceConfig, null);
         assertThat(handler).isNotNull();
     }
 
     @Test
     void getSupportedTypes_shouldReturnAtlasTypes() {
-        AtlasPFSeriesHandler handler = new AtlasPFSeriesHandler(group, deviceService, tighteningDataService, curveDataService, config, deviceConfig);
+        AtlasPFSeriesHandler handler = new AtlasPFSeriesHandler(group, deviceService, tighteningDataService, curveDataService, config, deviceConfig, null);
         Set<DeviceType> types = handler.getSupportedTypes();
         assertThat(types).containsExactlyInAnyOrder(DeviceType.ATLAS_PF4000, DeviceType.ATLAS_PF6000_OP);
     }

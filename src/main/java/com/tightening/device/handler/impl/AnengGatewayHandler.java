@@ -3,11 +3,10 @@ package com.tightening.device.handler.impl;
 import com.tightening.config.GatewayConfig;
 import com.tightening.constant.DeviceStatus;
 import com.tightening.constant.DeviceType;
-import com.tightening.constant.SseEventType;
+import com.tightening.constant.SseEvents;
 import com.tightening.device.DeviceHolder;
 import com.tightening.device.handler.DeviceHandler;
 import com.tightening.device.type.TCPDevice;
-import com.tightening.dto.SseEvent;
 import com.tightening.entity.Device;
 import com.tightening.netty.protocol.codec.ModbusRtuFrameDecoder;
 import com.tightening.service.DeviceService;
@@ -299,9 +298,11 @@ public class AnengGatewayHandler implements DeviceHandler {
     }
 
     public void pushDeviceStatusEvent(long deviceId, DeviceStatus status) {
-        sseService.emit(new SseEvent(SseEventType.DEVICE_STATUS,
-                Map.of("deviceId", deviceId, "status", status),
-                LocalDateTime.now()));
+        sseService.emitDevice(SseEvents.DEVICE_STATUS, Map.of(
+                "deviceId", deviceId,
+                "status", status,
+                "ts", LocalDateTime.now().toString()
+        ));
     }
 
     // === Utility ===

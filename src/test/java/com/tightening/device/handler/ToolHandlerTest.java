@@ -55,7 +55,7 @@ class ToolHandlerTest {
     static class TestToolHandler extends ToolHandler {
 
         TestToolHandler(NioEventLoopGroup g, DeviceService ds, TighteningDataService tds, CurveDataService cds, ToolCommonConfig cfg, DeviceConfig deviceConfig) {
-            super(g, ds, tds, cds, cfg, deviceConfig);
+            super(g, ds, tds, cds, cfg, deviceConfig, null);
         }
 
         @Override

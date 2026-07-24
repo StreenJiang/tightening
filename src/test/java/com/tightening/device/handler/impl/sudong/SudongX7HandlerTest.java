@@ -53,7 +53,7 @@ class SudongX7HandlerTest {
                                 CurveDataService curveDataService,
                                 ToolCommonConfig toolCommonConfig,
                                 DeviceConfig deviceConfig) {
-            super(group, deviceService, tighteningDataService, curveDataService, toolCommonConfig, deviceConfig);
+            super(group, deviceService, tighteningDataService, curveDataService, toolCommonConfig, deviceConfig, null);
         }
 
         @Override

@@ -1,8 +1,7 @@
 package com.tightening.lifecycle.monitor;
 
-import com.tightening.constant.SseEventType;
+import com.tightening.constant.SseEvents;
 import com.tightening.device.DeviceRegistry;
-import com.tightening.dto.SseEvent;
 import com.tightening.service.SseService;
 import com.tightening.util.ThreadUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -65,7 +64,10 @@ public class DeviceConnectionMonitor {
             }
             if (!current.equals(lastStatus)) {
                 lastStatus = current;
-                sseService.emit(new SseEvent(SseEventType.DEVICE_STATUS, current, LocalDateTime.now()));
+                Map<String, Object> payload = new HashMap<>();
+                current.forEach((k, v) -> payload.put(String.valueOf(k), v));
+                payload.put("ts", LocalDateTime.now().toString());
+                sseService.emitDevice(SseEvents.DEVICE_STATUS, payload);
             }
         } catch (Exception e) {
             log.warn("DeviceConnectionMonitor check error", e);

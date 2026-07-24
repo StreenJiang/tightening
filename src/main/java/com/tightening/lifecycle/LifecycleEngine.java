@@ -1,10 +1,12 @@
 package com.tightening.lifecycle;
 
 import com.tightening.constant.BoltState;
+import com.tightening.constant.SseEvents;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
 import com.tightening.constant.WorkplaceStatus;
 import com.tightening.device.contract.ITool;
+import com.tightening.dto.TighteningDataDTO;
 import com.tightening.entity.TaskRecord;
 import com.tightening.entity.TighteningData;
 import com.tightening.i18n.BusinessException;
@@ -17,6 +19,7 @@ import com.tightening.lifecycle.message.*;
 import com.tightening.lifecycle.monitor.PersistentMonitor;
 import com.tightening.service.TaskRecordService;
 import com.tightening.service.WorkplaceStatusService;
+import com.tightening.util.Converter;
 import com.tightening.util.JsonUtils;
 import lombok.extern.slf4j.Slf4j;
 
@@ -52,7 +55,7 @@ public class LifecycleEngine {
     private Consumer<String> onFaulted;
     private Consumer<Long> onCompleted;
     private Consumer<Long> onTriggered;
-    private Consumer<TighteningData> onTighteningJudged;
+    private PipelineEventListener pipelineEventListener;
 
     private final List<TriggerCapability> triggerCaps;
     private final WorkplaceStatusService wsService;
@@ -77,7 +80,7 @@ public class LifecycleEngine {
     public void onFaulted(Consumer<String> callback) { this.onFaulted = callback; }
     public void onCompleted(Consumer<Long> callback) { this.onCompleted = callback; }
     public void onTriggered(Consumer<Long> callback) { this.onTriggered = callback; }
-    public void onTighteningJudged(Consumer<TighteningData> cb) { this.onTighteningJudged = cb; }
+    public void onPipelineEvent(PipelineEventListener listener) { this.pipelineEventListener = listener; }
 
     private void registerDefaultHandlers() {
         registerHandler(InboundCommand.TriggerRequest.class, this::handleTriggerRequest);
@@ -247,7 +250,7 @@ public class LifecycleEngine {
             ctx.setCurrentStage(Stage.FINALIZATION);
             ctx.setCurrentSubState(SubState.FAULTED);
         }
-        if (onFaulted != null) onFaulted.accept(fault.reason());
+        faultPipeline(fault.reason());
         shutdown();
     }
 
@@ -314,12 +317,7 @@ public class LifecycleEngine {
             }
         }
 
-        if (onTighteningJudged != null
-                && stage == Stage.OPERATION && subState == SubState.JUDGING
-                && context.getJudgeResult() != null
-                && context.getCurrentOperationData() != null) {
-            onTighteningJudged.accept(context.getCurrentOperationData());
-        }
+        firePipelineEvents(stage, subState);
 
         // Capability 可能重定向管道（如 AdvanceBolt → FINALIZATION）
         if (context.getCurrentStage() != stage || context.getCurrentSubState() != subState) {
@@ -359,6 +357,30 @@ public class LifecycleEngine {
         }
     }
 
+    private void faultPipeline(String reason) {
+        if (pipelineEventListener != null) {
+            pipelineEventListener.onEvent(SseEvents.TASK_CONTROL, Map.of(
+                    "control", "stopped",
+                    "reason", reason,
+                    "ts", LocalDateTime.now().toString()
+            ));
+        }
+        if (onFaulted != null) onFaulted.accept(reason);
+    }
+
+    private void firePipelineEvents(Stage stage, SubState subState) {
+        if (pipelineEventListener == null || context == null) return;
+
+        // tightening:data — JUDGING 完成后推送全量 TighteningDataDTO
+        if (stage == Stage.OPERATION && subState == SubState.JUDGING
+                && context.getJudgeResult() != null
+                && context.getCurrentOperationData() != null) {
+            TighteningDataDTO dto = Converter.entity2Dto(
+                    context.getCurrentOperationData(), TighteningDataDTO::new);
+            pipelineEventListener.onEvent(SseEvents.TIGHTENING_DATA, dto);
+        }
+    }
+
     private void handleStageFailure(Capability failedCap) {
         log.error("Stage failure at: {}", failedCap.id());
         context.setCurrentStage(Stage.FINALIZATION);
@@ -369,7 +391,7 @@ public class LifecycleEngine {
                 BusinessException.toErrorString("capability.failed", failedCap.id()));
         }
         saveCheckpoint("StageFailure:" + failedCap.id());
-        if (onFaulted != null) onFaulted.accept("Capability failed: " + failedCap.id());
+        faultPipeline("Capability failed: " + failedCap.id());
         shutdown();
     }
 

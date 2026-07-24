@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -44,8 +45,9 @@ public class FitSeriesHandler extends ToolHandler {
                             TighteningDataService tighteningDataService,
                             CurveDataService curveDataService,
                             ToolCommonConfig toolCommonConfig,
-                            DeviceConfig deviceConfig) {
-        super(group, deviceService, tighteningDataService, curveDataService, toolCommonConfig, deviceConfig);
+                            DeviceConfig deviceConfig,
+                            ApplicationEventPublisher eventPublisher) {
+        super(group, deviceService, tighteningDataService, curveDataService, toolCommonConfig, deviceConfig, eventPublisher);
         this.fitConfig = fitConfig;
     }
 

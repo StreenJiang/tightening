@@ -3,11 +3,12 @@ package com.tightening.service;
 import com.tightening.constant.LockReason;
 import com.tightening.constant.WorkplaceStatus;
 import org.junit.jupiter.api.*;
-import org.mockito.ArgumentCaptor;
 
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 class WorkplaceStatusServiceTest {
@@ -33,7 +34,7 @@ class WorkplaceStatusServiceTest {
         wsService.transitionTo(WorkplaceStatus.ACTIVATED, Set.of());
 
         assertThat(wsService.current()).isEqualTo(WorkplaceStatus.ACTIVATED);
-        verify(sseService, times(1)).emit(any());
+        verify(sseService, times(1)).emitWorkplace(anyString(), any());
     }
 
     @Test
@@ -42,7 +43,7 @@ class WorkplaceStatusServiceTest {
         var reasons = Set.of(LockReason.PSET_SENDING);
         wsService.transitionTo(WorkplaceStatus.OPERATION_DISABLE, reasons);
 
-        verify(sseService, times(1)).emit(any());
+        verify(sseService, times(1)).emitWorkplace(anyString(), any());
     }
 
     @Test

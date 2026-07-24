@@ -13,6 +13,12 @@ public enum DeviceType {
     ATLAS_PF6000_OP(2, "PF6000-OP"),
     FIT_FTC6(3, "FIT-FTC6"),
     SUDONG_X7(4, "SUDONG-X7"),
+
+    // 新增：网关及子设备（ID 分段：10-19）
+    ANENG_GATEWAY(10, "Aneng Gateway"),
+    ARM(11, "Torque Arm"),
+    SETTER_SELECTOR(12, "Setter Selector"),
+    ARRANGER(13, "Screw Arranger"),
     ;
 
     private final int id;
@@ -49,5 +55,9 @@ public enum DeviceType {
             throw new IllegalArgumentException("Unknown device type id: " + id);
         }
         return type.getHandler();
+    }
+
+    public boolean isSubDevice() {
+        return this.id >= 10 && this.id <= 19;
     }
 }

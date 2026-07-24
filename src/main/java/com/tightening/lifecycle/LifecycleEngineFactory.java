@@ -2,6 +2,7 @@ package com.tightening.lifecycle;
 
 import com.tightening.config.LocalSettings;
 import com.tightening.constant.DeviceType;
+import com.tightening.device.DeviceRegistry;
 import com.tightening.device.contract.ITool;
 import com.tightening.entity.ProductBolt;
 import com.tightening.entity.ProductTask;
@@ -36,6 +37,7 @@ public class LifecycleEngineFactory {
     private final BarCodeMatchingRuleService barCodeMatchingRuleService;
     private final BoltPartsBarcodeService partsBarcodeService;
     private final WorkplaceStatusService workplaceStatusService;
+    private final DeviceRegistry deviceRegistry;
 
     public LifecycleEngine createEngine(
             ProductTask task,
@@ -55,6 +57,9 @@ public class LifecycleEngineFactory {
             .taskData(task)
             .boltConfigs(bolts)
             .deviceRegistry(deviceMap)
+            .armRegistry(deviceRegistry.getAllArms())
+            .setterSelectorRegistry(deviceRegistry.getAllSetterSelectors())
+            .arrangerRegistry(deviceRegistry.getAllArrangers())
             .productCode(productCode)
             .partsCode(partsCode)
             .boltBarcodeRuleIds(barcodeMap)

@@ -3,13 +3,19 @@ package com.tightening.device;
 import com.tightening.constant.DeviceChangeType;
 import com.tightening.constant.DeviceStatus;
 import com.tightening.constant.DeviceType;
+import com.tightening.device.contract.IArm;
 import com.tightening.device.contract.ITool;
 import com.tightening.device.event.DeviceChangeEvent;
 import com.tightening.device.handler.DeviceHandler;
 import com.tightening.device.handler.DeviceHandlerFactory;
 import com.tightening.device.handler.ToolHandler;
+import com.tightening.device.handler.impl.AnengGatewayHandler;
+import com.tightening.device.type.Arm;
+import com.tightening.entity.ArmModelConfig;
 import com.tightening.entity.Device;
 import com.tightening.lifecycle.DataRouter;
+import com.tightening.mapper.ArmModelConfigMapper;
+import com.tightening.service.DeviceService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,6 +24,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -33,11 +42,17 @@ class DeviceRegistryTest {
     @Mock
     private DataRouter dataRouter;
 
+    @Mock
+    private DeviceService deviceService;
+
+    @Mock
+    private ArmModelConfigMapper armModelConfigMapper;
+
     private DeviceRegistry registry;
 
     @BeforeEach
     void setUp() {
-        registry = new DeviceRegistry(handlerFactory, dataRouter);
+        registry = new DeviceRegistry(handlerFactory, dataRouter, deviceService, armModelConfigMapper);
     }
 
     @Test
@@ -132,5 +147,82 @@ class DeviceRegistryTest {
         registry.onDeviceChange(new DeviceChangeEvent(this, DeviceChangeType.ADD, device));
 
         assertThat(registry.getTool(1L)).isNull();
+    }
+
+    @Test
+    @DisplayName("子设备类型 ARM → getArm 返回非 null")
+    void armRegistersToDeviceRegistry() {
+        // 准备 Mock 通信盒 Handler
+        AnengGatewayHandler gwHandler = mock(AnengGatewayHandler.class);
+        when(gwHandler.getStatus(anyLong())).thenReturn(DeviceStatus.CONNECTED);
+        when(handlerFactory.getHandler(DeviceType.ANENG_GATEWAY)).thenReturn(gwHandler);
+
+        // 准备 ArmModelConfig
+        ArmModelConfig model = new ArmModelConfig();
+        model.setId(1L);
+        model.setXSlaveAddr(1);
+        model.setXRegister(0x0003);
+        model.setXCount(2);
+        model.setYSlaveAddr(2);
+        model.setYRegister(0x0003);
+        model.setYCount(2);
+        model.setParseStrategy("STANDARD");
+        when(armModelConfigMapper.selectById(1)).thenReturn(model);
+
+        // 准备 ARM 子设备
+        Arm device = new Arm();
+        device.setId(100L);
+        device.setType(DeviceType.ARM.getId());
+        device.setGatewayDeviceId(10L);
+        device.setArmModelId(1);
+
+        // 触发 ADD 事件
+        registry.onDeviceChange(new DeviceChangeEvent(this, DeviceChangeType.ADD, device));
+
+        // 验证子设备已注册到 DeviceRegistry
+        IArm arm = registry.getArm(100L);
+        assertThat(arm).isNotNull();
+        assertThat(arm.id()).isEqualTo(100L);
+        assertThat(arm.type()).isEqualTo(DeviceType.ARM);
+    }
+
+    @Test
+    @DisplayName("通信盒 DELETE → 级联移除所有子设备")
+    void gatewayDeleteCascadesSubDevices() {
+        // 准备 Mock 通信盒 Handler
+        AnengGatewayHandler gwHandler = mock(AnengGatewayHandler.class);
+        when(gwHandler.getStatus(anyLong())).thenReturn(DeviceStatus.CONNECTED);
+        when(handlerFactory.getHandler(DeviceType.ANENG_GATEWAY)).thenReturn(gwHandler);
+
+        // 准备 ArmModelConfig
+        ArmModelConfig model = new ArmModelConfig();
+        model.setId(1L);
+        model.setXSlaveAddr(1);
+        model.setXRegister(0x0003);
+        model.setXCount(2);
+        model.setYSlaveAddr(2);
+        model.setYRegister(0x0003);
+        model.setYCount(2);
+        model.setParseStrategy("STANDARD");
+        when(armModelConfigMapper.selectById(1)).thenReturn(model);
+
+        // 准备并注册 ARM 子设备
+        Arm device = new Arm();
+        device.setId(100L);
+        device.setType(DeviceType.ARM.getId());
+        device.setGatewayDeviceId(10L);
+        device.setArmModelId(1);
+
+        registry.onDeviceChange(new DeviceChangeEvent(this, DeviceChangeType.ADD, device));
+        assertThat(registry.getArm(100L)).isNotNull();
+
+        // 触发 DELETE 事件
+        registry.onDeviceChange(new DeviceChangeEvent(this, DeviceChangeType.DELETE, 100L));
+
+        // 验证子设备已移除
+        assertThat(registry.getArm(100L)).isNull();
+
+        // 验证通信盒的 removeSubDevice 被调用
+        verify(gwHandler).removeSubDevice(100L);
     }
 }

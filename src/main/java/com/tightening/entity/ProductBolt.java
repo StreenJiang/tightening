@@ -26,4 +26,8 @@ public class ProductBolt extends BaseEntity {
     private Double locationXPercent;
     private Double locationYPercent;
     private Integer enabled;
+    private Long arrangerDeviceId;
+    private String arrangerChannels;          // 逗号分隔通道号
+    private Long setterSelectorId;
+    private Integer setterPosition;           // 1-based
 }

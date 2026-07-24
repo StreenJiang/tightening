@@ -15,17 +15,27 @@ import static org.assertj.core.api.Assertions.assertThat;
 class StubCapabilityTest {
 
     @Test
-    @DisplayName("SendArrangerSignal precondition 始终返回 false")
+    @DisplayName("SendArrangerSignal precondition=false when no arranger configured")
     void sendArrangerSignalShouldAlwaysSkip() {
         var cap = new SendArrangerSignal();
-        assertThat(cap.precondition(null)).isFalse();
+        var bolt = new ProductBolt();
+        bolt.setId(1L);
+        var ctx = TaskContext.builder()
+            .boltConfigs(List.of(bolt))
+            .build();
+        assertThat(cap.precondition(ctx)).isFalse();
     }
 
     @Test
-    @DisplayName("SendSetterSelector precondition 始终返回 false")
+    @DisplayName("SendSetterSelector precondition=false when no setter configured")
     void sendSetterSelectorShouldAlwaysSkip() {
         var cap = new SendSetterSelector();
-        assertThat(cap.precondition(null)).isFalse();
+        var bolt = new ProductBolt();
+        bolt.setId(1L);
+        var ctx = TaskContext.builder()
+            .boltConfigs(List.of(bolt))
+            .build();
+        assertThat(cap.precondition(ctx)).isFalse();
     }
 
     @Test

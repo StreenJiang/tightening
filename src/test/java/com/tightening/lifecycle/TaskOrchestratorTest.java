@@ -63,7 +63,7 @@ class TaskOrchestratorTest {
         factory = new LifecycleEngineFactory(
             taskRecordService, tighteningDataService, exportTaskService, settings,
             Map.of(DeviceType.ATLAS_PF4000, judgmentStrategy), barCodeMatchingRuleService,
-            partsBarcodeService, workplaceStatusService);
+            partsBarcodeService, workplaceStatusService, deviceRegistry);
         orchestrator = new TaskOrchestrator(factory, deviceRegistry, mock(SseService.class));
     }
 

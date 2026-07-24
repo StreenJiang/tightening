@@ -5,6 +5,9 @@ import com.tightening.constant.DeviceType;
 import com.tightening.constant.LockReason;
 import com.tightening.constant.Stage;
 import com.tightening.constant.SubState;
+import com.tightening.device.contract.IArranger;
+import com.tightening.device.contract.IArm;
+import com.tightening.device.contract.ISetterSelector;
 import com.tightening.device.contract.ITool;
 import com.tightening.entity.*;
 import com.tightening.judgment.JudgmentResult;
@@ -43,6 +46,18 @@ public class TaskContext {
     /** boltId → barCodeMatchingRuleId（触发阶段预加载，BoltBarCodeCheck 读取） */
     @Builder.Default
     private final Map<Long, Long> boltBarcodeRuleIds = new HashMap<>();
+
+    // ═══ 子设备注册表 ═══
+
+    @Builder.Default
+    private final Map<Long, IArm> armRegistry = new ConcurrentHashMap<>();
+
+    @Builder.Default
+    private final Map<Long, ISetterSelector> setterSelectorRegistry = new ConcurrentHashMap<>();
+
+    @Builder.Default
+    private final Map<Long, IArranger> arrangerRegistry = new ConcurrentHashMap<>();
+
     @Builder.Default @Setter private volatile boolean interruptRequested = false;
     @Builder.Default @Setter private volatile String interruptReason = null;
 

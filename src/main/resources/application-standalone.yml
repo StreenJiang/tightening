@@ -25,3 +25,8 @@ tool-control:
   fit:
     heart-beat-interval-ms: 30000
     heart-beat-retry-max: 3
+  gateway:
+    poll-interval-ms: 100
+    arm-read-timeout-ms: 3000
+    setter-reset-retry-max: 10
+    setter-retry-delay-ms: 100

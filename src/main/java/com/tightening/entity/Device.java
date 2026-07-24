@@ -18,4 +18,6 @@ public class Device extends BaseEntity {
     private String description;
     private Integer type;
     private String detail;
+    private Long gatewayDeviceId;
+    private Integer armModelId;
 }

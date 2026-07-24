@@ -16,6 +16,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -28,6 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Slf4j
 @Component
 public class DeviceManager implements AutoCloseable {
+
 
     private final Map<Long, DeviceHandler> deviceHandlers;
     private final ScheduledExecutorService scanScheduler;
@@ -94,6 +96,7 @@ public class DeviceManager implements AutoCloseable {
     private void scanAndConnect() {
         deviceHandlers.forEach((deviceId, handler) -> {
             DeviceStatus status = handler.getStatus(deviceId);
+            // DEGRADED 不触发重连（TCP 是通的，仅部分子设备异常）
             if (status == DeviceStatus.NONE || status == DeviceStatus.DISCONNECTED) {
                 connectExecutor.submit(() -> {
                     try {
@@ -161,6 +164,11 @@ public class DeviceManager implements AutoCloseable {
 
     private void addDevice(Device device) {
         if (device == null)
+            return;
+
+        // 子设备不直接管理连接（由网关 handler 代理）
+        DeviceType type = DeviceType.getType(device.getType());
+        if (type == null || type.isSubDevice())
             return;
 
         DeviceHandler handler = DeviceType.getHandlerByTypeId(device.getType());

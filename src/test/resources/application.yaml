@@ -94,3 +94,8 @@ tool-control:
     heart-beat-retry-max: 3
     reassembly-timeout-ms: 10000
     heart-beat-timeout-ms: 5000
+  gateway:
+    poll-interval-ms: 100
+    arm-read-timeout-ms: 3000
+    setter-reset-retry-max: 10
+    setter-retry-delay-ms: 100

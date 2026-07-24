@@ -3,6 +3,7 @@ package com.tightening.lifecycle;
 import com.tightening.config.LocalSettings;
 import com.tightening.constant.BarCodeRuleType;
 import com.tightening.constant.DeviceType;
+import com.tightening.device.DeviceRegistry;
 import com.tightening.device.contract.ITool;
 import com.tightening.entity.BarCodeMatchingRule;
 import com.tightening.entity.ProductBolt;
@@ -48,6 +49,7 @@ class LifecycleEngineFactoryTest {
     @Mock private BarCodeMatchingRuleService barCodeMatchingRuleService;
     @Mock private WorkplaceStatusService workplaceStatusService;
     @Mock private BoltPartsBarcodeService partsBarcodeService;
+    @Mock private DeviceRegistry deviceRegistry;
     @Mock private ITool mockTool;
 
     private LifecycleEngineFactory factory;
@@ -66,7 +68,7 @@ class LifecycleEngineFactoryTest {
         factory = new LifecycleEngineFactory(
             taskRecordService, tighteningDataService, exportTaskService, settings,
             Map.of(DeviceType.ATLAS_PF4000, judgmentStrategy), barCodeMatchingRuleService,
-            partsBarcodeService, workplaceStatusService);
+            partsBarcodeService, workplaceStatusService, deviceRegistry);
     }
 
     @AfterEach

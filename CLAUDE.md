@@ -2,7 +2,7 @@
 
 ## 项目概述
 
-工业拧紧工具通信中间件。通过 Netty TCP 连接多种品牌的拧紧控制器（Atlas Copco PF 系列、FIT FTC6），接收拧紧数据并持久化到 SQLite，通过 REST API 暴露设备控制能力。
+工业拧紧工具通信中间件。通过 Netty TCP 连接多种品牌的拧紧控制器（Atlas Copco PF 系列、FIT FTC6、速动 X7），接收拧紧数据并持久化到 SQLite，通过 REST API 暴露设备控制能力，内置任务生命周期引擎驱动工位拧紧流程。
 
 **多模块规划**：后续将增加 server Maven module，作为管理端供开发者/管理员登录进行客户配置和系统管理。通过 profile 或配置决定启动拧紧控制系统还是管理端。两个模块共享领域模型和公共服务。
 
@@ -26,58 +26,75 @@
 | Java | 21 |
 | Spring Boot | 3.5.10 |
 | Netty | 4.1.129.Final |
-| MyBatis-Plus | 3.5.9 |
-| 数据库 | SQLite（通过 Flyway 管理迁移） |
+| MyBatis-Plus | 3.5.16 |
+| 数据库 | SQLite 3.53.2.0（通过 Flyway 管理迁移） |
 | 构建 | Maven |
 | 测试 | JUnit 5 + AssertJ 3.27.7 |
+| PLC4X | 0.13.1（Modbus TCP / Siemens S7 驱动） |
+| jSerialComm | 2.11.4（串口通信） |
 
 ## 分层架构
 
 ```
-controller/     REST API 入口（DeviceController, LoginController, UserAccountInfoController）
-service/        业务逻辑（DeviceService, TighteningDataService, UserAccountInfoService）
-device/         设备管理层（DeviceManager, DeviceHolder, 设备变更事件）
-device/handler/ 设备协议实现层（继承链见下方）
-netty/protocol/ Netty 帧编解码器（Atlas / FIT 两种协议）
-mapper/         MyBatis-Plus Mapper（TighteningDataMapper, DeviceMapper, UserAccountInfoMapper）
-entity/         JPA 实体（TighteningData, CurveData, Device, UserAccountInfo）
-dto/            数据传输对象
-constant/       枚举常量（设备类型、协议命令码、拧紧结果等）
-config/         配置类（DeviceConfig, FitConfig, ToolCommonConfig）
-util/           工具类（JsonUtils, Converter）
+controller/          REST API 入口（Device, Login, UserAccountInfo, Sse, ProductTask, TaskLifecycle）
+service/             业务逻辑（Device, TighteningData, CurveData, Sse, WorkplaceStatus, Barcode,
+                     BoltDeviceBinding, ProductTask, TaskRecord, ExportTask 等）
+device/              设备管理层
+  device/contract/     IDevice / ITool / ToolAdapter — 面向生命周期引擎的工具抽象
+  device/handler/      DeviceHandler → TCPDeviceHandler → ToolHandler 继承链
+  device/handler/impl/ 具体协议实现（AtlasPFSeries, FitSeries, SudongSeries, SudongX7）
+  device/event/        设备变更事件
+  device/type/         设备类型模型（TCPDevice, SerialPortDevice, Arranger）
+  DeviceHolder.java    Channel + 状态持有者
+  DeviceManager.java   设备生命周期管理 + 扫描调度
+  DeviceRegistry.java  ITool 注册中心，监听 DeviceChangeEvent 维护工具注册表
+lifecycle/            任务生命周期引擎
+  capability/          可插拔的管道能力单元（30+ Capability 实现）
+  message/             引擎消息类型（InboundCommand / DeviceEvent / EngineInternal）
+  monitor/             持久化监视器（DeviceConnectionMonitor, LockStateMonitor 等）
+  LifecycleEngine.java Actor 模型驱动的状态机
+  TaskOrchestrator.java 多引擎协调器
+  PipelineDefinition.java 阶段→子状态→能力映射表
+  TaskContext.java     任务上下文（携带当前阶段、螺栓状态、设备注册表等）
+export/               数据导出（事件驱动 outbox 模式：ExportTaskCreatedEvent → ExportWorker）
+netty/protocol/       Netty 帧编解码器（Atlas / FIT / 速动 X7 三种协议）
+mapper/               MyBatis-Plus Mapper
+entity/               JPA 实体（TighteningData, CurveData, Device, TaskRecord, BoltDeviceBinding 等）
+dto/                  数据传输对象
+constant/             枚举常量（含 atlas/ fit/ sudongx7/ 子包）
+judgment/             拧紧结果判定策略（AtlasJudgment, FitJudgment, SudongJudgment）
+config/               配置类（DeviceConfig, FitConfig, ToolCommonConfig, JudgmentConfig, NettyConfig）
+util/                 工具类（JsonUtils, Converter, BarcodeMatcher, Crc16Utils）
 ```
 
 ## 设备处理继承链
 
 ```
 DeviceHandler (interface)
-├── connect(deviceId)       // 连接设备
-├── disconnect(deviceId)    // 断开设备
-└── getStatus(deviceId)     // 获取设备状态
+├── connect(deviceId), disconnect(deviceId), getStatus(deviceId)
+└── getSupportedTypes()
 
-TCPDeviceHandler (abstract)
-├── Netty Bootstrap + NioEventLoopGroup 管理
+TCPDeviceHandler (abstract) — Netty Bootstrap + NioEventLoopGroup 管理
 ├── ConcurrentHashMap<Long, DeviceHolder> 设备状态存储
 ├── CompletableFuture 响应等待机制（rspFutures / errorMsgFutures）
 ├── 连接失败自动重连（RECONNECT_INTERVAL_MS 间隔）
 └── sendCmdAsync() — 异步命令发送 + 超时处理
 
-ToolHandler (abstract)
-├── enableToolOp / disableToolOp — 带冷却控制的启用/禁用
-├── forceEnableToolOp / forceDisableToolOp — 绕过冷却
+ToolHandler (abstract) — lock/unlock 控制 + PSet 切换 + 数据回调
+├── lock / unlock / forceLock / forceUnlock — 带冷却控制的启停
 ├── sendPSetOp — 参数集切换（pSetLock 保护）
-├── changeToolState() — 通用状态变更（冷却 + 回调）
-└── 抽象方法：enableTool, disableTool, sendPSetCmd
+├── handleTighteningData / handleCurveData → ToolAdapter 回调
+└── 抽象方法：unlockTool, lockTool, sendPSetCmd
 
-AtlasPFSeriesHandler               FitSeriesHandler
-├── Atlas PF 系列协议编解码          ├── FIT FTC6 协议编解码
-├── 无心跳（Atlas 协议层自带）       ├── IdleStateHandler + HeartbeatHandler
-├── 连接→订阅数据的初始化流程        ├── 曲线数据重组 FitCurveDataReassembler
-│                                   └── FitConfig 心跳配置
-├── AtlasPF4000Handler              └── FitFTC6Handler
-└── AtlasPF6000OPHandler
-      (仅构造注入，无额外逻辑)
+AtlasPFSeriesHandler          FitSeriesHandler           SudongSeriesHandler (abstract)
+├── Atlas PF 协议编解码         ├── FIT FTC6 协议编解码      └── SudongX7Handler
+├── 无心跳（Atlas 自带）        ├── IdleStateHandler           ├── 速动 X7 协议编解码
+├── 连接→订阅数据初始化         │   + HeartbeatHandler          ├── CRC16 校验
+│                              ├── FitCurveDataReassembler      └── 连接→握手→订阅初始化
+│                              └── FitConfig 心跳配置
 ```
+
+**旧版子类 AtlasPF4000Handler / AtlasPF6000OPHandler / FitFTC6Handler 已移除** — SeriesHandler 直接处理对应设备类型，不再需要仅含构造注入的空壳子类。
 
 ## 核心流程
 
@@ -116,16 +133,16 @@ sendCmdAsync(cmdSupplier, reqCmdStr, key, deviceId, needRsp)
   → 完成时自动从 rspFutures 清理（防止内存泄漏）
 ```
 
-### 4. Tool enable/disable 冷却机制
+### 4. Tool lock/unlock 冷却机制
 
 ```
-enableToolOp(deviceId)
-  → changeToolState(true, deviceId, bypass=false)
+unlock(deviceId) / lock(deviceId) → changeToolState(targetEnabled, deviceId, bypassCooldown)
   → stateLock 锁内检查冷却
-    - 如果当前 isToolEnabled==false 且想 enable → 放行（状态变更）
-    - 如果当前 isToolEnabled==true 且想 enable → 检查 lastEnableTime 是否过冷却期
-  → 调用 enableTool(deviceId) 异步发送
-  → whenComplete: 成功后更新 isToolEnabled / lastEnableTime
+    - 状态变更（oppositeState=true）→ 放行
+    - 状态不变（oppositeState=false）→ 检查 lastLockTime/lastUnlockTime 是否过冷却期
+  → 调用 unlockTool(deviceId) / lockTool(deviceId) 异步发送
+  → whenComplete: 成功后更新 isUnlocked / lastUnlockTime 或 lastLockTime
+  → forceUnlock/forceLock 绕过冷却检查
 ```
 
 ### 5. Fit 系列设备心跳流程
@@ -148,24 +165,67 @@ DeviceChangeEvent 发布（事务提交后）
   → ADD:    添加 handler 到 deviceHandlers
   → UPDATE: 先 removeDevice (断开旧连接) → addDevice (重新添加)
   → DELETE: removeDevice (断开连接并移除)
+
+  → DeviceRegistry.onDeviceChange() @TransactionalEventListener
+  → ADD:    handlerFactory.getHandler → new ToolAdapter(handler, device) → tools.put
+  → UPDATE: tools.remove → 重新 registerTool
+  → DELETE: tools.remove
 ```
 
-## 关键设计决策与 TODO
+### 7. 任务生命周期引擎
+
+```
+用户触发 → POST /api/task-lifecycle/trigger {productCode, partsCode}
+  → TaskOrchestrator.createEngine() → LifecycleEngineFactory 组装
+  → LifecycleEngine.start(ctx) → Actor 线程启动
+  → TriggerCapability 管道执行（产品条码校验、零件条码匹配、工位配置检查等）
+  → 通过后进入 VALIDATION → OPERATION → FINALIZATION 阶段
+  → 每个阶段/子状态执行对应的 Capability 列表
+  → 拧紧数据到达（TIGHTENING_RECEIVED 等待点）→ advancePipeline()
+  → 完成或失败 → onCompleted / onFaulted 回调 → SSE 推送状态
+```
+
+### 8. 拧紧数据路由
+
+```
+InBoundHandler 解析帧 → ToolHandler.handleTighteningData(dto, channel)
+  → ToolAdapter.fireTighteningData(dto) → DataRouter.routeTighteningData()
+  → LifecycleEngine.postMessage(TighteningDataReceived) → Actor inbox
+  → Actor 线程处理 → advancePipeline() 推进到 JUDGING → STORING 等子状态
+```
+
+### 9. 导出流程（事件驱动 Outbox）
+
+```
+拧紧数据保存 → 发布 ExportTaskCreatedEvent
+  → ExportWorker @TransactionalEventListener（事务提交后）
+  → ExporterRegistry 匹配所属 Exporter（StandardExcelExporter / TxtExporter / PlcResultSender / OuterDatabaseStorer）
+  → Exporter.export() 执行导出
+  → 更新 ExportTask 状态
+```
+
+## 关键设计决策
 
 ### 已实现
 - **DeviceHandlerFactory** — 通过 `List<DeviceHandler>` 自动注入所有实现，遍历匹配 handlerClass
 - **静态 Provider 模式** — `DeviceType.handlerProvider` 由 `DeviceHandlerService.@PostConstruct` 注册，解决枚举与 Spring Bean 的循环依赖
-- **冷却控制** — enable/disable 操作有 cooldown 保护（`toolCommonConfig.enableDisableCooldownMs`），防止客户端频繁切换
+- **冷却控制** — lock/unlock 操作有 cooldown 保护（`toolCommonConfig.lockUnlockCooldownMs`），防止客户端频繁切换
 - **线程安全** — `ConcurrentHashMap` + `ReentrantLock` + `volatile` 字段
 - **DeferredResult** — Controller 使用异步响应，不阻塞 Tomcat 线程
+- **SSE 推送** — `SseService` + `SseController` 向 UI 推送工位状态、设备连接状态、拧紧结果
+- **DeviceRegistry** — `ConcurrentHashMap<Long, ITool>` 注册中心，通过 `@TransactionalEventListener` 监听设备变更自动维护
+- **ToolAdapter** — 实现 `ITool`，包装 `ToolHandler`，向外部（生命周期引擎）暴露统一工具操作接口
+- **任务生命周期引擎** — Actor 模型单线程处理 Inbox 消息，`PipelineDefinition` 声明式定义阶段/子状态/Capability 映射
+- **Capability 模式** — 每个管道步骤作为独立 Capability（`precondition → execute → onError`），可组合、可排序
+- **崩溃恢复** — 每个管道推进步保存 `ContextCheckpoint` 到 DB，Actor 线程 uncaught exception 自动 markFaulted
+- **事件驱动导出** — `ExportTaskCreatedEvent` 事务后异步处理，解耦数据存储与导出
 
 ### TODO / 待完善
 1. `connectToChannel` 重连逻辑：TODO 注释标注重连需完善（目前简单 schedule 递归）
 2. `disconnect` 中 `channel.close().sync().addListener` 的 listener：TODO 标注需添加资源清理逻辑
 3. `Bootstrap` 定义位置：TODO 标注考虑是否上提到更高抽象层
 4. 重连失败没有退避策略（固定 `RECONNECT_INTERVAL_MS`）
-5. `changeToolState()` 方法的 `action` 变量使用中文英文混在日志中，需统一
-6. `rspFutures` 按 key 索引，同一个 deviceId + cmdType 可能并发冲突（如果连续发送同一类型命令）
+5. `rspFutures` 按 key 索引，同一个 deviceId + cmdType 可能并发冲突（如果连续发送同一类型命令）
 
 ## 协议实现
 
@@ -174,6 +234,7 @@ DeviceChangeEvent 发布（事务提交后）
 - 帧编解码：`AtlasFrameCodec` / `AtlasFrame`
 - 初始化：`AtlasPFSeriesInitHandler` — 连接后发送订阅命令
 - 数据处理：`AtlasPFSeriesInBoundHandler`
+- 数据解析：`AtlasTighteningDataParser`, `AtlasCurveDataParser`, `AtlasDataUtils`
 
 ### FIT Protocol
 - 帧解码：`FitFrameCodec` + `LengthFieldBasedFrameDecoder`
@@ -181,16 +242,34 @@ DeviceChangeEvent 发布（事务提交后）
 - 初始化：`FitSeriesInitHandler`
 - 数据处理：`FitSeriesInBoundHandler`
 - 曲线重组：`FitCurveDataReassembler` — 将分片的曲线数据拼装为完整 `CurvePoint` 列表
+- 数据解析：`FitTighteningDataParser`, `FitCurveDataParser`, `FitDataUtils`
+
+### 速动 X7 Protocol
+- 帧解码：`SudongX7FrameDecoder` + `SudongX7FrameCodec`
+- 帧模型：`SudongX7Frame`
+- 初始化：`SudongX7InitHandler` — 连接后握手 + 订阅
+- 数据处理：`SudongX7InBoundHandler`
+- 数据解析：`SudongX7TighteningDataParser`
+- CRC16 校验：`Crc16Utils`
 
 ## 数据库
 
 SQLite 数据库，路径：`~/tightening_system/tightening.db`
 
-Flyway 迁移文件：
+Flyway 迁移文件（`src/main/resources/db/migration/`）：
 - V1.0.1 — account_info 表
 - V1.0.2 — device 表
 - V1.0.3 — tightening_data 表
 - V1.0.4 — curve_data 表
+- V1.0.6 — 重命名并添加 Atlas 列
+- V1.0.7 — task_record 表
+- V1.0.8 — product_task 表
+- V1.0.9 — product_side 表
+- V1.0.10 — product_bolt 表
+- V1.0.11~V1.0.12 — task_record 可空 + 崩溃恢复
+- V1.0.13 — export_task 表（事件驱动导出）
+- V1.0.14 — barcode_matching 分段
+- V1.0.15~V1.0.23 — 条码规则、任务配置、重命名（mission → task）等增量迁移
 
 ## 配置结构
 
@@ -198,8 +277,10 @@ Flyway 迁移文件：
 - `application-dev.yml` — 开发环境
 - `application-standalone.yml` — 独立部署
 - `DeviceConfig` — 设备扫描/连接线程池配置（`device-config.*`）
-- `FitConfig` — FIT 协议心跳配置
-- `ToolCommonConfig` — 工具通用配置（冷却时间）
+- `FitConfig` — FIT 协议心跳配置（`tool-control.atlas.fit.*`）
+- `ToolCommonConfig` — 工具通用配置（`tool-control.common.lock-unlock-cooldown-ms`, `cmd-timeout-ms`）
+- `JudgmentConfig` — 拧紧判定容差配置
+- `NettyConfig` — Netty NioEventLoopGroup Bean 定义
 
 ## 编码约定
 

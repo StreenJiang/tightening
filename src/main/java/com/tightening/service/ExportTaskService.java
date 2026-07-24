@@ -4,8 +4,10 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tightening.constant.ExportTaskStatus;
 import com.tightening.entity.ExportTask;
+import com.tightening.export.ExportTaskCreatedEvent;
 import com.tightening.mapper.ExportTaskMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -14,6 +16,12 @@ import java.util.List;
 @Slf4j
 @Service
 public class ExportTaskService extends ServiceImpl<ExportTaskMapper, ExportTask> {
+
+    private final ApplicationEventPublisher eventPublisher;
+
+    public ExportTaskService(ApplicationEventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
+    }
 
     public void createTask(String type, Long taskRecordId, String payload) {
         ExportTask task = new ExportTask()
@@ -24,6 +32,7 @@ public class ExportTaskService extends ServiceImpl<ExportTaskMapper, ExportTask>
                 .setRetryCount(0)
                 .setMaxRetries(3);
         save(task);
+        eventPublisher.publishEvent(new ExportTaskCreatedEvent(this));
     }
 
     public List<ExportTask> findPending(int limit) {

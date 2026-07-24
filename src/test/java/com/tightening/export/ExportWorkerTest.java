@@ -36,7 +36,7 @@ class ExportWorkerTest {
     void shouldDoNothingWhenNoPendingTasks() {
         when(exportTaskService.findPending(10)).thenReturn(List.of());
 
-        exportWorker.processPending();
+        exportWorker.doProcess();
 
         verify(exportTaskService).findPending(10);
         verify(exportTaskService, never()).markProcessing(any());
@@ -48,10 +48,12 @@ class ExportWorkerTest {
     @DisplayName("导出成功时标记 COMPLETED")
     void shouldMarkCompletedOnSuccess() {
         ExportTask task = task(1L, "excel", 42L, "{\"k\":\"v\"}", 0, 3);
-        when(exportTaskService.findPending(10)).thenReturn(List.of(task));
+        when(exportTaskService.findPending(10))
+                .thenReturn(List.of(task))
+                .thenReturn(List.of());
         when(exporterRegistry.get("excel")).thenReturn(exporter(ExportResult.ok("done")));
 
-        exportWorker.processPending();
+        exportWorker.doProcess();
 
         verify(exportTaskService).markProcessing(1L);
         verify(exportTaskService).markCompleted(1L);
@@ -62,10 +64,12 @@ class ExportWorkerTest {
     @DisplayName("导出返回失败时标记重试")
     void shouldMarkFailedWhenExporterReturnsFailure() {
         ExportTask task = task(1L, "excel", 42L, "{}", 0, 3);
-        when(exportTaskService.findPending(10)).thenReturn(List.of(task));
+        when(exportTaskService.findPending(10))
+                .thenReturn(List.of(task))
+                .thenReturn(List.of());
         when(exporterRegistry.get("excel")).thenReturn(exporter(ExportResult.fail("bad data")));
 
-        exportWorker.processPending();
+        exportWorker.doProcess();
 
         verify(exportTaskService).markProcessing(1L);
         verify(exportTaskService).markFailed(eq(1L), eq("bad data"), eq(1), eq(3));
@@ -76,10 +80,12 @@ class ExportWorkerTest {
     @DisplayName("导出抛异常时标记重试")
     void shouldMarkFailedWhenExportThrows() {
         ExportTask task = task(1L, "excel", 42L, "{}", 0, 3);
-        when(exportTaskService.findPending(10)).thenReturn(List.of(task));
+        when(exportTaskService.findPending(10))
+                .thenReturn(List.of(task))
+                .thenReturn(List.of());
         when(exporterRegistry.get("excel")).thenThrow(new RuntimeException("conn lost"));
 
-        exportWorker.processPending();
+        exportWorker.doProcess();
 
         verify(exportTaskService).markProcessing(1L);
         verify(exportTaskService).markFailed(eq(1L), eq("conn lost"), eq(1), eq(3));
@@ -91,11 +97,13 @@ class ExportWorkerTest {
     void shouldProcessMultipleTasksIndependently() {
         ExportTask task1 = task(1L, "excel", 42L, "{}", 0, 3);
         ExportTask task2 = task(2L, "pdf", 43L, "{}", 0, 3);
-        when(exportTaskService.findPending(10)).thenReturn(List.of(task1, task2));
+        when(exportTaskService.findPending(10))
+                .thenReturn(List.of(task1, task2))
+                .thenReturn(List.of());
         when(exporterRegistry.get("excel")).thenReturn(exporter(ExportResult.ok("done")));
         when(exporterRegistry.get("pdf")).thenReturn(exporter(ExportResult.fail("no template")));
 
-        exportWorker.processPending();
+        exportWorker.doProcess();
 
         verify(exportTaskService).markCompleted(1L);
         verify(exportTaskService).markFailed(eq(2L), eq("no template"), eq(1), eq(3));

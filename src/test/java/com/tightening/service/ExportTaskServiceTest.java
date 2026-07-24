@@ -13,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -35,11 +36,14 @@ class ExportTaskServiceTest {
     @Mock
     private ExportTaskMapper mapper;
 
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     private ExportTaskService service;
 
     @BeforeEach
     void setUp() {
-        service = spy(new ExportTaskService());
+        service = spy(new ExportTaskService(eventPublisher));
         ReflectionTestUtils.setField(service, "baseMapper", mapper);
     }
 
